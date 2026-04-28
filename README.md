@@ -14,3 +14,7 @@ python start.py
 - A small set of elements with linear maps
 - Lattice composition and single-particle tracking
 - Basic (uncoupled) linear optics helpers
+
+## Documentation / knowledge base
+- Architecture: `docs/ARCHITECTURE.md`
+- Reference knowledge base (put manuals/papers/links here): `docs/ref/`
