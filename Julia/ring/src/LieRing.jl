@@ -43,10 +43,10 @@ include("LinearOptics.jl")    # Twiss, dispersion, tunes, alpha_c
 include("Symplectic.jl")      # J^T S J - S checks
 include("Tracking.jl")        # factorised Lie-map tracking
 include("TaylorMap.jl")       # independent truncated Taylor map (RK4 in DA)
-include("NormalForm.jl")      # linear normalisation (nonlinear: planned)
 include("SecondOrder.jl")     # D2, alpha0/1, eta0/1, xi1/2, longitudinal H, separatrix
 include("ExactIntegrator.jl") # exact-H integrator incl. finite RF cavity
 include("Acceleration.jl")    # reference ramp, tune measurement
+include("NormalForm.jl")      # 6D Lie normal form with RF
 include("Plotting.jl")        # all plots
 include("Optimizers.jl")      # OPTIONAL optimisation (not used by default)
 

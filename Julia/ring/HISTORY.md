@@ -163,3 +163,35 @@ delta_eq from harmonic LS fit (constant + 1st + 2nd harmonic); note phase
 convention (phi>0 late). At dm=2e-3, rel err vs -eta1 dm^2/(2 eta0) ~ 2.5%;
 Y-plane Lambda at 20 mm within 1%; Omega/omega_s matches 1-phi^2/16 to 1e-4.
 Beam Physics chapter `equilibrium.md` updated with the table.
+
+## v0.7 - 6D Lie normal form with RF + equilibrium_energy research note (2026-10-27)
+
+**Goal.** Make the Lie / map machinery visible (not only tracking): Dragt-Finn
+normal form of the one-turn map *with RF*, derive `delta_eq(J)`, explain the
+A-test residual, and write a *separate* Russian research note (not in the Beam
+Manual).
+
+**LieRing changes.**
+
+* `NormalForm.jl` rewritten: `one_turn_map_rf`, `rf_kick_taylor`,
+  `fixed_point_6d`, `normal_form_rf` (linear CS + synchrotron Twiss,
+  Dragt-Finn to order 3), `delta_eq_phase_condition` / `delta_eq_nf`,
+  `tunes_nf`, `evaluate_map`.
+* NF coefficients of `delta_eq = c_x J_x + c_y J_y + c_s J_s` match the note
+  formulas to relative `< 1e-5`:
+  NF `(0.146652, 0.223289, 392.952)` vs note `(0.146653, 0.223290, 392.950)`.
+* Thin-RF fixed point `delta* ~ 0`; finite cavity `delta*(V=0.2 MV, L=1 m)
+  = +1.073e-7`, linear in V, grows with L (TOF / cavity energy-gain asymmetry).
+
+**App `equilibrium_energy`.**
+
+* `scripts/run_v07.jl`: four-way `delta_eq` (a note, b NF, c exact tracking,
+  d truncated Taylor) + residual V/L scans + long-term mean Taylor vs Lie.
+* Separate note `apps/equilibrium_energy/note/main.pdf` (Russian, 5 pp.) with
+  captioned figures; not part of the Beam Manual.
+
+**Key residual origin.** The A-test floor `~1e-7` independent of `dm` is the
+6D closed-orbit `delta*` of the *finite* RF cavity, not a tracking error.
+Tracking `delta_eq ≈ note + delta*`; thin-RF NF / Taylor match the bare note.
+
+**Local only.** Commits + tag `v0.7`; no push.

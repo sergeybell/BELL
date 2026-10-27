@@ -1,6 +1,6 @@
 name = "LieRing"
 uuid = "401abb11-212f-4acc-b190-b6aaf6d1c4c2"
-version = "0.6.0"
+version = "0.7.0"
 authors = ["Bell"]
 
 [deps]
@@ -12,3 +12,4 @@ TaylorSeries = "6aa5eb33-94cf-58f4-a9d0-e4b2c4fc25ea"
 [compat]
 TaylorSeries = "0.23"
 julia = "1.10"
+
