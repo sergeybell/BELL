@@ -12,20 +12,16 @@
 #                               "differential-algebra" integration, not by a
 #                               Lie series.
 #   ring_taylor_map(lat)        composition M_ring = M_n o ... o M_1,
-#                               truncated to MAP_ORDER = 2 after every step.
+#                               truncated to MAP_ORDER after every step.
 #   user_map(M, ref, C, h)      the same map in the user coordinates
 #                               (x, x', y, y', phi, delta):  U = T o M o T^-1.
-#   closed_orbit(M, delta)      4D fixed point at fixed delta (Newton).
-#   chromaticity(M)             dQ/ddelta from the tunes of the Jacobian on the
-#                               off-momentum closed orbit (central difference).
-#   momentum_compaction(M, ...) alpha_0, alpha_1 of  dC/C = a0 d + a1 d^2.
+#   chromaticity, momentum_compaction  wrappers around MapAnalysis readings
+#                               of whatever polynomial is passed in.
 #
 # WHY
-#   COSY INFINITY produces exactly this kind of object (a truncated Taylor
-#   map).  Building it in our own coordinates lets us compare (a) with our
-#   Lie maps (must agree to order 2 up to integration error) and (b) with
-#   COSY OUTPUT numbers (tunes, chromaticity, alpha_c) at the end.
-#   Note: a truncated Taylor map is NOT exactly symplectic (see Symplectic.jl).
+#   Independent check of the Lie product: same Hamiltonians, integrated as
+#   polynomials and composed by substitution.  The one-turn object of the
+#   ring is the product of Lie factors, not this map.
 #
 # WHAT YOU SEE
 #   Nothing printed here; scripts/02 prints the comparisons.
@@ -33,9 +29,9 @@
 module TaylorMap
 
 using TaylorSeries, LinearAlgebra
-using ..Constants, ..Elements, ..Hamiltonians, ..Jets, ..LieOperators
+using ..Constants, ..Elements, ..Hamiltonians, ..Jets, ..LieOperators, ..MapAnalysis
 
-export taylor_map_element, element_maps, ring_taylor_map, user_map, closed_orbit, tunes_at_delta,
+export taylor_map_element, element_maps, ring_taylor_map, user_map,
        chromaticity, momentum_compaction
 
 _V(H) = (g = [differentiate(H, j) for j in 1:6]; [sum(SYMPLECTIC_S[i, j] * g[j] for j in 1:6) for i in 1:6])
@@ -80,50 +76,16 @@ function user_map(M, ref::RefParticle, C::Real, h::Real)
     return compose_maps(T, compose_maps(M, Tinv))
 end
 
-_evalpt(M, z) = [evaluate(M[i], z) for i in 1:6]
-_jac(M, z) = [evaluate(differentiate(M[i], j), z) for i in 1:6, j in 1:6]
-
-"4D closed orbit (x,px,y,py) at fixed delta; l is irrelevant (no RF)."
-function closed_orbit(M, d::Real; iters = 30)
-    u = zeros(4)
-    for _ in 1:iters
-        z = [u; 0.0; d]
-        F = _evalpt(M, z)[1:4] .- u
-        J = _jac(M, z)[1:4, 1:4] - I
-        du = -J \ F
-        u .+= du
-        maximum(abs, du) < 1e-16 && break
-    end
-    return u
-end
-
-function _frac_tune(m)
-    c = (m[1, 1] + m[2, 2]) / 2
-    s = sign(m[1, 2]) * sqrt(max(0.0, 1 - c^2))
-    return mod(atan(s, c), 2pi) / 2pi
-end
-
-"Fractional tunes of the Jacobian on the closed orbit at momentum deviation delta."
-function tunes_at_delta(M, d::Real)
-    u = closed_orbit(M, d)
-    J = _jac(M, [u; 0.0; d])
-    return (_frac_tune(J[1:2, 1:2]), _frac_tune(J[3:4, 3:4]), u)
-end
-
-"Chromaticities xi = dQ/ddelta (central difference, exact to first order for an order-2 map)."
+"xi = dQ/ddelta from chromaticity_orders of the given polynomial."
 function chromaticity(M; dd = 1e-5)
-    qp = tunes_at_delta(M, dd); qm = tunes_at_delta(M, -dd)
-    return ((qp[1] - qm[1]) / (2dd), (qp[2] - qm[2]) / (2dd))
+    ch = chromaticity_orders(M; dd = dd)
+    return (ch.x[2], ch.y[2])
 end
 
-"""
-dC/C(delta) on the closed orbit: dC/C = -dl/C + (v/v0 - 1); fit a0, a1 from
-delta = -dd, 0, +dd.  Returns (alpha0, alpha1).
-"""
+"alpha0, alpha1 from path_expansion of the given polynomial."
 function momentum_compaction(M, ref::RefParticle, C::Real; dd = 1e-4)
-    f(d) = (u = closed_orbit(M, d); z = [u; 0.0; d]; -_evalpt(M, z)[5] / C + (velocity_ratio(d, ref) - 1))
-    fp, fc, fm = f(dd), f(0.0), f(-dd)   # (not "f0": 2f0 would parse as the Float32 literal 2.0)
-    return ((fp - fm) / (2dd), (fp - 2 * fc + fm) / (2dd^2))
+    p = path_expansion(M, ref, C)
+    return (p.alpha0, p.alpha1)
 end
 
 end # module

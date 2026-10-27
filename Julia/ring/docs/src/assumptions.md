@@ -10,5 +10,9 @@ file are recorded in the Programmer Manual, not here).
 4. Magnets and RF frequency scale with the reference momentum during
    acceleration.
 5. Single RF station per turn for the averaged longitudinal Hamiltonian.
-6. Truncated maps are symplectic only up to the truncation order; exact
-   integration of ``H`` is symplectic to round-off.
+6. The one-turn object is the Lie product of Dragt–Finn factors, truncated
+   at degree 4 in the generators. Its polynomial expansion is symplectic
+   only up to the dropped degree. Integration of the unexpanded
+   Hamiltonian is symplectic to round-off.
+7. The product is written for maps that fix the origin (thin RF at
+   ``\varphi_s=\pi``). A net energy gain per turn is a separate problem.

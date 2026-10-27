@@ -19,3 +19,7 @@ ENV/
 .vscode/
 .idea/
 
+# LieRing HTML manuals (open in a browser, like BLonD)
+!Julia/ring/docs/build/
+!Julia/ring/docs/build/**
+

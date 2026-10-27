@@ -1,5 +1,9 @@
 # Second-order dispersion and momentum compaction
 
+The quadratic piece of the one-turn polynomial. A linear matrix cannot
+see ``D_2`` or ``\eta_1``. Both are read from the same Lie product as
+Twiss; they are not a second optical theory.
+
 ## Closed orbit in ``\delta``
 
 ```math
@@ -32,48 +36,19 @@ where ``v/v_0-1=c_1\delta+c_2\delta^2+c_3\delta^3`` and
 
 ## Slip factor
 
-The relative change of revolution period is
-``\Delta T/T_0=\eta_0\delta+\eta_1\delta^2+\eta_2\delta^3+\cdots``.
-Directly from time of flight,
-``\eta_0=-l_1/C=\alpha_0-1/\gamma_0^2``. The BLonD convention (Equations of
-Motion, eq. 15) expresses higher ``\eta_i`` through ``\alpha_i``:
+The relative change of revolution period is the time of flight of one turn.
+With ``l=-v\Delta t`` one has ``\Delta T/T_0=-(l/C)/(v/v_0)``, so on the
+closed orbit
 
 ```math
-\begin{aligned}
-\eta_0&=\alpha_0-\frac1{\gamma_s^2},\\
-\eta_1&=\frac{3\beta_s^2}{2\gamma_s^2}+\alpha_1-\alpha_0\eta_0,\\
-\eta_2&=-\frac{\beta_s^2(5\beta_s^2-1)}{2\gamma_s^2}+\alpha_2-2\alpha_0\alpha_1
-+\frac{\alpha_1}{\gamma_s^2}+\alpha_0^2\eta_0-\frac{3\beta_s^2\alpha_0}{2\gamma_s^2}.
-\end{aligned}
+\eta_0=-\frac{l_1}{C}=\alpha_0-\frac{1}{\gamma_0^2},\qquad
+\eta_1=-\frac{l_2}{C}+\frac{l_1}{C}\,\frac{1}{\gamma_0^2}
+=\alpha_1-\frac{\alpha_0}{\gamma_0^2}+\frac{3\beta_0^2}{2\gamma_0^2}+\frac{1}{\gamma_0^4}.
 ```
 
-The two expansions of ``\eta_1`` (TOF identity vs BLonD) differ by terms of
-order ``\alpha_0^2``; both are consistent when used with the matching drift
-formula (see below).
-
-## BLonD longitudinal drift (comparison)
-
-BLonD updates arrival time after an energy kick by (eq. 20, solver `exact`)
-
-```math
-\Delta t\leftarrow\Delta t+T_0\Biggl[\Bigl(1+\alpha_0\delta+\alpha_1\delta^2+\alpha_2\delta^3\Bigr)
-\frac{1+\Delta E/E_s}{1+\delta}-1\Biggr],
-```
-
-with ``\delta`` computed exactly from ``\Delta E``, and by the linearisation
-(eq. 19, solver `simple`)
-
-```math
-\Delta t\leftarrow\Delta t+T_0\,\eta_0\,\frac{\Delta E}{\beta_s^2 E_s}.
-```
-
-Element-by-element integration of the ring Hamiltonians reproduces the
-`exact` formula at the level ``\sim 10^{-6}`` relative in ``\Delta\phi`` per
-turn when ``\alpha_{0,1,2}`` are taken from the lattice; the `simple` formula
-deviates at the level of ``\alpha_1\delta`` (a few ``10^{-3}`` at
-``|\delta|=10^{-3}``). Thus ``\alpha_1`` *is* the leading nonlinear
-longitudinal term in the BLonD sense; the ring model includes it
-automatically through the exact element Hamiltonians (to all orders in the
-exact integrator, to map order in the truncated maps).
+These are the coefficients used in the averaged longitudinal Hamiltonian
+and in the formula for ``\delta_{\mathrm{eq}}``. They come from the
+one-turn Lie product, expanded to a polynomial only to read ``l_1`` and
+``l_2``.
 
 ![Second-order dispersion along the ring.](assets/sextupoles_dispersion2.png)

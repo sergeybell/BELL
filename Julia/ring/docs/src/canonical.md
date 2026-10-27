@@ -23,6 +23,21 @@ z=(x,\,p_x,\,y,\,p_y,\,l,\,\delta).
 The reference particle has charge ``Ze``, rest energy ``mc^2``, Lorentz factor
 ``\gamma_0``, velocity ``v_0=\beta_0 c`` and momentum ``p_0``.
 
+## From ``(t,-E)`` to ``(l,\delta)``
+
+The ``s``-Hamiltonian is first written with the longitudinal pair
+``(t,-E)``. A type-2 generating function at fixed ``s``,
+
+```math
+F_2(t,\delta;s)=-(t-s/v_0)\,E(\delta)/p_0,
+```
+
+produces the new coordinate ``l=\partial F_2/\partial\delta=-(t-s/v_0)\,v(\delta)``
+and adds ``\partial F_2/\partial s=E(\delta)/(p_0 v_0)`` to the Hamiltonian.
+After dropping a constant, that addition is the energy term ``e(\delta)``
+below. Because ``l`` is conjugate to ``\delta``, the momentum deviation
+``\delta=(p-p_0)/p_0`` is the true relative momentum, not an energy offset.
+
 The symplectic form on this space is the standard one,
 
 ```math

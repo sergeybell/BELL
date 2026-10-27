@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>LieRing</title>
+  <style>
+    body { font-family: "Segoe UI", Helvetica, Arial, sans-serif; max-width: 860px;
+           margin: 2.2rem auto; padding: 0 1.2rem 3rem; color: #1a1a1a; line-height: 1.45; }
+    h1 { font-weight: 600; font-size: 1.85rem; margin: 0 0 0.4rem; }
+    .lead { color: #5a6a7a; margin: 0 0 1.4rem; }
+    a { color: #1f3a5f; }
+    nav { display: flex; flex-wrap: wrap; gap: 0.7rem 1.4rem; margin: 0 0 1.6rem; }
+    nav a { font-weight: 600; }
+    figure { margin: 1.3rem 0; }
+    img { width: 100%; height: auto; border: 1px solid #d8dee6; background: #fff; }
+    figcaption { color: #5a6a7a; font-size: 0.92rem; margin-top: 0.4rem; }
+    code { font-family: Consolas, "JuliaMono", monospace; font-size: 0.92em; }
+  </style>
+</head>
+<body>
+  <h1>LieRing</h1>
+  <p class="lead">Symplectic ring modelling. The object of the ring is a product of Lie factors, not a stack of transport matrices.</p>
+  <nav>
+    <a href="docs/build/index.html">Beam Physics Manual</a>
+    <a href="docs/build/programmer/index.html">Programmer Manual</a>
+    <a href="docs/pdf/LieRing_Beam_Physics_Manual.pdf">Physics PDF</a>
+    <a href="docs/pdf/LieRing_Programmer_Manual.pdf">Programmer PDF</a>
+  </nav>
+  <figure>
+    <img src="docs/src/assets/architecture_object.png" alt="The ring is one Lie factor">
+    <figcaption>The ring is one Lie factor. Concatenate Hamiltonians in the algebra; read Twiss, η, ξ from the product; track a point through it. An RK4 polynomial map is a check, not the ring object.</figcaption>
+  </figure>
+  <figure>
+    <img src="docs/src/assets/architecture_orders.png" alt="One polynomial, three homogeneous readings">
+    <figcaption>One polynomial, three homogeneous readings: degree 1 is Twiss and η₀; degree 2 is D₂ and η₁; degree 3 is chromaticity.</figcaption>
+  </figure>
+  <p>HTML pages live in <code>docs/build/</code>. Markdown under <code>docs/src/</code> is only the source used to rebuild them.</p>
+</body>
+</html>

@@ -2,19 +2,17 @@
 # NormalForm.jl - 6D Lie normal form of the one-turn map (with RF)
 # =============================================================================
 #
-# Linear normalisation (phase 1) + nonlinear Dragt-Finn / homological analysis
-# of the one-turn Taylor map INCLUDING a thin RF kick, giving:
-#   - fixed point z* of the RF map (origin of the residual delta ~ 1e-7)
-#   - normal-form Hamiltonian H_N(Jx,Jy,Js) to cubic / quartic order
-#   - amplitude-dependent tunes
-#   - delta_eq(Jx,Jy,Js) = angle average of delta after the normalising map
+# One-turn Lie factor (magnetic product plus thin RF) and its Dragt-Finn
+# normal form.  The homological equation is solved on the generators.
+# delta_eq is the average of laboratory delta over the torus of actions.
 #
 # =============================================================================
 module NormalForm
 
 using LinearAlgebra
 using TaylorSeries
-using ..Jets, ..LieOperators, ..Constants, ..Elements, ..TaylorMap, ..Tracking, ..SecondOrder, ..LinearOptics
+using ..Jets, ..LieOperators, ..Constants, ..Elements, ..TaylorMap, ..Tracking,
+      ..MapAnalysis, ..SecondOrder, ..LinearOptics
 
 export linear_normalizing_matrix, rotation_residual, nonlinear_normal_form,
        evaluate_map, rf_kick_taylor, one_turn_map_rf, fixed_point_6d, center_map_at,
@@ -333,26 +331,21 @@ nonlinear_normal_form(args...; kwargs...) = normal_form_rf(args...; kwargs...)
 
 
 # =============================================================================
-# v0.8: explicit 6D Dragt-Finn normal form of the one-turn map (thin RF)
+# 6D Dragt-Finn normal form of the one-turn Lie factor (thin RF)
 # =============================================================================
 #
-#   M (order-3 Taylor map, thin RF kick)  --fixed point z*-->  M_c
-#   R = linear part of M_c;  A = symplectic eigen-normalisation (A^T S A = S):
-#       A^{-1} R A = diag(rot(mu_x), rot(mu_y), rot(mu_s)),
-#       rot(mu) = [cos mu  sin mu; -sin mu  cos mu] = exp(:-mu J:),
-#       J_k = (w_{2k-1}^2 + w_{2k}^2)/2.
-#   M_n = A^{-1} o M_c o A = R_rot o exp(:f3:) o exp(:f4:)   (Dragt-Finn)
-#   Order 3: T3 = exp(:F3:), M' = T3^{-1} o M_n o T3; f3' = f3 + L3 F3 is
-#            linear in F3; solve f3' = 0 (no cubic resonances).
-#   Order 4: T4 = exp(:F4:), f4'' = f4' + L4 F4 = h4 in span{J_i J_j}.
-#   Normal map N = exp(:h:), h(J) = -mu.J + sum_{i<=j} c_ij J_i J_j.
-#   Lab coordinates  z = z* + A (T3 o T4)(w),  w on the torus of actions J.
-#   delta_eq(J) = z*_6 + < (A (T3 o T4)(w))_6 >_theta
-#               = z*_6 + sum_k d_k J_k   (+ O(J^2), not kept at map order 3)
-#   d_k = (1/2)(d^2/dq_k^2 + d^2/dp_k^2) U_6 |_0 ,  U_6 = sum_j A_6j (T3 o T4)_j
+#   One-turn object: product of element factors, then the thin RF factor.
+#   R, A: symplectic eigen-normalisation, A^{-1} R A = rotations r(μ).
+#   Generators in normal coordinates: f_n(w) = f(A w).
+#   Order 3: F3 − F3 ∘ r = −f3  (divisor 1 − e^{-i(j-n)·μ} on monomials).
+#   Order 4: f4' = f4 + (1/2)[f3, F3];  F4 − F4 ∘ r = −f4'_nonres;
+#            h4 = resonant part = sum c_ij J_i J_j.
+#   Lab coordinates  z = z* + A (exp(:F3:) o exp(:F4:))(w)  on the torus J.
+#   delta_eq(J) = z*_6 + <(A T(w))_6>_theta = z*_6 + d·J
 # =============================================================================
 
-export NF6D, dragt_finn_nf6d, nf6d_delta_eq, nf6d_actions, nf6d_tunes, symplectic_eigen_A
+export NF6D, dragt_finn_nf6d, nf6d_delta_eq, nf6d_actions, nf6d_tunes, symplectic_eigen_A,
+       one_turn_factor_rf, homological_operator
 
 _mono(e) = prod(Z[i]^e[i] for i in 1:6)
 _hp_basis(k) = [_mono(e) for e in Jets.exponents_of_order(k)]
@@ -410,37 +403,47 @@ _lie_map_of(F) = [truncate_to(lie_exp(F, Z[i]), MAP_ORDER) for i in 1:6]
 _conj(Mx, F) = compose_maps(_lie_map_of(-F), compose_maps(Mx, _lie_map_of(F)))
 
 """
-    dragt_finn_nf6d(M) -> NF6D
-
-Explicit order-by-order Dragt-Finn normal form of an order-3 one-turn map M
-(6D, with RF). See header comment above for the formulas.
+Magnetic ring as a product of Lie factors, then the thin RF kick as one
+more factor.  The kick is a single canonical transformation: its generators
+are read from the polynomial of that kick, not from a composition of
+magnetic maps.
 """
-function dragt_finn_nf6d(M)
-    zstar = fixed_point_6d(M)
-    Mc = center_map_at(M, zstar)
-    R = map_linear_part(Mc)
+function one_turn_factor_rf(lat_mag::Lattice, cav::RFCavity, ref::RefParticle, C::Real)
+    Fmag = ring_lie_factor(lat_mag)
+    Mrf = rf_kick_taylor(cav, ref, C)
+    Frf = dragt_finn_factor(Mrf; name = cav.name)
+    return concatenate(Fmag, Frf; name = lat_mag.name * "+RF")
+end
+
+"""
+Linear operator on homogeneous polynomials of degree `k`:
+    L F = F − F ∘ r(μ)
+with r the block rotation of phase advances μ.  Eigenvalues are
+1 − exp(−i (j−n)·μ) in the complex monomial basis; the real monomial
+matrix is that divisor.
+"""
+function homological_operator(k::Int, mu)
+    basis = _hp_basis(k)
+    Rrot = rotation_matrix_6(mu)
+    L = hcat((_hcoeffs(e - pull_generator(e, Rrot), k) for e in basis)...)
+    return L, basis, Rrot
+end
+
+function _nf6d_from_factor(F::LieFactor, zstar)
+    R = F.R
     A, mu = symplectic_eigen_A(R)
-    Ai = inv(A)
-    Rn = Ai * R * A
-    Rrot = zeros(6, 6)
-    for k in 1:3
-        c, s = cos(mu[k]), sin(mu[k])
-        Rrot[2k-1:2k, 2k-1:2k] = [c s; -s c]
-    end
-    ZA = [sum(A[i, j] * Z[j] for j in 1:6) for i in 1:6]
-    McA = [truncate_to(evaluate(Mc[i], ZA), MAP_ORDER) for i in 1:6]
-    Mn = [truncate_to(sum(Ai[i, j] * McA[j] for j in 1:6), MAP_ORDER) for i in 1:6]
-    # ---- order 3
-    D0 = dragt_finn_factor(Mn)
-    b3 = _hp_basis(3); f30 = _hcoeffs(D0.f3, 3)
-    L3 = hcat([_hcoeffs(dragt_finn_factor(_conj(Mn, e)).f3, 3) .- f30 for e in b3]...)
-    x3 = -(L3 \ f30)
+    Rrot = rotation_matrix_6(mu)
+    Rn = inv(A) * R * A
+    f3n = pull_generator(F.f3, A)
+    f4n = pull_generator(F.f4, A)
+    L3, b3, _ = homological_operator(3, mu)
+    f30 = _hcoeffs(f3n, 3)
+    x3 = L3 \ (-f30)
     F3 = sum(x3[j] * b3[j] for j in eachindex(b3))
-    M3 = _conj(Mn, F3)
-    D1 = dragt_finn_factor(M3)
-    # ---- order 4
-    b4 = _hp_basis(4); f40 = _hcoeffs(D1.f4, 4)
-    L4 = hcat([_hcoeffs(dragt_finn_factor(_conj(M3, e)).f4, 4) .- f40 for e in b4]...)
+    f3_after = f3n + F3 - pull_generator(F3, Rrot)
+    f4p = hom(f4n + poisson(f3n, F3) / 2, 4)
+    L4, b4, _ = homological_operator(4, mu)
+    f40 = _hcoeffs(f4p, 4)
     Iq = [(Z[2k-1]^2 + Z[2k]^2) / 2 for k in 1:3]
     pairs = [(i, j) for i in 1:3 for j in i:3]
     B = hcat([_hcoeffs(Iq[i] * Iq[j], 4) for (i, j) in pairs]...)
@@ -452,25 +455,39 @@ function dragt_finn_nf6d(M)
     for (k, (i, j)) in enumerate(pairs)
         cmat[i, j] = cvec[k]
     end
-    M4 = _conj(M3, F4)
-    D2 = dragt_finn_factor(M4)
     h4 = sum(cvec[k] * Iq[i] * Iq[j] for (k, (i, j)) in enumerate(pairs))
-    # ---- transformation and delta_eq
+    f4_after = f4p + F4 - pull_generator(F4, Rrot)
     T = compose_maps(_lie_map_of(F3), _lie_map_of(F4))
     Tinv = compose_maps(_lie_map_of(-F4), _lie_map_of(-F3))
     U6 = sum(A[6, j] * T[j] for j in 1:6)
     d = [0.5 * (constant_term(differentiate(differentiate(U6, 2k-1), 2k-1)) +
                 constant_term(differentiate(differentiate(U6, 2k), 2k))) for k in 1:3]
-    # numerical torus average check (unit actions scaled small)
     dg = zeros(3)
     for k in 1:3
         J = zeros(3); J[k] = 1e-8
-        dg[k] = (_torus_mean(U6, J) ) / 1e-8
+        dg[k] = _torus_mean(U6, J) / 1e-8
     end
     sds = hypot(A[6, 5], A[6, 6]); sls = hypot(A[5, 5], A[5, 6])
-    return NF6D(zstar, A, mu, maximum(abs, Rn - Rrot), maximum(abs, A' * SYMPLECTIC_S * A - SYMPLECTIC_S),
-                F3, F4, maximum(abs, f30), maxabs(D1.f3), maxabs(D2.f4 - h4), cmat, d, dg,
-                T, Tinv, U6, sds, sls)
+    return NF6D(zstar, A, mu, maximum(abs, Rn - Rrot),
+                maximum(abs, A' * SYMPLECTIC_S * A - SYMPLECTIC_S),
+                F3, F4, maximum(abs, f30), maxabs(f3_after), maxabs(f4_after - h4),
+                cmat, d, dg, T, Tinv, U6, sds, sls)
+end
+
+"""
+    dragt_finn_nf6d(F::LieFactor) -> NF6D
+    dragt_finn_nf6d(M) -> NF6D
+
+Normal form of a one-turn factor (primary) or of a polynomial map (the
+map is first read as a Dragt-Finn factor).  The homological equation is
+solved on the generators: F − F ∘ r(μ) = −f_nonres.
+"""
+dragt_finn_nf6d(F::LieFactor) = _nf6d_from_factor(F, zeros(6))
+
+function dragt_finn_nf6d(M::AbstractVector)
+    zstar = fixed_point_6d(M)
+    Mc = center_map_at(M, zstar)
+    return _nf6d_from_factor(dragt_finn_factor(Mc), zstar)
 end
 
 function _torus_mean(P, J; nth = 8)

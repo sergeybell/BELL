@@ -1,7 +1,8 @@
 # Chromaticity
 
-At fixed ``\delta`` the transverse motion about ``z_\perp(\delta)`` is
-linearised. The tunes ``Q_{x,y}(\delta)`` from
+Chromaticity is a reading of the one-turn polynomial, not a descendant of
+the Twiss functions. At fixed ``\delta`` the transverse motion about
+``z_\perp(\delta)`` is linearised. The tunes ``Q_{x,y}(\delta)`` from
 ``\cos 2\pi Q=\tfrac12\mathrm{Tr}J(\delta)`` expand as
 
 ```math

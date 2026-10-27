@@ -10,6 +10,12 @@ The goal of this folder: learn Julia step by step towards a small, transparent
 tracking code for a magnetic FODO ring based on transfer maps, Lie generators and
 Poisson brackets (to be validated later against COSY INFINITY).
 
+The ring package is `ring/` (LieRing): Hamiltonians in canonical coordinates,
+product of Lie factors, thin RF, normal form, torus average of `δ`. Open its
+manuals in a browser: `ring/index.html`. Learning examples below do not depend
+on it. The equilibrium-momentum study lives in
+`C:\GIT_REPOS\SCT_2\Julia\equilibrium_energy\` and depends on this package.
+
 ## Install
 
 Windows (recommended — installs `juliaup`, the Julia version manager):

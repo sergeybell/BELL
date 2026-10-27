@@ -79,12 +79,11 @@ so phi/l contains delta^2, x^2, x'^2, x*delta, ... terms (printed by script 02).
    agreement with Lie product, user-coordinate map, chromaticity, alpha_0/1.
    Next: map-coefficient comparison with COSY output maps after an explicit,
    documented coordinate conversion.
-4. **Normal form**: linear part done; nonlinear Lie normal form of
-   R o exp(:f3:) (o exp(:f4:)): chromatic terms, detuning with amplitude,
-   resonance driving terms.
-5. **RF / synchrotron averaging**: thin RF cavities in the lattice, 6D closed
-   orbit and synchrotron tune, longitudinal normal form, averaging over
-   synchrotron oscillations (input for spin-dynamics / EDM studies).
+4. **Normal form** (DONE): one-turn object is the Lie product of Dragt-Finn
+   factors (BCH to f4). Homological equation on the generators
+   (divisor 1 - exp(-i(j-n)·μ)). δ_eq is the torus average of laboratory δ.
+5. **RF / synchrotron averaging**: thin RF in the one-turn product at φ_s=π;
+   finite cavity and ramp remain a separate path (origin-shifting maps).
 
 ## 5. Phase-1 results (magnetic_2.opt) - see script output for full precision
 
@@ -130,9 +129,10 @@ Longitudinal motion (turn n):  dphi/dn = -2 pi h (eta0 d + eta1 d^2),
 dd/dn = (Z V T/(b^2 E))(sin(phi_s+phi) - sin phi_s);  Q_s = sqrt(h eta0 Z V T cos phi_s/(2 pi b^2 E)),
 stable iff eta0 cos(phi_s) > 0 (our phi sign) -> below transition phi_s in (90,180) deg.
 
-Next steps: phase 3 coefficient-level map comparison, phase 4 nonlinear normal form
-(detuning, resonance terms), transverse RF fields / fringe fields, spin.
+Next steps: coefficient-level comparison with COSY after a coordinate dictionary,
+transverse RF / fringe fields, spin.
 
 
-## Status (v0.4)
-Phases 1-3 delivered. See HISTORY.md. Docs: docs/build/index.html and docs/pdf/LieRing_Beam_Physics_Manual.pdf. Optimisation is optional (Optimizers.jl / script 04). Coordinate transform verified nonlinear (script 06).
+## Status (v0.9)
+The ring is a product of Lie factors through the normal form. See HISTORY.md.
+Docs: docs/build/index.html and docs/pdf/LieRing_Beam_Physics_Manual.pdf.

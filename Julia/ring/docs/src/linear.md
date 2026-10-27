@@ -1,8 +1,20 @@
 # Linear optics
 
-The linear map of an element is ``R=\exp(L\,S\,\mathcal{H})`` with
-``\mathcal{H}_{ij}=\partial^2 H/\partial z_i\partial z_j|_0``. The one-turn
-matrix ``M`` is the product over the ring. With ``\cos\mu=\tfrac12\mathrm{Tr}M_x``,
+The linear map of an element is the closed form of the quadratic Lie
+transformation ``\exp(:f_2:)``. With
+``\mathcal{H}_{ij}=\partial^2 H/\partial z_i\partial z_j|_0``,
+
+```math
+R=\exp(L\,S\,\mathcal{H}).
+```
+
+This is not a textbook transport matrix: the Hessian comes from the same
+``H`` that generates the nonlinear factor. For plots along ``s`` the
+matrices are multiplied element by element. For one-turn optics of the
+ring, ``\mathtt{observables}`` reads the linear factor ``\mathcal{F}.R``
+of the Lie product, not a second, independent matrix product.
+
+With ``\cos\mu=\tfrac12\mathrm{Tr}M_x``,
 
 ```math
 \beta=\frac{M_{12}}{\sin\mu},\qquad

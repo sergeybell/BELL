@@ -3,18 +3,10 @@
 # =============================================================================
 #
 # WHAT
-#   One TaylorSeries JetSpace in the 6 canonical variables (x,px,y,py,l,delta),
-#   truncated at total order JET_ORDER = 3, plus small helpers:
-#   truncation to a lower order, coefficient extraction, ASCII printing.
-#
-# PHASE 2: JET_ORDER = 4, MAP_ORDER = 3 (needed for 2nd-order chromaticity).
-# WHY (phase-1 text, the same logic now holds one order higher)?
-#   Hamiltonians are expanded to order 3 in z (H = H2 + H3).  The Lie series
-#   exp(-L :H:) z then gives transfer maps that are exact to order 2
-#   (MAP_ORDER = 2); the order-3 part of the maps is incomplete (H4 missing)
-#   and is therefore always cut away with truncate_to(..., MAP_ORDER).
-#   To go to 3rd-order maps later: set JET_ORDER = 4, MAP_ORDER = 3 - nothing
-#   else in the program has to change.
+#   One polynomial space in the 6 canonical variables (x,px,y,py,l,delta).
+#   Hamiltonians are kept to total degree JET_ORDER = 4; maps obtained from
+#   the Lie series are cut at MAP_ORDER = 3.  A generator is a polynomial;
+#   the Poisson bracket acts on its coefficients.
 #
 # WHAT YOU SEE
 #   Nothing printed here; poly_string() is used by the scripts to print
@@ -24,7 +16,7 @@ module Jets
 
 using TaylorSeries
 
-export SPACE, Z, JET_ORDER, MAP_ORDER, truncate_to, maxabs, map_linear_part,
+export SPACE, Z, JET_ORDER, MAP_ORDER, truncate_to, hom, maxabs, map_linear_part,
        poly_string, map_string, coeff
 
 const JET_ORDER = 4   # phase 2: H to order 4 -> maps exact to order 3
@@ -35,6 +27,9 @@ const Z = variables(SPACE)
 
 "Keep only the homogeneous parts of order 0..n of a TaylorN polynomial."
 truncate_to(p::TaylorN, n::Int) = sum(TaylorN(p[k], JET_ORDER) for k in 0:n)
+
+"Homogeneous part of total degree k."
+hom(p::TaylorN, k::Int) = TaylorN(p[k], JET_ORDER)
 
 "Largest absolute coefficient of a polynomial (used for convergence / error checks)."
 maxabs(p::TaylorN) = maximum(k -> maximum(abs, p[k].coeffs; init = 0.0), 0:JET_ORDER)

@@ -3,18 +3,10 @@
 # =============================================================================
 #
 # WHAT
-#   build_factors(lat)           one LieFactor (R, f3) per element: the order-2
-#                                Lie map exp(-L:H:) of the element is computed
-#                                by LieOperators.lie_map and factorised.
-#   apply_factor(F, z)           z -> R * N3(P4(z)) (f4 flow, then f3 flow), where each is
-#                                applied as the time-1 flow of the Hamiltonian
-#                                -f3, integrated with the IMPLICIT MIDPOINT
-#                                rule (symplectic for any Hamiltonian), so each
-#                                factor is a canonical transformation to
-#                                machine precision at any amplitude.
-#   track(factors, z; turns)     factor-by-factor tracking, z in CANONICAL
-#                                coordinates; RF cavities are applied as thin
-#                                kicks (rf_kick).
+#   build_factors(lat)           one Dragt-Finn factor per element
+#   ring_lie_factor(lat)         product of those factors in the Lie algebra
+#   apply_factor(F, z)           flow of f4, then f3, then R (implicit midpoint)
+#   track(factors, z; turns)     apply each factor in order; RF as a thin kick
 #   rf_kick(z, cav, ref, C)      thin RF cavity, own derivation:
 #                                 dt = -l/v,  phi = -h omega0 dt,
 #                                 E -> E + Z V sin(phi_s + phi),
@@ -36,15 +28,21 @@ module Tracking
 using TaylorSeries, LinearAlgebra
 using ..Constants, ..Elements, ..Hamiltonians, ..Jets, ..LieOperators
 
-export build_factors, apply_factor, track, rf_kick, element_lie_map
+export build_factors, apply_factor, track, rf_kick, element_lie_map, ring_lie_factor
 
 const _MCACHE = Dict{Any,Any}()
 
-"Order-2 Lie map exp(-L:H:) z of an element (cached by element value)."
+"Lie map exp(-L:H:) z of an element, truncated to MAP_ORDER (cached)."
 element_lie_map(e::AbstractElement, ref::RefParticle) =
     get!(_MCACHE, (e, ref.p0_MeV)) do
         (e isa Marker) ? collect(Z) : lie_map(hamiltonian(e, ref), elem_length(e))
     end
+
+"Product of magnetic Dragt-Finn factors (thin RF is concatenated separately)."
+function ring_lie_factor(lat::Lattice; name = lat.name)
+    fs = LieFactor[F for F in build_factors(lat) if F isa LieFactor]
+    return product_factors(fs; name)
+end
 
 "One LieFactor per element (RFCavity entries are kept as the cavity itself)."
 function build_factors(lat::Lattice)

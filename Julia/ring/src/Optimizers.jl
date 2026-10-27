@@ -19,7 +19,7 @@
 module Optimizers
 
 using LinearAlgebra, TaylorSeries
-using ..Constants, ..Elements, ..Jets, ..TaylorMap, ..SecondOrder
+using ..Constants, ..Elements, ..Jets, ..TaylorMap, ..MapAnalysis, ..SecondOrder
 
 export ring_metrics, response, solve_A, solve_B
 function ring_metrics(lat::Lattice)

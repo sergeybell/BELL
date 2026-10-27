@@ -38,6 +38,19 @@ al = dispersion_along(lat, d.D1, d.D2)
 @printf("  along ring (element exits): max D = %.5f m, max|D2| = %.5f m, D2 range [%.5f, %.5f] m\n",
         maximum(al.D), maximum(abs, al.D2), minimum(al.D2), maximum(al.D2))
 @printf("  closure: D2(C) - D2(0) = %.2e, D2'(C) - D2'(0) = %.2e\n", al.D2[end] - al.D2[1], al.D2p[end] - al.D2p[1])
+# Check: same orbit pushed by RK4 element maps (not the definition of D2(s)).
+function _d2_rk4(lat, D1, D2)
+    dvar = Z[6]
+    z = [[D1[i] * dvar + D2[i] * dvar^2 for i in 1:4]; zero(dvar); dvar]
+    D2s = [D2[1]]
+    for Me in element_maps(lat)
+        z = [truncate_to(evaluate(m, z), 2) for m in Me]
+        push!(D2s, coeff(z[1], [0, 0, 0, 0, 0, 2]))
+    end
+    return D2s
+end
+@printf("  vs RK4 element maps: max |D2 Lie minus RK4| = %.2e\n",
+        maximum(abs, al.D2 .- _d2_rk4(lat, d.D1, d.D2)))
 
 section("3. Momentum compaction and slip factor to 2nd order",
         "dC/C = alpha0 d + alpha1 d^2 ;  dT/T0 = eta0 d + eta1 d^2  (convention: these coefficients;",
@@ -50,6 +63,11 @@ c1, c2, c3 = velocity_expansion(ref)
 @printf("  alpha0 = %.8f   alpha1 = %.8f   gamma_t = %.6f\n", p.alpha0, p.alpha1, p.gamma_t)
 @printf("  eta0   = %.8f   eta1   = %.8f   (identity formula: %.8f, diff %.1e)\n", p.eta0, p.eta1, p.eta1_formula, p.eta1 - p.eta1_formula)
 @printf("  delta_t (2nd fixed point of longitudinal motion, alpha-bucket) ~ -eta0/eta1 = %.4f\n", -p.eta0 / p.eta1)
+obs = observables(lat)
+@printf("  observables (Lie factor): eta0 = %.8f  eta1 = %.8f  (Taylor map eta0 = %.8f, eta1 = %.8f)\n",
+        obs.pe.eta0, obs.pe.eta1, p.eta0, p.eta1)
+@printf("  observables Twiss from F.R: Qx = %.8f  Qy = %.8f  alpha_c = %.8f\n",
+        obs.po.x.mu / 2pi, obs.po.y.mu / 2pi, obs.po.alpha_c)
 
 section("4. Cross-check by exact-H tracking",
         "Closed orbit at fixed delta (Newton, residual from exact tracking), dC/C from l, quadratic fit.")

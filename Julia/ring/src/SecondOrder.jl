@@ -1,39 +1,12 @@
 # =============================================================================
-# SecondOrder.jl - 2nd-order dispersion, momentum compaction, slip factor,
-#                  1st and 2nd order chromaticity, longitudinal Hamiltonian
+# SecondOrder.jl - averaged longitudinal Hamiltonian and BLonD coordinate bridge
 # =============================================================================
 #
-# WHAT (all derived from the one-turn polynomial map M, order 3)
-#   dispersion_orders(M)
-#       Closed orbit at fixed delta, expanded  u(delta) = D1 delta + D2 delta^2
-#       (u = (x, px, y, py)).  Order delta:   (I - R4) D1 = R4,6
-#       Order delta^2:  (I - R4) D2 = Q4(w),  w = (D1, 0, 1), Q = quadratic part
-#       of M evaluated at w (it is exactly the delta^2 coefficient of the image
-#       of the first-order orbit).  D2 = (x|delta^2)_closed, D2' = (px|..).
-#   path_expansion(M, ref, C)
-#       l on the closed orbit:  l = l1 delta + l2 delta^2,
-#         l1 = R5,1:4 D1 + R56,   l2 = R5,1:4 D2 + Q5(w).
-#       From l = -v dt, dt = L_path/v - C/v0:
-#         dC/C = -l/C + (v/v0 - 1),  v/v0 - 1 = delta/g^2 - (3/2)(b^2/g^2) delta^2
-#         => dC/C = alpha0 delta + alpha1 delta^2,
-#            alpha0 = -l1/C + 1/g^2,   alpha1 = -l2/C - (3/2) b^2/g^2
-#         (CONVENTION: alpha_c(delta) = d(dC/C)/ddelta = alpha0 + 2 alpha1 delta;
-#          the "alpha_c = alpha0 + alpha1 delta" style quoted by some codes
-#          refers to dC/C = alpha0 delta (1 + (alpha1/alpha0) delta) - we print
-#          our coefficients and say which is which.)
-#       Revolution period: dT/T0 = dt_turn / T0 = -(l/C)/(v/v0)
-#         => dT/T0 = eta0 delta + eta1 delta^2,
-#            eta0 = -l1/C = alpha0 - 1/g^2,
-#            eta1 = -l2/C + (l1/C)/g^2 = alpha1 - alpha0/g^2 + (3/2) b^2/g^2 + 1/g^4.
-#   chromaticity_orders(M)
-#       The tunes Q(delta) are eigen-phases of the Jacobian of M on the
-#       off-momentum fixed point: invariants of the motion (independent of
-#       where the ring is cut and of the coordinates).  Q(delta) = Q0 + xi1
-#       delta + (xi2/2) delta^2; xi1 = dQ/ddelta, xi2 = d2Q/ddelta2, by central
-#       differences on the exact-to-order-3 map (needs MAP_ORDER >= 3).
-#   dispersion_along(lat, d1, d2)
-#       Pushes the polynomial orbit (in delta only) through each element map:
-#       D(s), D'(s), D2(s), D2'(s) and the path term at every element exit.
+# WHAT
+#   Readings of the one-turn polynomial (D2, eta, chromaticity) live in
+#   MapAnalysis.jl.  This file keeps the turn-by-turn longitudinal H and the
+#   external BLonD drift formulae in (dt, dE).
+#
 #   longitudinal_hamiltonian_text(), synchrotron_tune(...)
 #       Turn-by-turn ("smooth") longitudinal motion with n = turn number:
 #         dphi/dn   = -2 pi h (eta0 delta + eta1 delta^2)
@@ -47,9 +20,8 @@
 #       T = transit-time factor of the finite cavity.
 #
 # WHY
-#   alpha1/eta1 and D2 are what sextupoles change at 2nd order; xi1, xi2
-#   govern chromatic decoherence.  They are computed from the map (no fit),
-#   and cross-checked by tracking (scripts/03).
+#   The ring product does not use these drifts.  They compare the slip
+#   coefficients with an external longitudinal code.
 #
 # WHAT YOU SEE
 #   Nothing printed here.
@@ -57,55 +29,12 @@
 module SecondOrder
 
 using TaylorSeries, LinearAlgebra
-using ..Constants, ..Elements, ..Jets, ..TaylorMap
+using ..Constants, ..Elements, ..Jets, ..MapAnalysis
 
-export dispersion_orders, path_expansion, chromaticity_orders, dispersion_along,
-       longitudinal_hamiltonian_text, synchrotron_tune, velocity_expansion,
+export longitudinal_hamiltonian_text, synchrotron_tune,
        LongitudinalParams, long_H, fixed_points, separatrix, bucket_height,
        blond_alphas, blond_exact_drift, blond_simple_drift,
        phi_delta_to_dt_dE, dt_dE_to_phi_delta
-
-"delta^k coefficient helper: quadratic part of M_i evaluated at vector w."
-_q(M, i, w) = evaluate(TaylorN(M[i][2], JET_ORDER), w)
-
-function dispersion_orders(M)
-    R = map_linear_part(M)
-    A = I - R[1:4, 1:4]
-    D1 = A \ R[1:4, 6]
-    w = [D1; 0.0; 1.0]
-    D2 = A \ [_q(M, i, w) for i in 1:4]
-    return (D1 = D1, D2 = D2, w = w, R = R)
-end
-
-"v/v0 - 1 = c1 d + c2 d^2 + c3 d^3 (exact Taylor of velocity_ratio)."
-function velocity_expansion(ref::RefParticle)
-    g2 = ref.gamma^2; b2 = ref.beta^2
-    c1 = 1 / g2
-    c2 = -1.5 * b2 / g2
-    c3 = 0.5 * b2 * (5b2 - 1) / g2   # d3(v/v0)/6 from (1+d)/sqrt((1+d)^2 + 1/(b2 g2)) * const
-    return c1, c2, c3
-end
-
-
-"""
-path_expansion to order 2 (alpha0, alpha1) from the truncated map, as before.
-alpha_i defined by C(delta)/C0 = 1 + alpha0 d + alpha1 d^2 + alpha2 d^3
-with Delta l = -C(d) + C0 (v/v0) on the closed orbit (see HISTORY / manual).
-"""
-function path_expansion(M, ref::RefParticle, C::Real)
-    d = dispersion_orders(M)
-    R = d.R
-    l1 = dot(R[5, 1:4], d.D1) + R[5, 6]
-    l2 = dot(R[5, 1:4], d.D2) + _q(M, 5, d.w)
-    c1, c2, c3 = velocity_expansion(ref)
-    alpha0 = -l1 / C + c1
-    alpha1 = -l2 / C + c2
-    eta0 = -l1 / C
-    eta1 = -l2 / C + (l1 / C) * c1
-    eta1_formula = alpha1 - alpha0 * c1 - c2 + c1^2
-    return (l1 = l1, l2 = l2, alpha0 = alpha0, alpha1 = alpha1, eta0 = eta0, eta1 = eta1,
-            eta1_formula = eta1_formula, gamma_t = 1 / sqrt(abs(alpha0)), c1 = c1, c2 = c2, c3 = c3)
-end
 
 """
 blond_alphas(M, ref, C; deltas) -> (alpha0, alpha1, alpha2, eta0, eta1, eta2)
@@ -115,15 +44,13 @@ BLonD eta_i from (15) of the BLonD Equations of Motion page.
 """
 function blond_alphas(M, ref::RefParticle, C::Real; deltas = [-2e-3, -1e-3, -5e-4, 5e-4, 1e-3, 2e-3])
     c1, c2, c3 = velocity_expansion(ref)
-    # For each delta: closed orbit -> evaluate map -> Delta l; C(d)/C0 from
-    # Delta l / C = -C(d)/C + v(d)/v0  =>  C(d)/C0 = v/v0 - Delta l / C
     ys = Float64[]; xs0 = Float64[]; xs1 = Float64[]; xs2 = Float64[]
     for d in deltas
         u = closed_orbit(M, d)
         z = [u; 0.0; d]
         zout = [evaluate(M[i], z) for i in 1:6]
-        Dl = zout[5] - z[5]          # net change in l over one turn
-        vr = velocity_ratio(d, ref)  # v/v0
+        Dl = zout[5] - z[5]
+        vr = velocity_ratio(d, ref)
         Cd_over_C = vr - Dl / C
         push!(ys, Cd_over_C - 1)
         push!(xs0, d); push!(xs1, d^2); push!(xs2, d^3)
@@ -131,7 +58,6 @@ function blond_alphas(M, ref::RefParticle, C::Real; deltas = [-2e-3, -1e-3, -5e-
     A = hcat(xs0, xs1, xs2)
     a = A \ ys
     alpha0, alpha1, alpha2 = a[1], a[2], a[3]
-    # BLonD eta from alpha (eq. 15)
     g2 = ref.gamma^2; b2 = ref.beta^2
     eta0 = alpha0 - 1 / g2
     eta1 = 1.5 * b2 / g2 + alpha1 - alpha0 * eta0
@@ -144,10 +70,7 @@ end
 """
 BLonD exact longitudinal drift (eq. 20 of Equations of Motion), one turn or
 fraction L/C.  Coordinates: dt [s] (arrival time relative to reference),
-dE [MeV] (energy offset).  delta is computed EXACTLY from dE:
-  delta = sqrt(1 + (1/beta^2)*((1+dE/E)^2 - 1)) - 1   wait: p/p0 - 1 with
-  E_tot = E_s + dE, p = sqrt(E_tot^2 - m^2), p0 = sqrt(E_s^2 - m^2).
-Returns updated dt (dE unchanged).
+dE [MeV] (energy offset).
 """
 function blond_exact_drift(dt::Real, dE::Real, ref::RefParticle, C::Real,
                            alpha0, alpha1, alpha2; length_ratio = 1.0)
@@ -157,9 +80,8 @@ function blond_exact_drift(dt::Real, dE::Real, ref::RefParticle, C::Real,
     p = sqrt(max(E^2 - ref.mass_MeV^2, 0.0))
     delta = p / p0 - 1
     T0 = C / (ref.beta * C_LIGHT)
-    # (1 + dE/Es) / (1 + delta) = v0 / v
     path = 1 + alpha0 * delta + alpha1 * delta^2 + alpha2 * delta^3
-    vel_ratio_inv = (1 + dE / Es) / (1 + delta)   # = v0/v
+    vel_ratio_inv = (1 + dE / Es) / (1 + delta)
     return dt + length_ratio * T0 * (path * vel_ratio_inv - 1)
 end
 
@@ -187,28 +109,6 @@ function dt_dE_to_phi_delta(dt, dE, ref::RefParticle, C::Real, h::Real)
     E = Es + dE
     p = sqrt(max(E^2 - ref.mass_MeV^2, 0.0))
     return phi, p / ref.p0_MeV - 1
-end
-function chromaticity_orders(M; dd = 1e-4)
-    q0 = tunes_at_delta(M, 0.0); qp = tunes_at_delta(M, dd); qm = tunes_at_delta(M, -dd)
-    f(k) = (q0[k], (qp[k] - qm[k]) / (2dd), (qp[k] - 2 * q0[k] + qm[k]) / dd^2)
-    return (x = f(1), y = f(2))     # (Q0_frac, xi1, xi2 = d2Q/ddelta2)
-end
-
-"D, D', D2, D2' and path term at each element exit (polynomial orbit in delta)."
-function dispersion_along(lat::Lattice, D1, D2)
-    d = Z[6]
-    u = [D1[i] * d + D2[i] * d^2 for i in 1:4]
-    z = [u; zero(d); d]
-    s = 0.0
-    out = (s = [0.0], D = [D1[1]], Dp = [D1[2]], D2 = [D2[1]], D2p = [D2[2]])
-    for (e, Me) in zip(lat.elements, element_maps(lat))
-        z = [truncate_to(evaluate(m, z), 2) for m in Me]
-        s += elem_length(e)
-        push!(out.s, s)
-        push!(out.D, coeff(z[1], [0, 0, 0, 0, 0, 1])); push!(out.Dp, coeff(z[2], [0, 0, 0, 0, 0, 1]))
-        push!(out.D2, coeff(z[1], [0, 0, 0, 0, 0, 2])); push!(out.D2p, coeff(z[2], [0, 0, 0, 0, 0, 2]))
-    end
-    return out
 end
 
 "Linear synchrotron tune; returns NaN if unstable (eta0 cos(phi_s) <= 0)."
@@ -242,7 +142,7 @@ end
 function LongitudinalParams(ref::RefParticle, alpha0, alpha1, V_MV, h, phi_s; T = 1.0)
     g2 = ref.gamma^2; b2 = ref.beta^2
     eta0 = alpha0 - 1 / g2
-    eta1 = alpha1 - alpha0 / g2 + 1.5 * b2 / g2 + 1 / g2^2   # = path_expansion eta1 (TOF)
+    eta1 = alpha1 - alpha0 / g2 + 1.5 * b2 / g2 + 1 / g2^2
     A = ref.particle.charge * V_MV * T / (b2 * ref.gamma * ref.mass_MeV)
     return LongitudinalParams(h, eta0, eta1, A, phi_s)
 end

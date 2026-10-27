@@ -10,32 +10,53 @@
 \clearpage
 \section{Programmer Manual}
 
-Implementation notes for the LieRing Julia package. Physics is in the
-Beam Physics Manual.
+Physics is in the Beam Physics Manual. This page lists
+entry points of the Julia package.
+
+The object of the ring is the Lie product of Dragt–Finn factors. That is
+the same cut as MaryLie: concatenate in the algebra, analyse the product,
+track a point through it. Linear optics is the closed form of
+$\exp(:f_2:)$, stored as the matrix $R$. It is not a second theory of
+the lattice.
+
+\begin{figure}[htbp]\centering\includegraphics[width=\linewidth]{C:/GIT_REPOS/BELL/Julia/ring/docs/src/assets/architecture_object.png}\caption{The ring is one Lie factor: Hamiltonians are concatenated in the algebra; the product is read, tracked, or checked.}\end{figure}
+
+\texttt{observables(lat)} builds \texttt{ring\_lie\_factor} once and reads Twiss,
+$\eta$ and $\xi$ from that factor. \texttt{ring\_taylor\_map} is an RK4
+polynomial and is not that object. \texttt{ring\_matrix} remains a fast
+order-1 builder for plots along $s$.
+
+\begin{figure}[htbp]\centering\includegraphics[width=\linewidth]{C:/GIT_REPOS/BELL/Julia/ring/docs/src/assets/architecture_orders.png}\caption{One polynomial, three homogeneous readings: degree 1 gives Twiss and $\eta_0$; degree 2 gives $D_2$ and $\eta_1$; degree 3 gives $\xi_1$.}\end{figure}
 
 \subsection{Layout}
 
 \begin{center}\small\begin{tabular}{p{0.475\linewidth}p{0.475\linewidth}}\hline
 \textbf{path} & \textbf{role}\\\hline
-\texttt{src/Constants.jl} & CODATA deuteron, reference particle, $v(\delta)$, $e(\delta)$, exact $z\leftrightarrow u$\\
-\texttt{src/Jets.jl} & TaylorN space, \texttt{JET\_ORDER=4}, \texttt{MAP\_ORDER=3}\\
-\texttt{src/Elements.jl} & all element types + lattice-editing helpers\\
-\texttt{src/Hamiltonians.jl} & element $H$ as polynomials\\
-\texttt{src/LieOperators.jl} & Poisson bracket, $\exp(:f:)$, Dragt–Finn\\
-\texttt{src/OptiMParser.jl} & \texttt{.opt} reader (mass from particle, not file header)\\
-\texttt{src/LinearOptics.jl} & Twiss, dispersion, tunes, $\alpha_0$\\
+\texttt{src/Constants.jl} & CODATA deuteron, reference particle, $v(\delta)$, $e(\delta)$, $z\leftrightarrow u$\\
+\texttt{src/Jets.jl} & polynomial space, degree 4 in Hamiltonians, degree 3 in maps\\
+\texttt{src/Elements.jl} & element types and lattice\\
+\texttt{src/Hamiltonians.jl} & element generator $H$ as a polynomial\\
+\texttt{src/LieOperators.jl} & Poisson bracket, Lie series, Dragt–Finn, product of factors to degree 4\\
+\texttt{src/OptiMParser.jl} & \texttt{.opt} reader (mass from the particle, not the file header)\\
+\texttt{src/LinearOptics.jl} & $R=\exp(L S \mathrm{Hess}\,H)$, slice Twiss along $s$\\
 \texttt{src/Symplectic.jl} & $J^\mathsf{T}SJ-S$\\
-\texttt{src/Tracking.jl} & factorised Lie tracking, thin RF kick\\
-\texttt{src/TaylorMap.jl} & DA (RK4) one-turn map\\
-\texttt{src/NormalForm.jl} & linear normalisation (nonlinear: planned)\\
-\texttt{src/SecondOrder.jl} & $D_2$, $\alpha_{0,1}$, \texttt{blond\_alphas}, BLonD drifts, separatrix\\
-\texttt{src/ExactIntegrator.jl} & exact-$H$ integrator, finite cavity, renormalise\\
-\texttt{src/Acceleration.jl} & ramp, tune fit, turn snapshots\\
-\texttt{src/Plotting.jl} & figures and GIFs\\
-\texttt{src/Optimizers.jl} & optional sextupole response / example solves\\
+\texttt{src/Tracking.jl} & flow of each factor, thin RF kick, product of the ring\\
+\texttt{src/MapAnalysis.jl} & closed orbit, $D_2$, $\eta$, chromaticity, \texttt{observables}\\
+\texttt{src/TaylorMap.jl} & independent DA map (RK4 in polynomials) — a check\\
+\texttt{src/NormalForm.jl} & one-turn factor with thin RF; homological operator on generators; torus average of $\delta$\\
+\texttt{src/SecondOrder.jl} & averaged longitudinal Hamiltonian, BLonD $(dt,dE)$ bridge\\
+\texttt{src/ExactIntegrator.jl} & unexpanded $H$, finite cavity, renormalise\\
+\texttt{src/Acceleration.jl} & ramp, tune fit\\
+\texttt{src/Plotting.jl} & figures\\
+\texttt{src/Optimizers.jl} & optional sextupole response\\
 \hline\end{tabular}\end{center}
 
 Entry: \texttt{include("src/LieRing.jl"); using .LieRing}.
+
+The one-turn object used for the normal form is \texttt{one\_turn\_factor\_rf}, the
+product of \texttt{ring\_lie\_factor} with the thin-kick factor. Optics of the
+magnetic product without RF is \texttt{observables(lat)}. \texttt{ring\_taylor\_map}
+composes truncated polynomials and is not that object.
 
 \subsection{Scripts}
 
@@ -46,24 +67,31 @@ julia --project=. scripts/03_second_order.jl
 julia --project=. scripts/04_optional_sextupole_optimization.jl
 julia --project=. scripts/05_rf_acceleration.jl
 julia --project=. scripts/06_coordinates.jl
-julia --project=. scripts/07_blond_longitudinal.jl
+julia --project=. scripts/07_blond_longitudinal.jl   # external drift formulae, not used in the ring product
+julia --project=. scripts/08_lie_product.jl          # BCH product of two factors
+julia --project=. scripts/09_lie_normal_form.jl      # one-turn factor and torus average
 \end{verbatim}
+
+The equilibrium-momentum study lives in \texttt{C:\textbackslash{}GIT\_REPOS\textbackslash{}SCT\_2\textbackslash{}Julia\textbackslash{}equilibrium\_energy}
+(\texttt{scripts/run\_v08.jl} and the research note). It depends on this package
+via \texttt{Pkg.develop}.
 
 \subsection{Accepted design choices}
 
 - Injection kinetic energy 10 MeV; final 270 MeV from the lattice header.
-- RF: $L=1$ m, $V=0.2$ MV, $h=5$, $\phi_s=150^\circ$ (ramp) / $180^\circ$ (flat).
+- Stationary study: thin RF, $V=0.2$ MV, $h=5$, $\varphi_s=\pi$.
+- Ramp demo: finite cavity $L=1$ m, $\varphi_s=150^\circ$.
 - Mass = CODATA deuteron $1875.61294257$ MeV (OptiM \texttt{Mass=2*938.272} ignored).
 - Lattice sequence used once (file \texttt{Number of periods=2} is an error; bend is 360 deg).
 - Closed $D(0)=0.011$ m (OptiM initial 0 is not the closed solution).
-- Test amplitudes: $x_0=y_0=2$ mm, $\delta_0=10^{-3}$; ensemble as in script 05.
-- Optimiser targets A/B are examples only; default sextupole strengths are zero.
+- Default sextupole strengths are zero.
 
 \subsection{Docs build}
 
 \begin{verbatim}
-julia --project=docs docs/make.jl          # HTML -> docs/build/
-julia docs/make_pdf.jl                     # Beam Physics PDF
-julia docs/make_pdf_programmer.jl          # Programmer PDF
+julia --project=docs docs/make.jl
+julia docs/make_pdf.jl
+julia docs/make_pdf_programmer.jl
 \end{verbatim}
+
 \end{document}

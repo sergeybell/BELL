@@ -9,21 +9,22 @@
 #   or  include(...); using .LieRing   (scripts in this repo)
 #
 #   Constants    coordinates, reference particle, canonical <-> user transform
-#   Jets         TaylorN jet space (order 3 in 6 variables), printing helpers
+#   Jets         polynomial space (degree 4 in H, degree 3 in maps)
 #   Elements     element types + Lattice
-#   Hamiltonians H(z) of each element, expanded to order 3
-#   LieOperators Poisson bracket, exp(:f:), Dragt-Finn factors, products
+#   Hamiltonians generator H(z) of each element
+#   LieOperators Poisson bracket, exp(:f:), Dragt-Finn, product of factors
 #   OptiMParser  .opt reader
 #   LinearOptics exp(L S A) matrices, closed Twiss, dispersion, tunes, alpha_c
 #   Symplectic   J^T S J - S checks
-#   Tracking     factor-by-factor symplectic tracking (+ thin RF kick)
-#   TaylorMap    independent truncated Taylor map of the ring (RK4 in DA)
-#   NormalForm   linear normalisation; nonlinear part planned (phase 4)
-#   Plotting     Twiss + layout PNG, phase-2 plots
-#   SecondOrder  D2, alpha0/alpha1, eta0/eta1, xi1/xi2, longitudinal H (phase 2)
-#   ExactIntegrator  exact-H symplectic integrator incl. finite RF cavity (phase 2)
-#   Optimizers   OPTIONAL: sextupole response + example solutions A/B (not used by default)
-#   Acceleration reference-energy ramp, renormalisation, tune measurement (phase 2)
+#   Tracking     flow of each factor, thin RF kick, ring product
+#   MapAnalysis  closed orbit, eta, xi, observables from a polynomial map
+#   TaylorMap    independent DA map (check)
+#   NormalForm   one-turn Lie factor with thin RF; homological NF; torus average
+#   Plotting     figures
+#   SecondOrder  longitudinal H, BLonD (dt, dE) bridge
+#   ExactIntegrator  unexpanded H, finite RF cavity
+#   Optimizers   OPTIONAL sextupole response
+#   Acceleration reference-energy ramp
 #
 # WHY
 #   One entry point; every physics block stays in its own file.
@@ -42,8 +43,9 @@ include("OptiMParser.jl")     # .opt reader
 include("LinearOptics.jl")    # Twiss, dispersion, tunes, alpha_c
 include("Symplectic.jl")      # J^T S J - S checks
 include("Tracking.jl")        # factorised Lie-map tracking
+include("MapAnalysis.jl")     # read D, eta, xi; observables from the Lie product
 include("TaylorMap.jl")       # independent truncated Taylor map (RK4 in DA)
-include("SecondOrder.jl")     # D2, alpha0/1, eta0/1, xi1/2, longitudinal H, separatrix
+include("SecondOrder.jl")     # longitudinal H, BLonD drifts, separatrix
 include("ExactIntegrator.jl") # exact-H integrator incl. finite RF cavity
 include("Acceleration.jl")    # reference ramp, tune measurement
 include("NormalForm.jl")      # 6D Lie normal form with RF
@@ -51,12 +53,12 @@ include("Plotting.jl")        # all plots
 include("Optimizers.jl")      # OPTIONAL optimisation (not used by default)
 
 using .Constants, .Jets, .Elements, .Hamiltonians, .LieOperators, .OptiMParser,
-      .LinearOptics, .Symplectic, .Tracking, .TaylorMap, .NormalForm, .SecondOrder,
-      .ExactIntegrator, .Acceleration, .Plotting, .Optimizers
+      .LinearOptics, .Symplectic, .Tracking, .MapAnalysis, .TaylorMap, .NormalForm,
+      .SecondOrder, .ExactIntegrator, .Acceleration, .Plotting, .Optimizers
 
 for mod in (Constants, Jets, Elements, Hamiltonians, LieOperators, OptiMParser,
-            LinearOptics, Symplectic, Tracking, TaylorMap, NormalForm, SecondOrder,
-            ExactIntegrator, Acceleration, Plotting, Optimizers)
+            LinearOptics, Symplectic, Tracking, MapAnalysis, TaylorMap, NormalForm,
+            SecondOrder, ExactIntegrator, Acceleration, Plotting, Optimizers)
     for n in names(mod)
         n === nameof(mod) && continue
         @eval export $n

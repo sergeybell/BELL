@@ -4,6 +4,9 @@ Modular Julia package for **symplectic ring modelling** with Lie maps and
 exact Hamiltonians. Coordinates are canonical
 `(x, p_x, y, p_y, l, δ)`; user angles `(x', φ)` are for input/output only.
 
+**Open the manuals in a browser** (same idea as BLonD HTML docs):
+[`index.html`](index.html) or [`docs/build/index.html`](docs/build/index.html).
+
 Install (from a clone):
 
 ```julia
@@ -56,20 +59,22 @@ po  = periodic_optics(ring_matrix(lat), lat.ref, circumference(lat))
 | task | entry points |
 |------|----------------|
 | Optics | `ring_matrix`, `periodic_optics`, `optics_along` |
-| Maps | `element_lie_map`, `build_factors`, `ring_taylor_map` |
-| 2nd order | `path_expansion`, `blond_alphas`, `chromaticity_orders`, `dispersion_orders` |
-| Tracking | `exact_track_element`, `exact_track_turn`, `track` (Lie factors) |
-| RF / ramp | `Cavity`, `insert_cavity`, `accelerate`, `renormalize` |
-| Optional sextupole fit | `Optimizers` (`solve_A`, `solve_B`) — not used by default |
+| Lie product | `element_lie_map`, `build_factors`, `ring_lie_factor`, `one_turn_factor_rf` |
+| One-turn readings | `observables` (Twiss, eta, xi from the Lie factor) |
+| Normal form | `dragt_finn_nf6d`, `nf6d_delta_eq`, `nf6d_actions` |
+| Check (DA map) | `ring_taylor_map` |
+| Slip / chromaticity | `path_expansion`, `chromaticity_orders` |
+| Tracking | `exact_track_element`, `exact_track_turn`, `track` (factor flows) |
+| RF / ramp | `RFCavity`, `Cavity`, `insert_cavity`, `accelerate`, `renormalize` |
 
-Physics: see `docs/build/index.html` (Beam Physics Manual).  
-Code map: Programmer Manual in the same docs tree.
+Physics: open [`docs/build/index.html`](docs/build/index.html) in a browser.  
+Code map: [Programmer Manual](docs/build/programmer/index.html) in the same HTML tree. PDFs are in `docs/pdf/`.
 
 ## Applications
 
 Applications live **outside** this package and depend on it via `Pkg.develop`, e.g.
 
-`C:\GIT_REPOS\BELL\Julia\apps\equilibrium_energy\`
+`C:\GIT_REPOS\SCT_2\Julia\equilibrium_energy\`
 
 ## Scripts in this repo
 

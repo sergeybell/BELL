@@ -242,3 +242,45 @@ Test B: M1/M2/M3 agree to 0.05%. Qs(J): NF vs tracking < 1e-6.
 No constant offset any more (v0.7 `~1e-7` was the finite-cavity fixed point).
 
 **Local only.** Commit + tag `v0.8`; no push.
+
+## v0.9 - one-turn object is the Lie product (2026-10-27)
+
+**Lie algebra through the normal form.** `concatenate` multiplies Dragt-Finn
+factors to degree 4: cubics add after transport by R, quartics receive
+`-½[f3b ∘ Ra, f3a]` (sign fixed on pairs of elements against the Lie series,
+residual `~1e-16`). Nested brackets are dropped. `ring_lie_factor` is that
+product over the lattice; `one_turn_factor_rf` appends the thin kick as one
+more factor.
+
+**Normal form on generators.** `dragt_finn_nf6d` takes the one-turn factor.
+The homological operator is `F − F ∘ r(μ)` on homogeneous polynomials
+(eigenvalues `1 − exp(−i(j−n)·μ)`). Map conjugation is not used to solve it.
+`δ_eq` is the average of laboratory `δ` over the torus of the three actions.
+On `magnetic_2` with thin RF: `f3` after the cubic step `4e-16`; `d` matches
+the time-of-flight formula to relative `1e-6`, same digits as v0.8.
+
+**Checks.** Polynomial substitution (`ring_taylor_map`) and the unexpanded
+Hamiltonian integrator remain independent. They do not define the one-turn
+object.
+
+**Docs.** Beam Physics chapter on the Lie product and the torus; equilibrium
+chapter uses thin RF; research note models M1–M4 rewritten accordingly.
+BLonD slip formulae are not part of this path.
+
+Scripts: `08_lie_product.jl`, `09_lie_normal_form.jl`. App `run_v08.jl` builds
+M2 from `one_turn_factor_rf`.
+
+## v0.9 - Lie product as the ring object; manuals in HTML
+
+**Object.** The one-turn map is the Dragt–Finn product `ring_lie_factor`.
+`observables(lat)` reads Twiss from `F.R`, `η` and `ξ` from the same
+polynomial. `MapAnalysis.jl` holds those readers; `TaylorMap.jl` is RK4 only
+(a check). Linear optics is the closed form of `exp(:f2:)`, not a second
+theory of the lattice.
+
+**App.** `equilibrium_energy` moved to `C:\GIT_REPOS\SCT_2\Julia\equilibrium_energy`.
+It still depends on this package via `Pkg.develop`. `Julia/apps` is removed.
+
+**Docs.** Open `index.html` or `docs/build/index.html` in a browser (HTML site,
+like BLonD). PDFs: `docs/pdf/LieRing_Beam_Physics_Manual.pdf` and
+`LieRing_Programmer_Manual.pdf`. Architecture figures sit on the home page.

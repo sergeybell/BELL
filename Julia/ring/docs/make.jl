@@ -4,6 +4,7 @@ const PAGES = [
         "Home" => "index.md",
         "Canonical phase space" => "canonical.md",
         "Element Hamiltonians" => "hamiltonians.md",
+        "Lie product of the ring" => "lie.md",
         "Linear optics" => "linear.md",
         "Second order" => "second_order.md",
         "Chromaticity" => "chromaticity.md",

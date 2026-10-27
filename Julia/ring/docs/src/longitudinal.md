@@ -2,10 +2,10 @@
 
 ## From the 6D Hamiltonian to a 2D synchrotron Hamiltonian
 
-Over one turn the magnetic lattice advances ``(l,\delta)`` through the exact
-element Hamiltonians (or, equivalently, through the BLonD `exact` drift built
-from ``\alpha_{0,1,2}``). The RF cavity changes ``\delta`` at essentially fixed
-``l``. Coarse-graining to one map per turn in the variables
+Over one turn the magnetic lattice advances ``(l,\delta)`` through the
+element Hamiltonians. The slip coefficients ``\eta_0,\eta_1`` are those of
+the time of flight. A thin RF kick changes ``\delta`` at fixed arrival time.
+Coarse-graining to one map per turn in the variables
 ``(\phi,\delta)`` with ``\phi=-h\omega_0\Delta t`` gives
 
 ```math

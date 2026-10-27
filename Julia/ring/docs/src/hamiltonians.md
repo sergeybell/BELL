@@ -16,24 +16,23 @@ normalised multipoles ``k_1=B'/(B\rho)``, ``k_2=B''/(B\rho)``, the
 For the bend, ``\partial H/\partial x|_{z=0}=0``: the reference arc is a
 solution of Hamilton's equations.
 
+The bend potential is cut at ``hx+\tfrac12 h^2 x^2``. There are no fringe
+fields. A gradient in a bend uses the straight-magnet term; curvature
+corrections of order ``h k_1 x^3`` are omitted (the lattice used here has
+``k_1=0`` in every bend).
+
+The Hamiltonian of each magnet is replaced by its Taylor polynomial of
+total degree 4 (square root and energy expanded). That polynomial is the
+generator. It is not yet a map.
+
 ## Maps from a Hamiltonian
 
-An ``s``-independent Hamiltonian over length ``L`` generates the Lie map
+An ``s``-independent Hamiltonian over length ``L`` generates the Lie
+transformation ``\exp(-L:H:)``, with
 
 ```math
-\mathcal{M}=\exp(-L:H:),\qquad
 :f:g=[f,g]=\sum_i\Bigl(\partial_{q_i}f\,\partial_{p_i}g-\partial_{p_i}f\,\partial_{q_i}g\Bigr).
 ```
 
-Truncation of the Taylor series of ``\mathcal{M}`` at a finite order yields a
-polynomial map that is symplectic only up to that order. Factorising
-
-```math
-\mathcal{M}=R\circ e^{:f_3:}\circ e^{:f_4:}
-```
-
-(Dragt–Finn) and integrating each nonlinear factor by the implicit midpoint
-rule restores symplecticity to round-off. An independent construction
-integrates Hamilton's equations ``\mathrm{d}z/\mathrm{d}s=S\nabla H`` by a
-Runge–Kutta scheme in the truncated polynomial algebra (differential-algebra
-map) and is used as a cross-check.
+How the ring is assembled from these transformations is in
+[Lie product of the ring](lie.md).

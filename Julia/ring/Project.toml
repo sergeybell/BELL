@@ -1,6 +1,6 @@
 name = "LieRing"
 uuid = "401abb11-212f-4acc-b190-b6aaf6d1c4c2"
-version = "0.8.0"
+version = "0.9.0"
 authors = ["Bell"]
 
 [deps]

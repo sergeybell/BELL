@@ -7,7 +7,7 @@ const DOC = @__DIR__
 const MODE = length(ARGS) > 0 && ARGS[1] == "programmer" ? :programmer : :beam
 const PAGES = MODE === :programmer ?
     ["programmer/index.md"] :
-    ["index.md", "canonical.md", "hamiltonians.md", "linear.md", "second_order.md",
+    ["index.md", "canonical.md", "hamiltonians.md", "lie.md", "linear.md", "second_order.md",
      "chromaticity.md", "rf.md", "acceleration.md", "longitudinal.md", "sextupoles.md", "equilibrium.md", "assumptions.md"]
 const OUTNAME = MODE === :programmer ? "LieRing_Programmer_Manual" : "LieRing_Beam_Physics_Manual"
 const TITLE = MODE === :programmer ?
@@ -34,7 +34,7 @@ function inline(s)
         end
     end; String(take!(out))
 end
-function convert_md(md)
+function convert_md(md; srcfile=joinpath(DOC, "src"))
     L = split(replace(md, "\ufeff" => "", "\r" => ""), "\n")
     out = String[]; i = 1; list = ""
     closelist() = (list != "" && (push!(out, "\\end{$list}"); list = ""))
@@ -64,7 +64,7 @@ function convert_md(md)
             if endswith(path, ".gif")
                 push!(out, "\\begin{quote}\\emph{Animation (see HTML or GIF file): " * inline(cap) * "}\\end{quote}")
             else
-                fp = replace(joinpath(DOC, "src", path), "\\" => "/")
+                fp = replace(normpath(joinpath(dirname(srcfile), path)), "\\" => "/")
                 push!(out, "\\begin{figure}[htbp]\\centering\\includegraphics[width=\\linewidth]{$fp}\\caption{" * inline(cap) * "}\\end{figure}")
             end
         elseif (m = match(r"^(\d+)\.\s+(.*)$", l)) !== nothing
@@ -78,7 +78,8 @@ function convert_md(md)
         i += 1
     end; closelist(); join(out, "\n")
 end
-body = join([convert_md(read(joinpath(DOC, "src", p), String)) for p in PAGES], "\n\\clearpage\n")
+body = join([convert_md(read(joinpath(DOC, "src", p), String);
+                        srcfile = joinpath(DOC, "src", p)) for p in PAGES], "\n\\clearpage\n")
 body = replace(body, r"(?<=\n)\*([^*$]+?)\*" => s"\\emph{\1}")
 tex = """
 \\documentclass[11pt,a4paper]{article}

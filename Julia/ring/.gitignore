@@ -1,5 +1,4 @@
 # Generated / large / local
-docs/build/
 docs/pdf/*.aux
 docs/pdf/*.log
 docs/pdf/*.out

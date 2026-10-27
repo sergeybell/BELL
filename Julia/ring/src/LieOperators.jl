@@ -5,38 +5,31 @@
 # WHAT
 #   poisson(f, g)          [f, g] in the canonical variables
 #   lie_exp(f, g)          exp(:f:) g = g + [f,g] + [f,[f,g]]/2! + ...
-#                          (series summed until the terms vanish)
-#   lie_map(H, L)          transfer map of an s-independent element of length L:
-#                          z(L) = exp(-L :H:) z   (since dz/ds = [z,H] = -:H: z),
-#                          truncated to MAP_ORDER = 2
-#   LieFactor              factorised (Dragt-Finn) form  M = R o N3 o P4,
-#                          N3 = exp(:f3:) z, P4 = exp(:f4:) z  (f4 since phase 2)
-#                          i.e.  M(z) = R * N(z),  N = exp(:f3:) z
-#   dragt_finn_factor(M)   extract R (6x6), cubic f3 and quartic f4 from an
-#                          order-3 map (P4 = N3^-1 o R^-1 o M = z + g3 + ...,
-#                          f4 = (1/4) sum_k (q_k g3_{p_k} - p_k g3_{q_k}))
-#   concatenate(Fa, Fb)    factor of "Fa first, then Fb":
-#                          R = Rb*Ra,  f3 = f3a + f3b o Ra   (exact to order 2;
-#                          f4 of a product (BCH term) not implemented -> f4 = 0)
-#   factor_to_map(F)       back to an order-2 polynomial map
-#   SYMPLECTIC_S           the 6x6 symplectic form S (blocks [0 1; -1 0])
+#   lie_map(H, L)          z(L) = exp(-L :H:) z, truncated to MAP_ORDER
+#   LieFactor              M = R o exp(:f3:) o exp(:f4:)
+#                          (first f4, then f3, then the linear matrix R)
+#   dragt_finn_factor(M)   read (R, f3, f4) from a polynomial map that fixes 0
+#   concatenate(Fa, Fb)    Fa first, then Fb, in the Lie algebra to degree 4:
+#                          R = Rb Ra,
+#                          f3 = f3a + f3b o Ra,
+#                          f4 = f4a + f4b o Ra - (1/2)[f3b o Ra, f3a]
+#                          The Poisson bracket of two cubics is quartic;
+#                          nested brackets are degree 5 and are dropped.
+#                          Sign of the bracket is the BCH term for the
+#                          coordinate maps z |-> exp(:f:) z (apply f4, then f3,
+#                          then R).  Checked by scripts/08_lie_product.jl.
+#   product_factors        fold concatenate over a list of factors
+#   pull_generator(f, R)   f o R, the generator in linearly mapped coordinates
+#   factor_to_map(F)       expand the factor to a polynomial map of order MAP_ORDER
 #
 # WHY
-#   The Lie-algebraic description keeps the map symplectic by construction:
-#   R = exp(L S A) is a symplectic matrix and exp(:f3:) is a canonical
-#   transformation for ANY f3.  Tracking (Tracking.jl) applies each factor
-#   exactly-symplectically, factor by factor.
+#   The ring is a product of Lie transformations, not a substitution of
+#   truncated maps.  Each factor is symplectic; the truncated polynomial
+#   expansion of the product is symplectic only up to the dropped degree.
 #
-# HOW f3 IS EXTRACTED (own derivation)
-#   N = R^-1 M = z + g(z) + O(3), g quadratic.  exp(:f3:) q = q - df3/dp + ...,
-#   exp(:f3:) p = p + df3/dq + ...  ->  df3/dq_k = g_{p_k}, df3/dp_k = -g_{q_k};
-#   Euler's theorem for a homogeneous cubic gives
-#       f3 = (1/3) sum_k ( q_k g_{p_k} - p_k g_{q_k} ).
-#   The reconstruction error (M vs factor_to_map) is printed by scripts/02 and
-#   is zero only if M is symplectic to order 2 - an independent check.
-#
-# WHAT YOU SEE
-#   Nothing printed here.
+# HOW f3, f4 ARE READ FROM A MAP
+#   N = R^-1 M = z + g2 + g3 + ... .  Euler: f3 = (1/3) sum (q g2_p - p g2_q).
+#   Strip exp(:f3:), repeat at degree 4 with factor 1/4.
 # =============================================================================
 module LieOperators
 
@@ -44,7 +37,8 @@ using TaylorSeries, LinearAlgebra
 using ..Jets
 
 export poisson, lie_exp, lie_map, LieFactor, dragt_finn_factor, concatenate,
-       factor_to_map, compose_maps, SYMPLECTIC_S, identity_factor
+       factor_to_map, compose_maps, SYMPLECTIC_S, identity_factor,
+       pull_generator, product_factors, rotation_matrix_6
 
 const QIDX = (1, 3, 5)
 const PIDX = (2, 4, 6)
@@ -121,14 +115,55 @@ function dragt_finn_factor(M::AbstractVector{<:TaylorN}; name = "")
     return LieFactor(name, R, f3, f4)
 end
 
-"Factor of the product 'Fa first, then Fb' to order 2 (cubic generators add after transport)."
-function concatenate(Fa::LieFactor, Fb::LieFactor; name = Fa.name * "+" * Fb.name)
-    Raz = [sum(Fa.R[i, j] * Z[j] for j in 1:6) for i in 1:6]
-    f3 = Fa.f3 + evaluate(Fb.f3, Raz)
-    return LieFactor(name, Fb.R * Fa.R, f3)
+"Linear image of the identity: (R z)_i as TaylorN polynomials."
+linear_on_Z(R) = [sum(R[i, j] * Z[j] for j in 1:6) for i in 1:6]
+
+"Generator pulled through a linear map: (f ∘ R)(z) = f(R z)."
+pull_generator(f::TaylorN, R) = evaluate(f, linear_on_Z(R))
+
+"6×6 block-diagonal rotation with phase advances mu (planes x, y, s)."
+function rotation_matrix_6(mu)
+    R = zeros(6, 6)
+    for k in 1:3
+        c, s = cos(mu[k]), sin(mu[k])
+        R[2k-1:2k, 2k-1:2k] = [c s; -s c]
+    end
+    return R
 end
 
-"Polynomial map of a factor: M = R o N3 o P4, truncated to MAP_ORDER."
+"""
+Factor of the product 'Fa first, then Fb' to degree 4.
+
+The maps are R ∘ exp(:f3:) ∘ exp(:f4:), i.e. the coordinate map
+z ↦ R (exp(:f3:) (exp(:f4:) z)).  After pulling the second generator
+through Ra, the cubics combine by BCH of those coordinate maps:
+
+    f3 = f3a + f3b ∘ Ra
+    f4 = f4a + f4b ∘ Ra − (1/2)[f3b ∘ Ra, f3a]
+
+The minus is required by the order of application (f3a first, then
+f3b ∘ Ra); it is the same as +(1/2)[f3a, f3b ∘ Ra].  Nested brackets
+are degree 5 and are dropped.
+"""
+function concatenate(Fa::LieFactor, Fb::LieFactor; name = Fa.name * "+" * Fb.name)
+    g3 = pull_generator(Fb.f3, Fa.R)
+    g4 = pull_generator(Fb.f4, Fa.R)
+    f3 = hom(Fa.f3 + g3, 3)
+    f4 = hom(Fa.f4 + g4 - poisson(g3, Fa.f3) / 2, 4)
+    return LieFactor(name, Fb.R * Fa.R, f3, f4)
+end
+
+"Fold concatenate: first factor in the list is applied first."
+function product_factors(factors; name = "product")
+    acc = identity_factor(name)
+    for F in factors
+        F isa LieFactor || error("product_factors expects LieFactor, got $(typeof(F))")
+        acc = concatenate(acc, F; name)
+    end
+    return acc
+end
+
+"Polynomial map of a factor: M = R o exp(:f3:) o exp(:f4:), truncated to MAP_ORDER."
 function factor_to_map(F::LieFactor)
     N3 = [truncate_to(lie_exp(F.f3, Z[j]), MAP_ORDER) for j in 1:6]
     P4 = [truncate_to(lie_exp(F.f4, Z[j]), MAP_ORDER) for j in 1:6]

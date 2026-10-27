@@ -15,11 +15,28 @@ The independent variable is the arc length $s$ along the reference orbit.
 All dynamics are written in \textbf{canonical} phase-space variables; laboratory
 angles and RF phase appear only as derived output.
 
+The object of the ring is a product of Lie transformations, not a stack of
+transport matrices and not a truncated Taylor map. Each element has one
+Hamiltonian. That $H$ becomes a Dragt–Finn factor
+$R\circ e^{:f_3:}\circ e^{:f_4:}$. Concatenation in the algebra produces
+the one-turn factor $\mathcal{F}$. Twiss, slip, chromaticity and the
+normal form are readings of $\mathcal{F}$. Tracking applies
+$\mathcal{F}$ to a point. An RK4 polynomial map is kept as a check; it
+does not define the ring.
+
+\begin{figure}[htbp]\centering\includegraphics[width=\linewidth]{C:/GIT_REPOS/BELL/Julia/ring/docs/src/assets/architecture_object.png}\caption{The ring is one Lie factor: Hamiltonians are concatenated in the algebra; the product is read, tracked, or checked.}\end{figure}
+
+Linear optics, second-order slip and chromaticity are homogeneous pieces
+of the same polynomial, not layers derived from one another.
+
+\begin{figure}[htbp]\centering\includegraphics[width=\linewidth]{C:/GIT_REPOS/BELL/Julia/ring/docs/src/assets/architecture_orders.png}\caption{One polynomial, three homogeneous readings: degree 1 gives Twiss and $\eta_0$; degree 2 gives $D_2$ and $\eta_1$; degree 3 gives $\xi_1$.}\end{figure}
+
 Contents:
 
 \begin{enumerate}
 \item Canonical phase space
 \item Element Hamiltonians
+\item Lie product of the ring
 \item Linear optics
 \item Second-order dispersion and momentum compaction
 \item Chromaticity
@@ -34,6 +51,7 @@ Contents:
 Figures use the Nuclotron-based lattice at deuteron kinetic energy 270 MeV
 unless a ramp from 10 MeV is shown. A separate *Programmer Manual* documents
 the implementation.
+
 \clearpage
 \section{Canonical phase space}
 
@@ -59,6 +77,21 @@ z=(x,\,p_x,\,y,\,p_y,\,l,\,\delta).
 
 The reference particle has charge $Ze$, rest energy $mc^2$, Lorentz factor
 $\gamma_0$, velocity $v_0=\beta_0 c$ and momentum $p_0$.
+
+\subsection{From $(t,-E)$ to $(l,\delta)$}
+
+The $s$-Hamiltonian is first written with the longitudinal pair
+$(t,-E)$. A type-2 generating function at fixed $s$,
+
+\[
+F_2(t,\delta;s)=-(t-s/v_0)\,E(\delta)/p_0,
+\]
+
+produces the new coordinate $l=\partial F_2/\partial\delta=-(t-s/v_0)\,v(\delta)$
+and adds $\partial F_2/\partial s=E(\delta)/(p_0 v_0)$ to the Hamiltonian.
+After dropping a constant, that addition is the energy term $e(\delta)$
+below. Because $l$ is conjugate to $\delta$, the momentum deviation
+$\delta=(p-p_0)/p_0$ is the true relative momentum, not an energy offset.
 
 The symplectic form on this space is the standard one,
 
@@ -117,33 +150,172 @@ Finite RF cavity & $e(\delta)-p_s+A\cos\Phi(l,\delta,s)$ (see Finite-length RF c
 For the bend, $\partial H/\partial x|_{z=0}=0$: the reference arc is a
 solution of Hamilton's equations.
 
+The bend potential is cut at $hx+\tfrac12 h^2 x^2$. There are no fringe
+fields. A gradient in a bend uses the straight-magnet term; curvature
+corrections of order $h k_1 x^3$ are omitted (the lattice used here has
+$k_1=0$ in every bend).
+
+The Hamiltonian of each magnet is replaced by its Taylor polynomial of
+total degree 4 (square root and energy expanded). That polynomial is the
+generator. It is not yet a map.
+
 \subsection{Maps from a Hamiltonian}
 
-An $s$-independent Hamiltonian over length $L$ generates the Lie map
+An $s$-independent Hamiltonian over length $L$ generates the Lie
+transformation $\exp(-L:H:)$, with
 
 \[
-\mathcal{M}=\exp(-L:H:),\qquad
 :f:g=[f,g]=\sum_i\Bigl(\partial_{q_i}f\,\partial_{p_i}g-\partial_{p_i}f\,\partial_{q_i}g\Bigr).
 \]
 
-Truncation of the Taylor series of $\mathcal{M}$ at a finite order yields a
-polynomial map that is symplectic only up to that order. Factorising
+How the ring is assembled from these transformations is in
+Lie product of the ring.
+\clearpage
+\section{Lie product of the ring}
+
+The object of the ring is a product of Lie transformations. A generator is a
+polynomial in the canonical coordinates. The Poisson bracket acts on its
+coefficients. Substituting truncated maps into one another is a check, not
+the definition of the one-turn map. The figures in the home page
+show the product, its three uses, and the homogeneous readings of its
+polynomial.
+
+\subsection{From a Hamiltonian to a factor}
+
+Hamilton's equations are $\mathrm{d}z/\mathrm{d}s=[z,H]=-:H:z$. Over a
+length $L$ with $H$ independent of $s$ the map is the Lie series
+$\exp(-L:H:)$. The series is cut at total degree 3 in $z$. The result is
+written as a Dragt–Finn factor
 
 \[
-\mathcal{M}=R\circ e^{:f_3:}\circ e^{:f_4:}
+\mathcal{M}=R\circ e^{:f_3:}\circ e^{:f_4:}.
 \]
 
-(Dragt–Finn) and integrating each nonlinear factor by the implicit midpoint
-rule restores symplecticity to round-off. An independent construction
-integrates Hamilton's equations $\mathrm{d}z/\mathrm{d}s=S\nabla H$ by a
-Runge–Kutta scheme in the truncated polynomial algebra (differential-algebra
-map) and is used as a cross-check.
+Applied to a point, this means: first the time-1 flow of $f_4$, then of
+$f_3$, then the linear matrix $R$. Each nonlinear flow is a canonical
+transformation for any generator. Tracking integrates those flows by the
+implicit midpoint rule, so each factor is symplectic to round-off at any
+amplitude.
+
+The polynomial expansion of the same factor is symplectic only up to the
+dropped degree.
+
+\subsection{Product of two factors}
+
+Two factors are multiplied in the algebra, not by substituting maps. If
+$\mathcal{M}_a$ is applied first and $\mathcal{M}_b$ second,
+
+\[
+R=R_b R_a,\qquad
+f_3=f_{3a}+f_{3b}\circ R_a,\qquad
+f_4=f_{4a}+f_{4b}\circ R_a-\tfrac12[f_{3b}\circ R_a,\,f_{3a}].
+\]
+
+The Poisson bracket of two cubics is quartic. Nested brackets are degree 5
+and are dropped. The minus in front of the bracket is the BCH term for the
+coordinate maps $z\mapsto\exp(:f:)z$; it is fixed by comparing the product
+of two elements with the Lie series of that pair.
+
+The one-turn magnetic factor is this product over the lattice.
+
+\subsection{Thin RF kick}
+
+A thin cavity at $\varphi_s=\pi$ is a canonical transformation that fixes
+the origin: energy changes at fixed arrival time, then $\delta$ and $l$
+are recomputed. It enters the one-turn product as one more Dragt–Finn
+factor. The sine of the kick is expanded to the same degree as the magnetic
+generators. The exact sine is kept only in the independent integrator of the
+unexpanded Hamiltonian.
+
+A cavity with a net energy gain per turn shifts the origin. The product
+above is written for maps that fix the origin, so a ramp or a finite cavity
+with a closed-orbit offset is a separate problem.
+
+\subsection{Normal form}
+
+The linear part $R$ of the one-turn factor is put into three rotations by
+a symplectic matrix $A$, $A^\mathsf{T}SA=S$. The generators in the
+normal coordinates $w=A^{-1}z$ are the pull-backs $f(Aw)$.
+
+A rotation acts on a complex monomial
+$h_{\mathbf{j}\mathbf{n}}=\prod_k(q_k+ip_k)^{j_k}(q_k-ip_k)^{n_k}$ by the
+phase $e^{-i(\mathbf{j}-\mathbf{n})\cdot\boldsymbol{\mu}}$. The homological
+operator on a generator is therefore the divisor
+
+\[
+F-F\circ r(\mu),\qquad
+F_{\mathbf{j}\mathbf{n}}=\frac{-f_{\mathbf{j}\mathbf{n}}}{1-e^{-i(\mathbf{j}-\mathbf{n})\cdot\boldsymbol{\mu}}}.
+\]
+
+At degree 3, $\mathbf{j}=\mathbf{n}$ is impossible, so in the absence of
+a third-order resonance the whole cubic generator is removed. At degree 4
+the kernel is the span of products of actions; those terms stay as the
+normal-form Hamiltonian $h_4=\sum_{i\le j}c_{ij}J_i J_j$. The cubic
+conjugation contributes $\tfrac12[f_3,F_3]$ to the quartic generator
+before this step.
+
+The homological operator is applied to the generators. Conjugation of a
+full polynomial map is not used to build the normal form.
+
+\subsection{The torus}
+
+After the normal form there are three amplitudes $J_x,J_y,J_s$ and three
+phases $\theta_x,\theta_y,\theta_s$. The torus of those actions is the set
+of all triples of phases at those fixed amplitudes: three circles, not a
+trajectory and not a list of turns.
+
+One turn adds constant angles to the phases and does not change the
+amplitudes. Laboratory $\delta$ is a function of the three phases. The
+equilibrium momentum is the average of that function over the whole torus
+at once. Pieces odd in the phases average to zero. What remains is linear
+in the actions,
+
+\[
+\delta_{\mathrm{eq}}=\delta^\ast+d_x J_x+d_y J_y+d_s J_s.
+\]
+
+For thin RF on the stationary separatrix, $\delta^\ast$ is a numerical
+zero. The cubic-RF correction in $\hat\varphi^2$ is degree $J^2$ and is
+not kept.
+
+A long tracking average equals this torus average when the tunes are
+incommensurate. Tracking does not build the torus.
+
+\subsection{Independent checks}
+
+Two constructions are not the one-turn Lie product.
+
+\begin{enumerate}
+\item Hamilton's equations integrated in the truncated polynomial algebra
+\end{enumerate}
+   (a differential-algebra map) and composed by substitution. The
+   coefficient-wise difference with the expanded Lie product is a
+   truncation and step-size error. It is printed; it is not substituted
+   into $\delta_{\mathrm{eq}}$.
+\begin{enumerate}
+\item The unexpanded Hamiltonian (the square root is not a polynomial)
+\end{enumerate}
+   integrated by a symplectic step, with an exact thin energy kick at the
+   end of the turn. This is the amplitude-exact tracking standard.
+
 \clearpage
 \section{Linear optics}
 
-The linear map of an element is $R=\exp(L\,S\,\mathcal{H})$ with
-$\mathcal{H}_{ij}=\partial^2 H/\partial z_i\partial z_j|_0$. The one-turn
-matrix $M$ is the product over the ring. With $\cos\mu=\tfrac12\mathrm{Tr}M_x$,
+The linear map of an element is the closed form of the quadratic Lie
+transformation $\exp(:f_2:)$. With
+$\mathcal{H}_{ij}=\partial^2 H/\partial z_i\partial z_j|_0$,
+
+\[
+R=\exp(L\,S\,\mathcal{H}).
+\]
+
+This is not a textbook transport matrix: the Hessian comes from the same
+$H$ that generates the nonlinear factor. For plots along $s$ the
+matrices are multiplied element by element. For one-turn optics of the
+ring, $\mathtt{observables}$ reads the linear factor $\mathcal{F}.R$
+of the Lie product, not a second, independent matrix product.
+
+With $\cos\mu=\tfrac12\mathrm{Tr}M_x$,
 
 \[
 \beta=\frac{M_{12}}{\sin\mu},\qquad
@@ -164,6 +336,10 @@ precision.
 \begin{figure}[htbp]\centering\includegraphics[width=\linewidth]{C:/GIT_REPOS/BELL/Julia/ring/docs/src/assets/magnetic_2_twiss.png}\caption{Closed beta functions, horizontal dispersion and magnet layout.}\end{figure}
 \clearpage
 \section{Second-order dispersion and momentum compaction}
+
+The quadratic piece of the one-turn polynomial. A linear matrix cannot
+see $D_2$ or $\eta_1$. Both are read from the same Lie product as
+Twiss; they are not a second optical theory.
 
 \subsection{Closed orbit in $\delta$}
 
@@ -197,56 +373,28 @@ $C(\delta)/C_0$ evaluated on closed orbits at several $\delta$.
 
 \subsection{Slip factor}
 
-The relative change of revolution period is
-$\Delta T/T_0=\eta_0\delta+\eta_1\delta^2+\eta_2\delta^3+\cdots$.
-Directly from time of flight,
-$\eta_0=-l_1/C=\alpha_0-1/\gamma_0^2$. The BLonD convention (Equations of
-Motion, eq. 15) expresses higher $\eta_i$ through $\alpha_i$:
+The relative change of revolution period is the time of flight of one turn.
+With $l=-v\Delta t$ one has $\Delta T/T_0=-(l/C)/(v/v_0)$, so on the
+closed orbit
 
 \[
-\begin{aligned}
-\eta_0&=\alpha_0-\frac1{\gamma_s^2},\\
-\eta_1&=\frac{3\beta_s^2}{2\gamma_s^2}+\alpha_1-\alpha_0\eta_0,\\
-\eta_2&=-\frac{\beta_s^2(5\beta_s^2-1)}{2\gamma_s^2}+\alpha_2-2\alpha_0\alpha_1
-+\frac{\alpha_1}{\gamma_s^2}+\alpha_0^2\eta_0-\frac{3\beta_s^2\alpha_0}{2\gamma_s^2}.
-\end{aligned}
+\eta_0=-\frac{l_1}{C}=\alpha_0-\frac{1}{\gamma_0^2},\qquad
+\eta_1=-\frac{l_2}{C}+\frac{l_1}{C}\,\frac{1}{\gamma_0^2}
+=\alpha_1-\frac{\alpha_0}{\gamma_0^2}+\frac{3\beta_0^2}{2\gamma_0^2}+\frac{1}{\gamma_0^4}.
 \]
 
-The two expansions of $\eta_1$ (TOF identity vs BLonD) differ by terms of
-order $\alpha_0^2$; both are consistent when used with the matching drift
-formula (see below).
-
-\subsection{BLonD longitudinal drift (comparison)}
-
-BLonD updates arrival time after an energy kick by (eq. 20, solver \texttt{exact})
-
-\[
-\Delta t\leftarrow\Delta t+T_0\Biggl[\Bigl(1+\alpha_0\delta+\alpha_1\delta^2+\alpha_2\delta^3\Bigr)
-\frac{1+\Delta E/E_s}{1+\delta}-1\Biggr],
-\]
-
-with $\delta$ computed exactly from $\Delta E$, and by the linearisation
-(eq. 19, solver \texttt{simple})
-
-\[
-\Delta t\leftarrow\Delta t+T_0\,\eta_0\,\frac{\Delta E}{\beta_s^2 E_s}.
-\]
-
-Element-by-element integration of the ring Hamiltonians reproduces the
-\texttt{exact} formula at the level $\sim 10^{-6}$ relative in $\Delta\phi$ per
-turn when $\alpha_{0,1,2}$ are taken from the lattice; the \texttt{simple} formula
-deviates at the level of $\alpha_1\delta$ (a few $10^{-3}$ at
-$|\delta|=10^{-3}$). Thus $\alpha_1$ *is* the leading nonlinear
-longitudinal term in the BLonD sense; the ring model includes it
-automatically through the exact element Hamiltonians (to all orders in the
-exact integrator, to map order in the truncated maps).
+These are the coefficients used in the averaged longitudinal Hamiltonian
+and in the formula for $\delta_{\mathrm{eq}}$. They come from the
+one-turn Lie product, expanded to a polynomial only to read $l_1$ and
+$l_2$.
 
 \begin{figure}[htbp]\centering\includegraphics[width=\linewidth]{C:/GIT_REPOS/BELL/Julia/ring/docs/src/assets/sextupoles_dispersion2.png}\caption{Second-order dispersion along the ring.}\end{figure}
 \clearpage
 \section{Chromaticity}
 
-At fixed $\delta$ the transverse motion about $z_\perp(\delta)$ is
-linearised. The tunes $Q_{x,y}(\delta)$ from
+Chromaticity is a reading of the one-turn polynomial, not a descendant of
+the Twiss functions. At fixed $\delta$ the transverse motion about
+$z_\perp(\delta)$ is linearised. The tunes $Q_{x,y}(\delta)$ from
 $\cos 2\pi Q=\tfrac12\mathrm{Tr}J(\delta)$ expand as
 
 \[
@@ -318,10 +466,10 @@ amplitudes damp as
 
 \subsection{From the 6D Hamiltonian to a 2D synchrotron Hamiltonian}
 
-Over one turn the magnetic lattice advances $(l,\delta)$ through the exact
-element Hamiltonians (or, equivalently, through the BLonD \texttt{exact} drift built
-from $\alpha_{0,1,2}$). The RF cavity changes $\delta$ at essentially fixed
-$l$. Coarse-graining to one map per turn in the variables
+Over one turn the magnetic lattice advances $(l,\delta)$ through the
+element Hamiltonians. The slip coefficients $\eta_0,\eta_1$ are those of
+the time of flight. A thin RF kick changes $\delta$ at fixed arrival time.
+Coarse-graining to one map per turn in the variables
 $(\phi,\delta)$ with $\phi=-h\omega_0\Delta t$ gives
 
 \[
@@ -392,60 +540,69 @@ lattice has vanishing sextupole strengths.
 \clearpage
 \section{Equilibrium momentum shift}
 
-In a stationary RF bucket the phase returns to itself after a synchrotron
-period only if the mean time of flight matches the RF period. With a
-nonlinear slip factor this condition fixes a nonzero mean relative momentum
+A particle that oscillates in a stationary RF bucket ($\varphi_s=\pi$,
+below transition) does not have mean relative momentum zero. The RF phase
+returns to itself after a synchrotron period only if the mean time of flight
+matches the RF period. With a nonlinear slip factor that condition fixes a
+nonzero mean
 
 \[
 \delta_{\mathrm{eq}}
-= -\frac{\eta_1}{\eta_0}\,\frac{\delta_m^2}{2}
-- \frac{\Lambda}{\eta_0},
-\qquad
-\Lambda = -\frac{2\pi}{C}\bigl(J_x\,\xi_x+J_y\,\xi_y\bigr),
+=-\frac{\eta_1\langle\delta^2\rangle+\Lambda}{\eta_0},\qquad
+\Lambda=-\frac{2\pi}{C}\bigl(J_x\xi_x+J_y\xi_y\bigr).
 \]
 
-where \texttt{delta\_m} is the synchrotron half-amplitude, \texttt{eta\_0} and \texttt{eta\_1} are the
-leading slip-factor coefficients, \texttt{xi\_x,y} the linear chromaticities and
-\texttt{J\_x,y} the Courant-Snyder actions. A cubic truncation of the RF waveform
-(\texttt{sin phi \~{} phi - phi\^{}3/6}) multiplies the \texttt{eta\_1 delta\_m\^{}2/2} piece by
-\texttt{1 - phi\_hat\^{}2/32} and shifts the synchrotron frequency by
-\texttt{Omega/omega\_s = 1 - phi\_hat\^{}2/16}.
+Here $\eta_0,\eta_1$ are the time-of-flight slip coefficients,
+$\xi_{x,y}$ the linear chromaticities, and $J_{x,y}$ the Courant–Snyder
+actions. For a linear synchrotron oscillation $\langle\delta^2\rangle=\delta_m^2/2$.
+A cubic truncation of the RF waveform multiplies the $\eta_1$ piece by
+$1-\hat\varphi^2/32$ and shifts the synchrotron frequency by
+$\Omega/\omega_s=1-\hat\varphi^2/16$. That correction is second order in
+the actions and is not kept in the normal form below.
 
-The mean energy and Lorentz factor receive both the shift \texttt{delta\_eq} and a
-kinematic term from the mean square of delta:
+The RF is a thin energy kick at one point of the ring. A finite-length
+cavity has its own closed-orbit offset in $\delta$; that is a separate
+study.
+
+\subsection{From the torus}
+
+The one-turn map is the Lie product of the magnetic factors and the thin
+kick. After the linear symplectic normalisation and the homological
+removal of non-resonant generators, motion is uniform rotation of three
+phases at three fixed actions. The torus of those actions is the set of
+all triples of phases. Laboratory $\delta$ is a function on that torus.
+$\delta_{\mathrm{eq}}$ is the average of $\delta$ over the whole torus:
+
+\[
+\delta_{\mathrm{eq}}=\delta^\ast+d_x J_x+d_y J_y+d_s J_s.
+\]
+
+For thin RF at $\varphi_s=\pi$, $\delta^\ast=0$. The coefficients $d_k$
+are the quadratic part of the sixth component of the normalising
+transformation, averaged over angles. They do not use $\eta$ or
+$\xi$. Substituting $\delta_m^2=2\sigma_\delta^2 J_s$ into the formula
+above reproduces them to relative $10^{-6}$:
+
+\begin{center}\small\begin{tabular}{p{0.238\linewidth}p{0.238\linewidth}p{0.238\linewidth}p{0.238\linewidth}}\hline
+\textbf{} & \textbf{$d_x$ [1/m]} & \textbf{$d_y$ [1/m]} & \textbf{$d_s$ [1/m]}\\\hline
+torus average & 0.14665244 & 0.22328941 & $2.477064\times 10^{-3}$\\
+formula & 0.14665257 & 0.22328971 & $2.477064\times 10^{-3}$\\
+\hline\end{tabular}\end{center}
+
+Element-by-element symplectic tracking of the unexpanded Hamiltonians,
+with the exact thin kick, gives the same $\delta_{\mathrm{eq}}$ to a
+few parts in $10^3$ at $\delta_m\le 10^{-3}$. The residual grows as
+$\delta_m^2$ (the next order, not kept). A long time average equals the
+torus average when the tunes are incommensurate. The torus itself is not
+built from the tracking samples.
+
+The mean energy also receives a kinematic piece from $\langle\delta^2\rangle$:
 
 \[
 \Delta E_{\mathrm{eq}}
 =\beta_s^2 E_s\Bigl(\delta_{\mathrm{eq}}+\frac{\delta_m^2}{4\gamma_s^2}\Bigr).
 \]
 
-\subsection{Numeric check (magnetic ring, deuteron 270 MeV, stationary bucket)}
-
-Full-ring symplectic tracking in canonical variables, harmonic least-squares
-extraction of \texttt{delta\_eq} (constant term of a two-harmonic fit of delta over
-many synchrotron periods; half-split systematic error at most about 1e-8).
-Phase reported in the late-positive convention of the analytic note.
-
-\textbf{Longitudinal only} (Lambda = 0), delta\_m scan:
-
-\begin{center}\small\begin{tabular}{p{0.238\linewidth}p{0.238\linewidth}p{0.238\linewidth}p{0.238\linewidth}}\hline
-\textbf{delta\_m} & \textbf{delta\_eq (track)} & \textbf{-eta1 dm\^{}2/(2 eta0)} & \textbf{rel.}\\\hline
-5.0e-4 & 3.45e-7 & 2.38e-7 & 0.45\\
-1.0e-3 & 1.06e-6 & 9.50e-7 & 0.11\\
-2.0e-3 & 3.88e-6 & 3.78e-6 & 0.025\\
-\hline\end{tabular}\end{center}
-
-\textbf{Betatron contribution.} At \texttt{delta\_m \~{} 3e-4} and vertical amplitude 20 mm,
-\texttt{Lambda\_fit / Lambda\_form = 1.009}; with sextupoles set to \texttt{xi \~{} 0} the fitted
-Lambda drops by an order of magnitude toward the longitudinal baseline.
-
-\textbf{Cubic phase.} For \texttt{phi\_hat} in [0.30, 0.50], the measured \texttt{Omega/omega\_s}
-agrees with \texttt{1 - phi\_hat\^{}2/16} to 1e-4, and
-\texttt{<(delta-deq)\^{}2> / (dm\^{}2/2)} stays within 1\% of unity (cubic correction
-\texttt{1 - phi\_hat\^{}2/32} is a few parts in 1e3).
-
-These relations are verified by symplectic tracking of the full ring
-Hamiltonians against the formulae above.
 \clearpage
 \section{Assumptions}
 
@@ -462,7 +619,13 @@ file are recorded in the Programmer Manual, not here).
    acceleration.
 \begin{enumerate}
 \item Single RF station per turn for the averaged longitudinal Hamiltonian.
-\item Truncated maps are symplectic only up to the truncation order; exact
+\item The one-turn object is the Lie product of Dragt–Finn factors, truncated
 \end{enumerate}
-   integration of $H$ is symplectic to round-off.
+   at degree 4 in the generators. Its polynomial expansion is symplectic
+   only up to the dropped degree. Integration of the unexpanded
+   Hamiltonian is symplectic to round-off.
+\begin{enumerate}
+\item The product is written for maps that fix the origin (thin RF at
+\end{enumerate}
+   $\varphi_s=\pi$). A net energy gain per turn is a separate problem.
 \end{document}
