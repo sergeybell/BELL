@@ -148,22 +148,46 @@ function gif_ramp(rec, frames, lps, path; ens = 5:length(rec.u), philim = (-2pi,
     return path
 end
 
-"GIF (b): one turn element by element: (phi, delta) and the change since the turn start."
-function gif_elements(snaps, names, svals, lp, path; ens = 5:length(snaps[1]), philim = (-2pi, pi), dlim = 0.01, fps = 8)
+"GIF (b): one turn, element by element.
+Left: absolute (phi, delta) with the analytic injection separatrix; fixed axes
+  phi in philim, delta in +/- dlim (caller sets dlim from the bucket height).
+Right: CHANGE relative to the turn start, with FIXED physical limits:
+  dphi_lim = 2 pi |eta0| * dlim_ens  (expected one-turn phase slip at the
+              largest |delta| in the ensemble, from dphi = -2 pi h eta0 delta
+              with h absorbed into the definition used for eta*phi convention;
+              here we use the one-turn synchrotron map scale 2 pi |eta0| * d_max
+              times the harmonic already in phi = -h w0 dt, so
+              |Delta phi|_expected ~ 2 pi h |eta0| |delta|  -- wait: phi already
+              contains h, and dphi/dn = -2 pi h eta0 delta, so for a fraction
+              f = s/C of the turn the expected slip is f * that.  Full-turn
+              scale: dphi_lim = 2 pi h |eta0| * d_ens with a factor 1.5 margin.
+  ddelta_lim = 1.5 * A   (A = Z V T / (beta^2 E) = per-turn RF kick amplitude
+              in delta; only the cavity changes delta within a turn).
+Both limits are therefore set by lattice+RF physics, not by the particle cloud."
+function gif_elements(snaps, names, svals, lp, path; ens = 5:length(snaps[1]),
+                      philim = (-2pi, pi), dlim = 0.01, fps = 8)
     gr()
     phi0 = [snaps[1][j][5] for j in ens]; d0 = [snaps[1][j][6] for j in ens]
-    dphimax = maximum(abs, [snaps[end][j][5] - snaps[1][j][5] for j in ens]) * 1.2 + 1e-12
-    ddmax = maximum(abs, [snaps[end][j][6] - snaps[1][j][6] for j in ens]) * 1.2 + 1e-12
+    d_ens = maximum(abs, d0)
+    # Full-turn phase-slip scale: |dphi| = | -2 pi h eta0 delta |; lp stores h, eta0.
+    dphi_lim = 1.5 * abs(2pi * lp.h * lp.eta0) * max(d_ens, 1e-6)
+    # Only the cavity changes delta; kick amplitude A is in LongitudinalParams.
+    ddelta_lim = 1.5 * abs(lp.A)
     anim = @animate for k in eachindex(snaps)
         phi = [snaps[k][j][5] for j in ens]; dl = [snaps[k][j][6] for j in ens]
-        pa = plot(xlabel = PHI_LABEL, ylabel = DELTA_LABEL, xlims = philim, ylims = (-dlim, dlim), legend = :bottomleft,
-                  title = "after element $(k-1): $(names[k])  (s = $(round(svals[k], digits=3)) m)")
+        frac = svals[k] / max(svals[end], eps())
+        pa = plot(xlabel = PHI_LABEL, ylabel = DELTA_LABEL, xlims = philim, ylims = (-dlim, dlim),
+                  legend = :bottomleft,
+                  title = "after element $(k-1): $(names[k])  (s = $(round(svals[k], digits=3)) m,  $(round(100frac, digits=1))% of turn)")
         separatrix!(pa, lp; dmax = dlim, phimin = philim[1], phimax = philim[2])
         scatter!(pa, phi, dl, ms = 2.5, msw = 0, color = :blue, label = "particles")
-        pb = scatter(phi .- phi0, dl .- d0, ms = 2.5, msw = 0, color = :blue, legend = false,
-                     xlims = (-dphimax, dphimax), ylims = (-ddmax, ddmax),
-                     xlabel = "phi - phi(turn start) [rad]", ylabel = "delta - delta(turn start)",
-                     title = "change since start of this turn (zoom)")
+        pb = scatter(phi .- phi0, dl .- d0, ms = 2.5, msw = 0, color = :blue, legend = :topright,
+                     xlims = (-dphi_lim, dphi_lim), ylims = (-ddelta_lim, ddelta_lim),
+                     xlabel = "Delta phi since turn start [rad]",
+                     ylabel = "Delta delta since turn start",
+                     title = "intra-turn change (fixed: +/-1.5 x full-turn slip, +/-1.5 A)")
+        # reference scales as dashed lines at +/- expected full-turn values
+        plot!(pb, [NaN], [NaN], color = :gray, ls = :dash, label = "axes = 1.5|2pi h eta0 d_ens|, 1.5|A|")
         plot(pa, pb, layout = (1, 2), size = (1400, 600), left_margin = 8Plots.mm, bottom_margin = 8Plots.mm)
     end
     gif(anim, path, fps = fps)

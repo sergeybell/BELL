@@ -35,13 +35,14 @@ section(t, lines...) = (println("\n--- ", t, " ", "-"^max(0, 66 - length(t))); f
 println("="^72); println(" LieRing phase 2 - finite RF cavity, synchrotron motion, acceleration"); println("="^72)
 
 of = parse_optim(OPTIM_FILE); lat270 = of.lattice; ref270 = lat270.ref
-mass = ref270.mass_MeV
+# (parser already uses DEUTERON.mass_MeV; of.mass_MeV is the file header value for info only)
+mass = DEUTERON.mass_MeV   # v0.5: CODATA deuteron, not OptiM header
 E_inj = 10.0          # ASSUMPTION (not in the .opt file): 5 MeV/u
 E_fin = of.energy_MeV # 270 MeV from the .opt header
 Lc, V, h, phis = 1.0, 0.2, 5, deg2rad(150.0)
 
 section("1. Parameters")
-ref_inj = reference_from_kinetic(DEUTERON, E_inj; mass_MeV = mass)
+ref_inj = reference_from_kinetic(DEUTERON, E_inj)
 cav = Cavity("RF", Lc, V, h, phis)
 lat_rf270, icav = insert_cavity(lat270, cav)
 C = circumference(lat_rf270)
@@ -113,7 +114,7 @@ a0 = pe[E_inj].alpha0
 alpha1_at(E) = pe[E_inj].alpha1 + (pe[E_fin].alpha1 - pe[E_inj].alpha1) * (E - E_inj) / (E_fin - E_inj)
 function long_params(E, ph)
     rf = reference_from_kinetic(DEUTERON, E; mass_MeV = mass)
-    c1, c2 = velocity_expansion(rf)
+    c1, c2, _ = velocity_expansion(rf)
     a1 = alpha1_at(E)
     LongitudinalParams(h, a0 - c1, a1 - a0 * c1 - c2 + c1^2, V * T / (rf.beta^2 * rf.gamma * mass), ph)
 end

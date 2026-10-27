@@ -127,7 +127,9 @@ function parse_optim(path::AbstractString; particle::Particle = DEUTERON, name =
         defs[nm] = d
     end
 
-    ref = reference_from_kinetic(particle, energy; mass_MeV = mass)
+    # Design choice (v0.5): use the physical particle mass (CODATA deuteron), not the
+    # OptiM header Mass (2*938.272 MeV rounded).  of.mass_MeV still records the file value.
+    ref = reference_from_kinetic(particle, energy)
     brho = ref.brho_Tm
     function make(nm)
         haskey(defs, nm) || error("element $nm used in the sequence but not defined")

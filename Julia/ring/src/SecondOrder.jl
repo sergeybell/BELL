@@ -61,7 +61,9 @@ using ..Constants, ..Elements, ..Jets, ..TaylorMap
 
 export dispersion_orders, path_expansion, chromaticity_orders, dispersion_along,
        longitudinal_hamiltonian_text, synchrotron_tune, velocity_expansion,
-       LongitudinalParams, long_H, fixed_points, separatrix, bucket_height
+       LongitudinalParams, long_H, fixed_points, separatrix, bucket_height,
+       blond_alphas, blond_exact_drift, blond_simple_drift,
+       phi_delta_to_dt_dE, dt_dE_to_phi_delta
 
 "delta^k coefficient helper: quadratic part of M_i evaluated at vector w."
 _q(M, i, w) = evaluate(TaylorN(M[i][2], JET_ORDER), w)
@@ -75,24 +77,117 @@ function dispersion_orders(M)
     return (D1 = D1, D2 = D2, w = w, R = R)
 end
 
-"v/v0 - 1 = c1 delta + c2 delta^2 (exact Taylor coefficients)."
-velocity_expansion(ref::RefParticle) = (1 / ref.gamma^2, -1.5 * ref.beta^2 / ref.gamma^2)
+"v/v0 - 1 = c1 d + c2 d^2 + c3 d^3 (exact Taylor of velocity_ratio)."
+function velocity_expansion(ref::RefParticle)
+    g2 = ref.gamma^2; b2 = ref.beta^2
+    c1 = 1 / g2
+    c2 = -1.5 * b2 / g2
+    c3 = 0.5 * b2 * (5b2 - 1) / g2   # d3(v/v0)/6 from (1+d)/sqrt((1+d)^2 + 1/(b2 g2)) * const
+    return c1, c2, c3
+end
 
+
+"""
+path_expansion to order 2 (alpha0, alpha1) from the truncated map, as before.
+alpha_i defined by C(delta)/C0 = 1 + alpha0 d + alpha1 d^2 + alpha2 d^3
+with Delta l = -C(d) + C0 (v/v0) on the closed orbit (see HISTORY / manual).
+"""
 function path_expansion(M, ref::RefParticle, C::Real)
     d = dispersion_orders(M)
     R = d.R
     l1 = dot(R[5, 1:4], d.D1) + R[5, 6]
     l2 = dot(R[5, 1:4], d.D2) + _q(M, 5, d.w)
-    c1, c2 = velocity_expansion(ref)
+    c1, c2, c3 = velocity_expansion(ref)
     alpha0 = -l1 / C + c1
     alpha1 = -l2 / C + c2
     eta0 = -l1 / C
     eta1 = -l2 / C + (l1 / C) * c1
     eta1_formula = alpha1 - alpha0 * c1 - c2 + c1^2
     return (l1 = l1, l2 = l2, alpha0 = alpha0, alpha1 = alpha1, eta0 = eta0, eta1 = eta1,
-            eta1_formula = eta1_formula, gamma_t = 1 / sqrt(abs(alpha0)))
+            eta1_formula = eta1_formula, gamma_t = 1 / sqrt(abs(alpha0)), c1 = c1, c2 = c2, c3 = c3)
 end
 
+"""
+blond_alphas(M, ref, C; deltas) -> (alpha0, alpha1, alpha2, eta0, eta1, eta2)
+Fit C(d)/C0 - 1 = a0 d + a1 d^2 + a2 d^3 from the one-turn map on closed orbits
+at several delta (exact path length via the `l` component and v(d)).
+BLonD eta_i from (15) of the BLonD Equations of Motion page.
+"""
+function blond_alphas(M, ref::RefParticle, C::Real; deltas = [-2e-3, -1e-3, -5e-4, 5e-4, 1e-3, 2e-3])
+    c1, c2, c3 = velocity_expansion(ref)
+    # For each delta: closed orbit -> evaluate map -> Delta l; C(d)/C0 from
+    # Delta l / C = -C(d)/C + v(d)/v0  =>  C(d)/C0 = v/v0 - Delta l / C
+    ys = Float64[]; xs0 = Float64[]; xs1 = Float64[]; xs2 = Float64[]
+    for d in deltas
+        u = closed_orbit(M, d)
+        z = [u; 0.0; d]
+        zout = [evaluate(M[i], z) for i in 1:6]
+        Dl = zout[5] - z[5]          # net change in l over one turn
+        vr = velocity_ratio(d, ref)  # v/v0
+        Cd_over_C = vr - Dl / C
+        push!(ys, Cd_over_C - 1)
+        push!(xs0, d); push!(xs1, d^2); push!(xs2, d^3)
+    end
+    A = hcat(xs0, xs1, xs2)
+    a = A \ ys
+    alpha0, alpha1, alpha2 = a[1], a[2], a[3]
+    # BLonD eta from alpha (eq. 15)
+    g2 = ref.gamma^2; b2 = ref.beta^2
+    eta0 = alpha0 - 1 / g2
+    eta1 = 1.5 * b2 / g2 + alpha1 - alpha0 * eta0
+    eta2 = -b2 * (5b2 - 1) / (2g2) + alpha2 - 2 * alpha0 * alpha1 + alpha1 / g2 +
+           alpha0^2 * eta0 - 1.5 * b2 * alpha0 / g2
+    return (alpha0 = alpha0, alpha1 = alpha1, alpha2 = alpha2,
+            eta0 = eta0, eta1 = eta1, eta2 = eta2)
+end
+
+"""
+BLonD exact longitudinal drift (eq. 20 of Equations of Motion), one turn or
+fraction L/C.  Coordinates: dt [s] (arrival time relative to reference),
+dE [MeV] (energy offset).  delta is computed EXACTLY from dE:
+  delta = sqrt(1 + (1/beta^2)*((1+dE/E)^2 - 1)) - 1   wait: p/p0 - 1 with
+  E_tot = E_s + dE, p = sqrt(E_tot^2 - m^2), p0 = sqrt(E_s^2 - m^2).
+Returns updated dt (dE unchanged).
+"""
+function blond_exact_drift(dt::Real, dE::Real, ref::RefParticle, C::Real,
+                           alpha0, alpha1, alpha2; length_ratio = 1.0)
+    Es = ref.gamma * ref.mass_MeV
+    E = Es + dE
+    p0 = ref.p0_MeV
+    p = sqrt(max(E^2 - ref.mass_MeV^2, 0.0))
+    delta = p / p0 - 1
+    T0 = C / (ref.beta * C_LIGHT)
+    # (1 + dE/Es) / (1 + delta) = v0 / v
+    path = 1 + alpha0 * delta + alpha1 * delta^2 + alpha2 * delta^3
+    vel_ratio_inv = (1 + dE / Es) / (1 + delta)   # = v0/v
+    return dt + length_ratio * T0 * (path * vel_ratio_inv - 1)
+end
+
+"BLonD simple drift: dt += (L/C) T0 eta0 delta, with delta ~= dE/(beta^2 E)."
+function blond_simple_drift(dt::Real, dE::Real, ref::RefParticle, C::Real, eta0; length_ratio = 1.0)
+    Es = ref.gamma * ref.mass_MeV
+    T0 = C / (ref.beta * C_LIGHT)
+    delta = dE / (ref.beta^2 * Es)
+    return dt + length_ratio * T0 * eta0 * delta
+end
+
+"Convert (phi, delta) <-> (dt, dE) at a given reference (phi = -h w0 dt)."
+function phi_delta_to_dt_dE(phi, delta, ref::RefParticle, C::Real, h::Real)
+    w0 = 2pi * revolution_frequency(ref, C)
+    dt = -phi / (h * w0)
+    Es = ref.gamma * ref.mass_MeV
+    p = ref.p0_MeV * (1 + delta)
+    E = sqrt(p^2 + ref.mass_MeV^2)
+    return dt, E - Es
+end
+function dt_dE_to_phi_delta(dt, dE, ref::RefParticle, C::Real, h::Real)
+    w0 = 2pi * revolution_frequency(ref, C)
+    phi = -h * w0 * dt
+    Es = ref.gamma * ref.mass_MeV
+    E = Es + dE
+    p = sqrt(max(E^2 - ref.mass_MeV^2, 0.0))
+    return phi, p / ref.p0_MeV - 1
+end
 function chromaticity_orders(M; dd = 1e-4)
     q0 = tunes_at_delta(M, 0.0); qp = tunes_at_delta(M, dd); qm = tunes_at_delta(M, -dd)
     f(k) = (q0[k], (qp[k] - qm[k]) / (2dd), (qp[k] - 2 * q0[k] + qm[k]) / dd^2)
@@ -147,7 +242,7 @@ end
 function LongitudinalParams(ref::RefParticle, alpha0, alpha1, V_MV, h, phi_s; T = 1.0)
     g2 = ref.gamma^2; b2 = ref.beta^2
     eta0 = alpha0 - 1 / g2
-    eta1 = alpha1 - alpha0 / g2 + 1.5 * b2 / g2 + 1 / g2^2
+    eta1 = alpha1 - alpha0 / g2 + 1.5 * b2 / g2 + 1 / g2^2   # = path_expansion eta1 (TOF)
     A = ref.particle.charge * V_MV * T / (b2 * ref.gamma * ref.mass_MeV)
     return LongitudinalParams(h, eta0, eta1, A, phi_s)
 end

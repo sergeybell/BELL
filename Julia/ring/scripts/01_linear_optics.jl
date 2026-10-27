@@ -43,7 +43,7 @@ println("  header               : Energy = $(of.energy_MeV) MeV (kinetic), Mass 
 println("  sequence tokens      : $(length(of.sequence)), 'Number of periods' in file = $(of.nperiods_file), repetitions used = $(of.nrepeat_used)")
 foreach(w -> println("  WARNING: ", w), of.warnings)
 
-section("2. Reference particle", "Derived from header kinetic energy and mass (OptiM uses 2*938.272 MeV).")
+section("2. Reference particle", "Derived from header kinetic energy; mass = CODATA deuteron (OptiM Mass recorded but not used).")
 println(describe_reference(lat.ref))
 @printf("  (physical deuteron mass would be %.8f MeV -> B*rho = %.7f T*m; not used)\n",
         DEUTERON.mass_MeV, reference_from_kinetic(DEUTERON, of.energy_MeV).brho_Tm)

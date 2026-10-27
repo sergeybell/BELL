@@ -43,7 +43,7 @@ section("3. Momentum compaction and slip factor to 2nd order",
         "dC/C = alpha0 d + alpha1 d^2 ;  dT/T0 = eta0 d + eta1 d^2  (convention: these coefficients;",
         "local alpha_c(d) = d(dC/C)/dd = alpha0 + 2 alpha1 d).")
 p = path_expansion(M, ref, C)
-c1, c2 = velocity_expansion(ref)
+c1, c2, c3 = velocity_expansion(ref)
 @printf("  l1 = (l|d)_closed = %.8f m,  l2 = (l|d^2)_closed = %.8f m\n", p.l1, p.l2)
 @printf("  v/v0 - 1 = %.8f d + %.8f d^2  (check vs exact at d=1e-3: %.2e)\n", c1, c2,
         velocity_ratio(1e-3, ref) - 1 - (c1 * 1e-3 + c2 * 1e-6))
