@@ -112,3 +112,27 @@ map, and captioned figures / GIFs.
 **How to open.** HTML: open `docs/build/index.html`. PDF: open
 `docs/pdf/LieRing_Beam_Physics_Manual.pdf`. Rebuild: `julia --project=docs
 docs/make.jl` and `julia docs/make_pdf.jl`.
+
+## v0.5 - Canonical manuals, BLonD drift, fixed GIF scales
+
+**Accepted design choices** (removed from "hypotheses"): injection 10 MeV;
+RF L/V/h/phi_s as chosen; longitudinal cavity field only; magnets ramp with
+p0; no fringe/space charge/impedances; test amplitudes; optimiser optional;
+periods=2 is a file error (use 360 deg once); D(0)=0.011 m is the exact
+closed solution; mass = CODATA deuteron 1875.61294257 MeV.
+
+**GIF right panel (longitudinal_elements).** Was auto-zoomed to
+1.2 * max particle change over the turn (arbitrary). Now fixed:
+  Delta phi axis = +/- 1.5 |2 pi h eta0| d_ens   (full-turn slip scale)
+  Delta delta axis = +/- 1.5 A                   (RF kick amplitude)
+Left panel: absolute (phi,delta) with analytic separatrix, bucket-height axes.
+
+**alpha_1 / BLonD.** Nonlinear longitudinal term IS included (exact element
+H, or alpha0/1/2 in BLonD exact drift). BLonD formulas (eqs 19-20, eta 15)
+implemented as blond_exact_drift / blond_simple_drift / blond_alphas.
+Magnetic one-turn: exact vs BLonD exact rel err ~2e-6; simple ~1e-3 at
+|delta|=1e-3. With RF, 32 turns: max |dphi|=1.7e-4, |ddelta|=1.5e-5.
+
+**Manuals rewritten.** Beam Physics: impersonal, canonical variables only,
+no Julia file references. Programmer Manual: modules, scripts, design
+choices. Both HTML (Documenter) and PDF (xelatex).

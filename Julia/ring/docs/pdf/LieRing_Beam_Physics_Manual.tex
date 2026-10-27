@@ -2,715 +2,409 @@
 \usepackage{amsmath,amssymb,graphicx,geometry,hyperref,fontspec}
 \geometry{margin=2.2cm}
 \setlength{\parindent}{0pt}\setlength{\parskip}{4pt}
-\title{LieRing Beam Physics Manual\\\large symplectic ring modelling with Lie maps (v0.4)}
+\title{LieRing Beam Physics Manual\\\large canonical variables, Lie maps, RF, acceleration}
 \date{\today}
 \begin{document}
 \maketitle
 \tableofcontents
 \clearpage
-\section{LieRing Beam Physics Manual}
+\section{Beam Physics Manual}
 
-LieRing is a modular Julia program for symplectic modelling of a storage ring
-(here: the Nuclotron-based lattice \texttt{magnetic\_2.opt}, deuteron, 270 MeV) built
-on Hamiltonians and Lie algebra. Every map in the code is derived from the
-element Hamiltonians written in this manual; no external code was used for the
-physics. OptiM and COSY INFINITY results are used only as external numeric checks.
-
-This manual describes \textbf{only what exists in the code} (status: v0.4). Each
-section names the source file that implements it (see Code map).
+Symplectic modelling of a magnetic storage ring with an RF cavity.
+The independent variable is the arc length $s$ along the reference orbit.
+All dynamics are written in \textbf{canonical} phase-space variables; laboratory
+angles and RF phase appear only as derived output.
 
 Contents:
 
 \begin{enumerate}
-\item Coordinates and reference particle
-\item Coordinate transformation user <-> canonical
-\item Element Hamiltonians and Lie maps
+\item Canonical phase space
+\item Element Hamiltonians
 \item Linear optics
-\item Second-order dispersion, momentum compaction and slip factor
+\item Second-order dispersion and momentum compaction
 \item Chromaticity
-\item RF cavity of finite length
+\item Finite-length RF cavity
 \item Acceleration and adiabatic damping
-\item Longitudinal motion, separatrix and synchrotron tune
-\item Symplecticity checks and Taylor-map comparison
-\item Sextupoles and the optional optimiser
-\item Assumptions and hypotheses
-\item Code map
-\item Programmer manual (stub)
+\item Longitudinal motion from the ring average
+\item Sextupole families
+\item Assumptions
 \end{enumerate}
 
-All scripts are run from \texttt{Julia/ring} as \texttt{julia --project=. scripts/NN\_name.jl};
-the numbers quoted below are copied from their printed output.
-
+Figures use the Nuclotron-based lattice at deuteron kinetic energy 270 MeV
+unless a ramp from 10 MeV is shown. A separate *Programmer Manual* documents
+the implementation.
 \clearpage
-\section{Coordinates and reference particle}
+\section{Canonical phase space}
 
-\emph{Implemented in \texttt{src/Constants.jl}.}
+\subsection{Variables}
 
-The reference particle has charge $Z e$, mass $m$, momentum $p_0$,
-velocity $v_0=\beta_0 c$ and Lorentz factor $\gamma_0$. The independent
-variable is the arc length $s$ along the reference orbit.
-
-\textbf{User coordinates} (input/output, plots):
+The dynamical state at arc length $s$ is the six-vector
 
 \[
-u = (x,\ x',\ y,\ y',\ \phi,\ \delta),\qquad x'=\frac{dx}{ds},\quad \delta=\frac{p-p_0}{p_0}.
+z=(x,\,p_x,\,y,\,p_y,\,l,\,\delta).
 \]
 
-$\delta$ is the relative \emph{momentum} deviation (not energy). $\phi$ is the RF
-phase of arrival relative to the reference particle with the sign convention
+- $x,y$: transverse displacements from the reference orbit [m].
+- $p_x=P_x/p_0$, $p_y=P_y/p_0$: canonical momenta normalised to the
+  reference momentum $p_0$.
+- $\delta=(p-p_0)/p_0$: relative *momentum* deviation.
+- $l=-v(\delta)\,\Delta t$: longitudinal coordinate conjugate to $\delta$,
+  with $\Delta t=t-t_0(s)$ the time lag relative to the reference particle
+  and $v(\delta)$ the particle speed,
 
 \[
-\phi = -h\,\omega_0\,\Delta t,\qquad \Delta t = t - t_0(s),
+\frac{v(\delta)}{v_0}=\frac{1+\delta}{\beta_0\sqrt{(1+\delta)^2+1/(\beta_0\gamma_0)^2}}.
 \]
 
-so $\phi>0$ means the particle arrives \emph{early}. $h$ is the harmonic number and
-$\omega_0 = 2\pi v_0/C$ the angular revolution frequency.
+The reference particle has charge $Ze$, rest energy $mc^2$, Lorentz factor
+$\gamma_0$, velocity $v_0=\beta_0 c$ and momentum $p_0$.
 
-\textbf{Canonical coordinates} (all maps, Hamiltonians, symplecticity):
+The symplectic form on this space is the standard one,
 
 \[
-z = (x,\ p_x,\ y,\ p_y,\ l,\ \delta),\qquad p_{x,y}=\frac{P_{x,y}}{p_0},\quad l = -v(\delta)\,\Delta t .
+\omega=\mathrm{d}x\wedge\mathrm{d}p_x+\mathrm{d}y\wedge\mathrm{d}p_y+\mathrm{d}l\wedge\mathrm{d}\delta,
 \]
 
-$(l,\delta)$ is a canonical pair: $l$ is the path-length-like lag measured
-with the particle's own velocity $v(\delta)$, with
+or in matrix form $S=\mathrm{diag}(S_2,S_2,S_2)$ with
+$S_2=\begin{pmatrix}0&1\\-1&0\end{pmatrix}$. A map $z\mapsto\mathcal{M}(z)$
+is symplectic iff its Jacobian satisfies $J^\mathsf{T}SJ=S$.
+
+\subsection{Output (non-canonical) coordinates}
+
+For plots and comparison with laboratory data one uses
 
 \[
-\frac{v(\delta)}{v_0}=\frac{1+\delta}{\sqrt{1+\beta_0^2\left((1+\delta)^2-1\right)}} .
+u=(x,\,x',\,y,\,y',\,\phi,\,\delta),\qquad
+x'=\frac{p_x}{p_s},\quad
+p_s=\sqrt{(1+\delta)^2-p_x^2-p_y^2},\quad
+\phi=-h\omega_0\Delta t=\frac{2\pi h}{C}\,\frac{l}{v(\delta)/v_0}.
 \]
 
-The energy term of every Hamiltonian is
+$\phi>0$ means early arrival. The set $u$ is \textbf{not} canonical:
+$x'$ depends on $\delta$ and $p_y$, and $\phi$ is scaled by
+$1/v(\delta)$. Symplecticity is therefore checked only in $z$. The
+conversion $z\leftrightarrow u$ is exact (nonlinear); truncated polynomial
+maps apply it as a full Taylor polynomial to the map order.
+
+\subsection{Energy term}
+
+Every magnetic Hamiltonian uses
 
 \[
 e(\delta)=\frac{1}{\beta_0}\sqrt{(1+\delta)^2+\frac{1}{\beta_0^2\gamma_0^2}}-\frac{1}{\beta_0^2},
 \]
 
-(the constant is irrelevant for the dynamics and makes $e(0)$-terms vanish after
-removing the constant part). Particle data: deuteron, $Z=1$,
-$mc^2 = 2\times 938.272$ MeV (as in OptiM).
-
+chosen so that the irrelevant constant vanishes at $\delta=0$ after removal
+of the constant term of $H$.
 \clearpage
-\section{Coordinate transformation user <-> canonical}
-
-\emph{Implemented in \texttt{src/Constants.jl} (\texttt{canonical\_to\_user}, \texttt{user\_to\_canonical}),
-used in \texttt{src/TaylorMap.jl} (\texttt{user\_map}) and \texttt{src/Acceleration.jl}; checked by
-\texttt{scripts/06\_coordinates.jl}.}
-
-\subsection{Exact formulas}
-
-Canonical $\to$ user:
-
-\[
-p_s=\sqrt{(1+\delta)^2-p_x^2-p_y^2},\qquad x'=\frac{p_x}{p_s},\quad y'=\frac{p_y}{p_s},\qquad
-\phi=\frac{2\pi h}{C}\,\frac{l}{v(\delta)/v_0}.
-\]
-
-User $\to$ canonical:
-
-\[
-p_x=\frac{x'(1+\delta)}{\sqrt{1+x'^2+y'^2}},\quad p_y=\frac{y'(1+\delta)}{\sqrt{1+x'^2+y'^2}},\qquad
-l=\frac{C}{2\pi h}\,\frac{v(\delta)}{v_0}\,\phi .
-\]
-
-$x$, $y$ and $\delta$ are common to both sets. These follow from
-$x'=P_x/P_s$ and from $\phi=-h\omega_0\Delta t$, $l=-v\Delta t$.
-
-\subsection{Applied as full polynomials, not linearised}
-
-Both functions are generic Julia code. In \texttt{user\_map} they are evaluated on the
-\texttt{TaylorN} variables, which produces the complete Taylor expansion of the
-square roots and of $1/v(\delta)$; the result is truncated only at the map
-order (\texttt{MAP\_ORDER = 3}). The map in user coordinates is
-
-\[
-U = T\circ M\circ T^{-1},\qquad T = \text{canonical\_to\_user}.
-\]
-
-Tracking (\texttt{accelerate}, \texttt{turn\_snapshots}) uses the same functions on
-floating-point numbers, i.e. exactly. The code was checked for hidden
-linearisations: none were found. (The linear-optics module reports
-$D'=dx/d\delta$-slope in $p_x$; to first order $p_x=x'$, so this is not an
-approximation at the order it is used.)
-
-Examples printed by \texttt{06\_coordinates.jl} (order 3):
-
-\[
-x' = p_x - p_x\delta + \tfrac12 p_x^3 + \tfrac12 p_x p_y^2 + p_x\delta^2+\dots,\qquad
-\phi = 0.267624\,l - 0.204533\,l\delta + 0.228642\,l\delta^2+\dots
-\]
-
-\subsection{Symplecticity holds only in canonical variables}
-
-$(x,x',y,y',\phi,\delta)$ is \textbf{not} a canonical set ($x'$ depends on
-$\delta$ and $p_y$; $\phi$ is scaled by $1/v(\delta)$). Therefore the
-symplectic condition $J^TSJ=S$ is checked only for maps in $z$. The
-user-coordinate map is the same physics written in other variables.
-
-\subsection{Numeric check (scripts/06\_coordinates.jl)}
-
-\begin{center}\small\begin{tabular}{p{0.475\linewidth}p{0.475\linewidth}}\hline
-\textbf{check} & \textbf{result}\\\hline
-polynomial round trip $T(T^{-1}(u))-u$, all orders kept & max coefficient $\le 1.1\times10^{-16}$\\
-exact functions round trip at $u=(5\,\mathrm{mm},20\,\mathrm{mrad},5\,\mathrm{mm},20\,\mathrm{mrad},1\,\mathrm{rad},10^{-2})$ & $0$\\
-order-3 polynomial $T$ vs exact $T$ at that point & $8.7\times10^{-7}$ (truncation)\\
-linearised $T$ vs exact $T$ at that point & $7.6\times10^{-3}$\\
-$\max\vert J^TSJ-S\vert $ canonical one-turn map at $10^{-3}$ & $6.8\times10^{-6}$ (order-3 truncation)\\
-$\max\vert J^TSJ-S\vert $ user one-turn map at $10^{-3}$ & $0.12$ (non-canonical variables)\\
-\hline\end{tabular}\end{center}
-
-Selected one-turn coefficients (270 MeV, RF off):
-
-\begin{center}\small\begin{tabular}{p{0.317\linewidth}p{0.317\linewidth}p{0.317\linewidth}}\hline
-\textbf{coefficient (canonical / user)} & \textbf{canonical} & \textbf{user}\\\hline
-$(x\vert p_x)$ / $(x\vert x')$ & 4.61348258 & 4.61348258\\
-$(x\vert \delta)$ & 2.42044391e-2 & 2.42044391e-2\\
-$(l\vert \delta)$ / $(\phi\vert \delta)$ & 62.6600041 & 16.7693216\\
-$(l\vert \delta^2)$ / $(\phi\vert \delta^2)$ & -71.5275409 & -31.9585141\\
-$(l\vert p_x^2)$ / $(\phi\vert x'^2)$ & -86.2567313 & -23.0843723\\
-$(x\vert p_x^2\delta)$ / $(x\vert x'^2\delta)$ & 343.450443 & 343.541752\\
-\hline\end{tabular}\end{center}
-
-The last line shows a genuinely nonlinear difference between the systems.
-
-\clearpage
-\section{Element Hamiltonians and Lie maps}
-
-\emph{Types: \texttt{src/Elements.jl}; Hamiltonians: \texttt{src/Hamiltonians.jl}; Lie operators:
-\texttt{src/LieOperators.jl}; factor-by-factor tracking: \texttt{src/Tracking.jl}.}
-
-\subsection{Hamiltonians}
+\section{Element Hamiltonians}
 
 With $p_s=\sqrt{(1+\delta)^2-p_x^2-p_y^2}$, curvature $h=1/\rho$ and
-normalised strengths $k_1=B'/(B\rho)$, $k_2=B''/(B\rho)$, the
-$s$-Hamiltonians are (no fringe fields, hard-edge, field constant in $s$):
+normalised multipoles $k_1=B'/(B\rho)$, $k_2=B''/(B\rho)$, the
+$s$-Hamiltonians (hard-edge, no fringe fields) are
 
 \begin{center}\small\begin{tabular}{p{0.475\linewidth}p{0.475\linewidth}}\hline
-\textbf{element} & \textbf{Hamiltonian $H(z)$}\\\hline
+\textbf{element} & \textbf{$H(z)$}\\\hline
 Drift & $e(\delta)-p_s$\\
 Quadrupole & $e(\delta)-p_s+\tfrac{k_1}{2}(x^2-y^2)$\\
 Sextupole & $e(\delta)-p_s+\tfrac{k_2}{6}(x^3-3xy^2)$\\
-Sector bend (with gradient) & $e(\delta)-(1+hx)p_s+hx+\tfrac{h^2x^2}{2}+\tfrac{k_1}{2}(x^2-y^2)$\\
+Sector bend & $e(\delta)-(1+hx)p_s+hx+\tfrac12 h^2 x^2+\tfrac{k_1}{2}(x^2-y^2)$\\
 Marker & $0$\\
-Thin RF kick (\texttt{RFCavity}) & kick only, see RF cavity of finite length\\
-Finite cavity (\texttt{Cavity}) & $e(\delta)-p_s+A\cos\Phi(l,\delta,s)$ (exact integrator only; as drift in the maps)\\
+Finite RF cavity & $e(\delta)-p_s+A\cos\Phi(l,\delta,s)$ (see Finite-length RF cavity)\\
 \hline\end{tabular}\end{center}
 
-For the bend, $\partial H/\partial x|_{z=0}=-h+h=0$: the reference arc is a
-solution. All Hamiltonians are expanded as \texttt{TaylorN} polynomials to
-\texttt{JET\_ORDER = 4} in $z$, and the constant term is removed.
+For the bend, $\partial H/\partial x|_{z=0}=0$: the reference arc is a
+solution of Hamilton's equations.
 
-\subsection{Map of an element}
+\subsection{Maps from a Hamiltonian}
 
-For an $s$-independent $H$ over length $L$ the map is the Lie transformation
-
-\[
-\mathcal M = \exp(-L:H:),\qquad :f:g = [f,g]=\sum_{i}\left(\frac{\partial f}{\partial q_i}\frac{\partial g}{\partial p_i}-\frac{\partial f}{\partial p_i}\frac{\partial g}{\partial q_i}\right),
-\]
-
-applied to the coordinate functions as the series
-$\exp(:f:)z=\sum_n :f:^n z/n!$, truncated at \texttt{MAP\_ORDER = 3}.
-The map is then Dragt–Finn factorised,
+An $s$-independent Hamiltonian over length $L$ generates the Lie map
 
 \[
-\mathcal M = R\ \circ\ e^{:f_3:}\ \circ\ e^{:f_4:},
+\mathcal{M}=\exp(-L:H:),\qquad
+:f:g=[f,g]=\sum_i\Bigl(\partial_{q_i}f\,\partial_{p_i}g-\partial_{p_i}f\,\partial_{q_i}g\Bigr).
 \]
 
-$R$ the linear (symplectic) matrix and $f_3,f_4$ homogeneous cubic/quartic
-generators. Tracking (\texttt{Tracking.jl}) applies $R$ exactly and each
-$e^{:f_k:}$ by integrating the Hamiltonian flow of $-f_k$ with the implicit
-midpoint rule, so the tracking map is symplectic to round-off even though
-the generators are truncated.
+Truncation of the Taylor series of $\mathcal{M}$ at a finite order yields a
+polynomial map that is symplectic only up to that order. Factorising
 
+\[
+\mathcal{M}=R\circ e^{:f_3:}\circ e^{:f_4:}
+\]
+
+(Dragt–Finn) and integrating each nonlinear factor by the implicit midpoint
+rule restores symplecticity to round-off. An independent construction
+integrates Hamilton's equations $\mathrm{d}z/\mathrm{d}s=S\nabla H$ by a
+Runge–Kutta scheme in the truncated polynomial algebra (differential-algebra
+map) and is used as a cross-check.
 \clearpage
 \section{Linear optics}
 
-\emph{\texttt{src/LinearOptics.jl}, \texttt{src/OptiMParser.jl}, script \texttt{01\_linear\_optics.jl}.}
-
-The linear map of each element is the Hessian of its Hamiltonian:
-$R=\exp(L\,S\,\mathcal H)$, $\mathcal H_{ij}=\partial^2H/\partial z_i\partial z_j|_0$.
-The one-turn matrix $M$ is the product over the lattice. With
-$\cos\mu=\tfrac12\mathrm{Tr}\,M_{x}$, the closed Twiss functions are
+The linear map of an element is $R=\exp(L\,S\,\mathcal{H})$ with
+$\mathcal{H}_{ij}=\partial^2 H/\partial z_i\partial z_j|_0$. The one-turn
+matrix $M$ is the product over the ring. With $\cos\mu=\tfrac12\mathrm{Tr}M_x$,
 
 \[
-\beta=\frac{M_{12}}{\sin\mu},\quad \alpha=\frac{M_{11}-M_{22}}{2\sin\mu},
+\beta=\frac{M_{12}}{\sin\mu},\qquad
+\alpha=\frac{M_{11}-M_{22}}{2\sin\mu},
 \]
 
-and the closed dispersion solves $(I-M_4)D=M_{\cdot6}$ (4x4 transverse part,
-$D=(D,D',D_y,D_y')$). The momentum compaction is
+and the closed dispersion solves $(I-M_4)D=M_{\cdot 6}$. Momentum compaction
+to first order:
 
 \[
-\alpha_c=\frac{1}{\gamma_0^2}-\frac{(l|\delta)_{\rm closed}}{C},
+\alpha_0=\frac{1}{\gamma_0^2}-\frac{(l|\delta)_{\mathrm{closed}}}{C}
+=\frac1C\oint h\,D\,\mathrm{d}s.
 \]
 
-cross-checked by $\alpha_c=\frac1C\oint hD\,ds$. Twiss and dispersion are
-propagated in slices along the ring ("closed" check: after one turn they
-reproduce the start to $10^{-13}$).
+Twiss and dispersion propagated in slices close after one turn to machine
+precision.
 
-\begin{center}\small\begin{tabular}{p{0.238\linewidth}p{0.238\linewidth}p{0.238\linewidth}p{0.238\linewidth}}\hline
-\textbf{quantity} & \textbf{LieRing} & \textbf{reference} & \textbf{source}\\\hline
-C [m] & 117.388296 &  & \\
-$\beta_x(0)$ [m] & 19.367522 & 19.3675 & OptiM\\
-$\beta_y(0)$ [m] & 4.054470 & 4.05447 & OptiM\\
-$\alpha_x(0)$ & -2.5191e-4 & -2.51909e-4 & OptiM\\
-$D'(0)$ & -5.0616e-4 & -5.0616e-4 & OptiM\\
-$D(0)$ [m] & 0.011094 & 0 & OptiM (see Assumptions)\\
-$Q_x$ & 2.461720 & frac 0.446284 & COSY\\
-$Q_y$ & 2.461337 & frac 0.476682 & COSY\\
-$\alpha_c$ & 0.23047028 & 0.23036260 & COSY\\
-\hline\end{tabular}\end{center}
-
-\begin{figure}[htbp]\centering\includegraphics[width=\linewidth]{C:/GIT_REPOS/BELL/Julia/ring/docs/src/assets/magnetic_2_twiss.png}\caption{Closed beta functions, dispersion and magnet layout of magnetic\_2 at 270 MeV (01\_linear\_optics.jl). Panels: beta\_x and beta\_y, horizontal dispersion D\_x, and the magnet layout along s.}\end{figure}
-
-The tunes differ from COSY by 0.015 in both planes, with opposite signs. The
-reason is open (fringe-field or element-model treatment in the COSY deck is the
-main suspect); the OptiM initial Twiss agree to 5 digits.
-
-
+\begin{figure}[htbp]\centering\includegraphics[width=\linewidth]{C:/GIT_REPOS/BELL/Julia/ring/docs/src/assets/magnetic_2_twiss.png}\caption{Closed beta functions, horizontal dispersion and magnet layout.}\end{figure}
 \clearpage
-\section{Second-order dispersion, momentum compaction and slip factor}
+\section{Second-order dispersion and momentum compaction}
 
-\emph{\texttt{src/SecondOrder.jl}, \texttt{src/TaylorMap.jl}, script \texttt{03\_second\_order.jl}.}
-
-The one-turn Taylor map $M$ (order 3, RF off) gives the closed orbit as a
-polynomial in $\delta$:
+\subsection{Closed orbit in $\delta$}
 
 \[
-z_\perp(\delta)=D_1\delta+D_2\delta^2+O(\delta^3),\qquad D_1=(D,D'),\ D_2=(D_2,D_2'),
+z_\perp(\delta)=D_1\delta+D_2\delta^2+O(\delta^3),
 \]
 
-from the fixed-point condition $M_\perp(z_\perp(\delta),\delta)=z_\perp(\delta)$
-order by order: $(I-R)D_1=R_{\cdot6}$, $(I-R)D_2=Q(D_1\delta+\delta e_6)|_{\delta^2}$.
-$D_2$ is propagated around the ring by pushing the polynomial orbit through
-each element map (\texttt{dispersion\_along}).
+from $M_\perp(z_\perp(\delta),\delta)=z_\perp(\delta)$ order by order.
 
-The path-length change per turn on the closed orbit is
-$\Delta l(\delta)=l_1\delta+l_2\delta^2$ ($l$ component of the map evaluated
-on $z_\perp(\delta)$). With the velocity expansion
-$\frac{v_0}{v(\delta)}=1-c_1\delta-c_2\delta^2+\dots$ ($c_1=1/\gamma_0^2$):
+\subsection{Path length and $\alpha_i$}
+
+On the closed orbit the geometric circumference admits the expansion
 
 \[
-\alpha_c(\delta)=\alpha_0+\alpha_1\delta,\quad \alpha_0=-\frac{l_1}{C}+c_1,\quad \alpha_1=-\frac{l_2}{C}+c_2,
+\frac{C(\delta)}{C_0}=1+\alpha_0\delta+\alpha_1\delta^2+\alpha_2\delta^3+\cdots.
 \]
+
+With the canonical coordinate $l$ related to time of flight by
+$l=-v\Delta t$, one turn gives
+$\Delta l=-C(\delta)+C_0\,v(\delta)/v_0$, hence
 
 \[
-\eta(\delta)=\eta_0+\eta_1\delta,\quad \eta_0=\alpha_0-\frac{1}{\gamma_0^2},\quad
-\eta_1=\alpha_1-\alpha_0c_1-c_2+c_1^2 .
+\alpha_0=-\frac{l_1}{C}+\frac{1}{\gamma_0^2},\qquad
+\alpha_1=-\frac{l_2}{C}+c_2,\qquad
+\alpha_2=-\frac{l_3}{C}+c_3,
 \]
 
-$\eta$ is the relative change of the revolution time, $\Delta T/T=\eta_0\delta+\eta_1\delta^2$,
-and enters the phase equation $\Delta\phi/\text{turn}=-2\pi h(\eta_0\delta+\eta_1\delta^2)$.
+where $v/v_0-1=c_1\delta+c_2\delta^2+c_3\delta^3$ and
+$c_1=1/\gamma_0^2$. Equivalently, $\alpha_i$ may be fitted from
+$C(\delta)/C_0$ evaluated on closed orbits at several $\delta$.
 
-Results (natural lattice, sextupoles 0), from \texttt{05\_rf\_acceleration.jl}
-section 4 and \texttt{03\_second\_order.jl}:
+\subsection{Slip factor}
 
-\begin{center}\small\begin{tabular}{p{0.317\linewidth}p{0.317\linewidth}p{0.317\linewidth}}\hline
-\textbf{quantity} & \textbf{10 MeV} & \textbf{270 MeV}\\\hline
-$\alpha_0$ & 0.23047028 & 0.23047028\\
-$\alpha_1$ & 0.33900771 & 0.33900771\\
-$\eta_0$ & -0.75895642 & -0.53378406\\
-$\eta_1$ & 1.10563172 & 1.01720896\\
-\hline\end{tabular}\end{center}
+The relative change of revolution period is
+$\Delta T/T_0=\eta_0\delta+\eta_1\delta^2+\eta_2\delta^3+\cdots$.
+Directly from time of flight,
+$\eta_0=-l_1/C=\alpha_0-1/\gamma_0^2$. The BLonD convention (Equations of
+Motion, eq. 15) expresses higher $\eta_i$ through $\alpha_i$:
 
-$\alpha_0,\alpha_1$ are purely geometric (magnet strengths scale with $p_0$);
-the energy dependence of $\eta$ comes only from $c_1,c_2$.
+\[
+\begin{aligned}
+\eta_0&=\alpha_0-\frac1{\gamma_s^2},\\
+\eta_1&=\frac{3\beta_s^2}{2\gamma_s^2}+\alpha_1-\alpha_0\eta_0,\\
+\eta_2&=-\frac{\beta_s^2(5\beta_s^2-1)}{2\gamma_s^2}+\alpha_2-2\alpha_0\alpha_1
++\frac{\alpha_1}{\gamma_s^2}+\alpha_0^2\eta_0-\frac{3\beta_s^2\alpha_0}{2\gamma_s^2}.
+\end{aligned}
+\]
 
-\begin{figure}[htbp]\centering\includegraphics[width=\linewidth]{C:/GIT_REPOS/BELL/Julia/ring/docs/src/assets/sextupoles_dispersion2.png}\caption{Second-order dispersion D2 along the ring for the natural lattice and for the optional optimiser examples (04\_optional\_sextupole\_optimization.jl).}\end{figure}
+The two expansions of $\eta_1$ (TOF identity vs BLonD) differ by terms of
+order $\alpha_0^2$; both are consistent when used with the matching drift
+formula (see below).
 
-Second-order dispersion at $s=0$ (\texttt{03\_second\_order.jl}): $D=0.01109398$ m,
-$D'=-5.0616\times10^{-4}$, $D_2=-10.054932$ m, $D_2'=0.459066$; along the ring
-$D_2\in[-10.08,\,14.41]$ m; closure $D_2(C)-D_2(0)=-3.7\times10^{-14}$.
-Exact-tracking cross-check (closed orbit at fixed $\delta$, cubic fit):
-$x_{co}=0.01108483\,\delta-10.054867\,\delta^2$, $\Delta C/C=0.23047050\,\delta+0.339007\,\delta^2$.
-Here $\alpha_1$ is defined by $\Delta C/C=\alpha_0\delta+\alpha_1\delta^2$
-(the local derivative is $\alpha_0+2\alpha_1\delta$).
+\subsection{BLonD longitudinal drift (comparison)}
 
+BLonD updates arrival time after an energy kick by (eq. 20, solver \texttt{exact})
 
+\[
+\Delta t\leftarrow\Delta t+T_0\Biggl[\Bigl(1+\alpha_0\delta+\alpha_1\delta^2+\alpha_2\delta^3\Bigr)
+\frac{1+\Delta E/E_s}{1+\delta}-1\Biggr],
+\]
+
+with $\delta$ computed exactly from $\Delta E$, and by the linearisation
+(eq. 19, solver \texttt{simple})
+
+\[
+\Delta t\leftarrow\Delta t+T_0\,\eta_0\,\frac{\Delta E}{\beta_s^2 E_s}.
+\]
+
+Element-by-element integration of the ring Hamiltonians reproduces the
+\texttt{exact} formula at the level $\sim 10^{-6}$ relative in $\Delta\phi$ per
+turn when $\alpha_{0,1,2}$ are taken from the lattice; the \texttt{simple} formula
+deviates at the level of $\alpha_1\delta$ (a few $10^{-3}$ at
+$|\delta|=10^{-3}$). Thus $\alpha_1$ *is* the leading nonlinear
+longitudinal term in the BLonD sense; the ring model includes it
+automatically through the exact element Hamiltonians (to all orders in the
+exact integrator, to map order in the truncated maps).
+
+\begin{figure}[htbp]\centering\includegraphics[width=\linewidth]{C:/GIT_REPOS/BELL/Julia/ring/docs/src/assets/sextupoles_dispersion2.png}\caption{Second-order dispersion along the ring.}\end{figure}
 \clearpage
 \section{Chromaticity}
 
-\emph{\texttt{src/SecondOrder.jl} (\texttt{chromaticity\_orders}), \texttt{src/TaylorMap.jl}
-(\texttt{tunes\_at\_delta}), script \texttt{03\_second\_order.jl}.}
-
-For fixed $\delta$ the transverse motion around the closed orbit
-$z_\perp(\delta)$ is linearised: the 4x4 Jacobian $J(\delta)$ of the map at
-the fixed point gives $Q_{x,y}(\delta)$ from $\cos 2\pi Q=\tfrac12\mathrm{Tr}J$.
-Since $\delta$ is a constant of motion without RF, the tunes are
-invariants of motion and
+At fixed $\delta$ the transverse motion about $z_\perp(\delta)$ is
+linearised. The tunes $Q_{x,y}(\delta)$ from
+$\cos 2\pi Q=\tfrac12\mathrm{Tr}J(\delta)$ expand as
 
 \[
-Q(\delta)=Q_0+\xi_1\delta+\tfrac12\xi_2\delta^2,\qquad \xi_1=\frac{dQ}{d\delta},\ \xi_2=\frac{d^2Q}{d\delta^2},
+Q(\delta)=Q_0+\xi_1\delta+\tfrac12\xi_2\delta^2.
 \]
 
-obtained by central differences with $\Delta\delta=10^{-4}$ on the polynomial map.
-Cross-check: tracking with the exact integrator at several $\delta$, tune
-from the least-squares fit $x_{n+1}+x_{n-1}=2\cos(2\pi Q)x_n+b$ (insensitive to a
-small fixed-point offset), then a parabola fit of $Q(\delta)$.
-Numbers: see the output of \texttt{03\_second\_order.jl} (reproduced in
-Sextupoles and the optional optimiser).
+Since $\delta$ is conserved without RF, these are invariants of the
+one-turn map. Cross-check: integrate the exact Hamiltonians at several
+$\delta$ and fit the tune of a small betatron oscillation.
 
-\begin{figure}[htbp]\centering\includegraphics[width=\linewidth]{C:/GIT_REPOS/BELL/Julia/ring/docs/src/assets/chromaticity_natural.png}\caption{Tunes versus delta for the natural lattice: map (line) and tracking (markers).}\end{figure}
-
-\begin{center}\small\begin{tabular}{p{0.238\linewidth}p{0.238\linewidth}p{0.238\linewidth}p{0.238\linewidth}}\hline
-\textbf{} & \textbf{map} & \textbf{tracking fit} & \textbf{COSY (reference only)}\\\hline
-$Q_{x0}$ (frac) & 0.46172014 & 0.46171903 & \\
-$\xi_{1x}$ & -1.461538 & -1.461531 & -1.840801\\
-$\xi_{2x}$ & 8.5547 & 8.5546 & \\
-$Q_{y0}$ (frac) & 0.46133732 & 0.46133566 & \\
-$\xi_{1y}$ & -2.225488 & -2.225479 & -1.847679\\
-$\xi_{2y}$ & 8.1041 & 8.1038 & \\
-\hline\end{tabular}\end{center}
-
-The difference to COSY is open (its chromaticity convention was not verified).
-
+\begin{figure}[htbp]\centering\includegraphics[width=\linewidth]{C:/GIT_REPOS/BELL/Julia/ring/docs/src/assets/chromaticity_natural.png}\caption{Fractional tunes versus momentum deviation.}\end{figure}
 \clearpage
-\section{RF cavity of finite length}
+\section{Finite-length RF cavity}
 
-\emph{\texttt{src/ExactIntegrator.jl} (\texttt{\_field\_cav}, \texttt{cavity\_parameters},
-\texttt{transit\_factor}), type \texttt{Cavity} in \texttt{src/Elements.jl}; checks in
-\texttt{05\_rf\_acceleration.jl} section 2.}
-
-The cavity is a \textbf{finite-length} element of length $L$ with a purely
-longitudinal on-axis field; it is \emph{not} a drift plus a thin kick. With
-$q A_s/p_0=-A\cos(\omega t+\psi)$, $E_s=-\partial A_s/\partial t$ and
-$t=s/v_0-l/v(\delta)$, the $s$-Hamiltonian is
+The cavity of length $L$ carries a purely longitudinal on-axis field.
+With $q A_s/p_0=-A\cos(\omega t+\psi)$ and $t=s/v_0-l/v(\delta)$,
 
 \[
-H_{\rm cav}=e(\delta)-p_s+A\cos\Phi,\qquad
+H_{\mathrm{cav}}=e(\delta)-p_s+A\cos\Phi,\qquad
 \Phi=\frac{\omega(s-L/2)}{v_0}-\frac{\omega\,l}{v(\delta)}-\phi_s,
 \]
 
 \[
-A=\frac{ZV}{p_0c}\,\frac{c}{\omega L},\qquad \omega=h\omega_0=\frac{2\pi h v_0}{C}.
+A=\frac{ZV}{p_0 c}\,\frac{c}{\omega L},\qquad \omega=h\omega_0=\frac{2\pi h v_0}{C}.
 \]
 
-Hamilton's equation gives
+Hamilton's equation $\mathrm{d}\delta/\mathrm{d}s=-\partial H/\partial l$
+is equivalent to $\mathrm{d}E/\mathrm{d}s=-(ZV/L)\sin\Phi$. Integrated over
+the cavity the energy gain is
 
 \[
-\frac{d\delta}{ds}=-\frac{\partial H}{\partial l}=-\frac{ZV}{p_0cL}\frac{c}{v}\sin\Phi,
+\Delta E=ZVT\sin(\phi_s+\phi),\qquad
+T=\frac{\sin(\theta/2)}{\theta/2},\quad \theta=\frac{2\pi h L}{C}.
 \]
 
-i.e. $dE/ds=-(ZV/L)\sin\Phi$. Integrated over the cavity for a particle
-with $\phi$ the energy gain is
-
-\[
-\Delta E=ZVT\sin(\phi_s+\phi),\qquad T=\frac{\sin(\theta/2)}{\theta/2},\ \theta=\frac{\omega L}{v_0}=\frac{2\pi hL}{C}.
-\]
-
-$H_{\rm cav}$ depends explicitly on $s$; it is integrated with the implicit
-midpoint rule composed to 4th order (Yoshida), which is symplectic for
-$s$-dependent Hamiltonians. Transverse RF fields are neglected.
-
-Checks at 270 MeV ($L=1$ m, $V=0.2$ MV, $h=5$, $\phi_s=150^\circ$,
-$T=0.99702$):
-
-\begin{center}\small\begin{tabular}{p{0.475\linewidth}p{0.475\linewidth}}\hline
-\textbf{check} & \textbf{result}\\\hline
-synchronous gain vs $ZVT\sin\phi_s$ & 0.099700856 vs 0.099701840 MeV\\
-thin limit $L=0.1/0.01/0.001$ m vs thin kick ($\phi=0.05$) & $-6.3\times10^{-9}$, $-1.5\times10^{-10}$, $-9.9\times10^{-12}$ in $\delta$\\
-symplectic error of the cavity Jacobian & $4.4\times10^{-16}$\\
-\hline\end{tabular}\end{center}
-
-The thin kick (\texttt{RFCavity}, \texttt{Tracking.rf\_kick}) applies the same energy gain $ZV\sin(\phi_s+\phi)$ at one point; the finite cavity converges to it as $L\to0$ (table above).
-
-
+$H_{\mathrm{cav}}$ depends on $s$; it is integrated by a symplectic
+$s$-dependent scheme (implicit midpoint, Yoshida 4th order). Transverse RF
+fields are omitted. The thin-kick limit $L\to 0$ recovers an instantaneous
+energy change $ZV\sin(\phi_s+\phi)$ at fixed $(x,p_x,y,p_y,l)$.
 \clearpage
 \section{Acceleration and adiabatic damping}
 
-\emph{\texttt{src/ExactIntegrator.jl} (\texttt{renormalize}), \texttt{src/Acceleration.jl}
-(\texttt{accelerate}, \texttt{turn\_snapshots}), script \texttt{05\_rf\_acceleration.jl}.}
-
-\subsection{Reference momentum update}
-
-All particles, including the synchronous particle (\#1, initially $z=0$),
-are tracked through the full lattice with the exact integrator. Right after
-the cavity the synchronous particle has $\delta_s\neq0$; it is made the new
-reference:
+After the cavity the synchronous particle has $\delta_s\neq 0$. It is made
+the new reference:
 
 \[
-p_0'=p_0(1+\delta_s),\quad 1+\delta'=\frac{1+\delta}{1+\delta_s},\quad
-p_x'=\frac{p_x}{1+\delta_s},\ p_y'=\frac{p_y}{1+\delta_s},\quad
-\Delta t'=\Delta t-\Delta t_s,\ l'=-v\,\Delta t' .
+p_0'=p_0(1+\delta_s),\quad
+1+\delta'=\frac{1+\delta}{1+\delta_s},\quad
+p_x'=\frac{p_x}{1+\delta_s},\quad
+p_y'=\frac{p_y}{1+\delta_s},\quad
+\Delta t'=\Delta t-\Delta t_s.
 \]
 
-Positions $x,y$ are unchanged. The magnets are assumed to ramp with $p_0$
-(normalised $h,k_1,k_2$ fixed) and the RF frequency follows
-$h\,\omega_0(p_0)$ (locked to the synchronous particle).
+Positions are unchanged. Magnets are assumed to ramp with $p_0$ (normalised
+strengths fixed); the RF frequency follows $h\omega_0(p_0)$.
 
-\subsection{Adiabatic damping}
-
-The physical transverse momentum $P_x=p_0p_x$ is not changed by a
-longitudinal field, so $p_x\propto1/p_0$. Between kicks the motion is a
-betatron oscillation with fixed optics; the Courant–Snyder action in
-normalised variables $J=\tfrac12(\gamma x^2+2\alpha xp_x+\beta p_x^2)$ is an
-adiabatic invariant of the \emph{unnormalised} phase space,
-$\oint P_x\,dx=p_0\oint p_x\,dx=2\pi p_0J=\text{const}$. Hence
-$J\propto1/p_0$ and the amplitude $A=\sqrt{2\beta J}$ scales as
+The physical transverse momentum $P_x=p_0 p_x$ is invariant under a
+longitudinal field, so $p_x\propto 1/p_0$. The Courant–Snyder action in
+normalised variables then scales as $J\propto 1/p_0$, and betatron
+amplitudes damp as
 
 \[
-\frac{A(n)}{A(0)}=\sqrt{\frac{p_{\rm inj}}{p_0(n)}} .
+\frac{A(n)}{A(0)}=\sqrt{\frac{p_{\mathrm{inj}}}{p_0(n)}}.
 \]
 
-Ramp results ($10\to270$ MeV, $V=0.2$ MV, $h=5$, $\phi_s=150^\circ$, then
-1000 turns with $\phi_s=180^\circ$): see the table in
-Longitudinal motion, separatrix and synchrotron tune.
-
+\begin{figure}[htbp]\centering\includegraphics[width=\linewidth]{C:/GIT_REPOS/BELL/Julia/ring/docs/src/assets/acceleration.png}\caption{Reference energy, longitudinal phase space with separatrix, adiabatic damping of betatron amplitudes, and synchrotron tune during a ramp.}\end{figure}
 \clearpage
-\section{Longitudinal motion, separatrix and synchrotron tune}
+\section{Longitudinal motion from the ring average}
 
-\emph{\texttt{src/SecondOrder.jl} (\texttt{LongitudinalParams}, \texttt{long\_H}, \texttt{fixed\_points},
-\texttt{separatrix}, \texttt{bucket\_height}, \texttt{synchrotron\_tune}), plots in
-\texttt{src/Plotting.jl}, script \texttt{05\_rf\_acceleration.jl}.}
+\subsection{From the 6D Hamiltonian to a 2D synchrotron Hamiltonian}
 
-\subsection{Turn-by-turn map and smooth Hamiltonian}
-
-With one cavity per turn, the motion of $(\phi,\delta)$ per turn $n$ is
-
-\[
-\phi_{n+1}=\phi_n-2\pi h\left(\eta_0\delta_{n+1}+\eta_1\delta_{n+1}^2\right),\qquad
-\delta_{n+1}=\delta_n+A\left(\sin(\phi_s+\phi_n)-\sin\phi_s\right),\quad A=\frac{ZVT}{\beta_0^2E_0}.
-\]
-
-(The tracking itself does not use this map; it integrates the exact
-Hamiltonians element by element. The map and the Hamiltonian below are used
-for formulas and for drawing the separatrix.) Treating $n$ as continuous,
+Over one turn the magnetic lattice advances $(l,\delta)$ through the exact
+element Hamiltonians (or, equivalently, through the BLonD \texttt{exact} drift built
+from $\alpha_{0,1,2}$). The RF cavity changes $\delta$ at essentially fixed
+$l$. Coarse-graining to one map per turn in the variables
+$(\phi,\delta)$ with $\phi=-h\omega_0\Delta t$ gives
 
 \[
-H(\phi,\delta)=-2\pi h\left(\frac{\eta_0\delta^2}{2}+\frac{\eta_1\delta^3}{3}\right)+A\left(\cos(\phi_s+\phi)+\phi\sin\phi_s\right).
+\begin{aligned}
+\phi_{n+1}&=\phi_n-2\pi h\bigl(\eta_0\delta_{n+1}+\eta_1\delta_{n+1}^2+\cdots\bigr),\\
+\delta_{n+1}&=\delta_n+A\bigl(\sin(\phi_s+\phi_n)-\sin\phi_s\bigr),\qquad
+A=\frac{ZVT}{\beta_0^2 E_0}.
+\end{aligned}
 \]
 
-Fixed points on $\delta=0$: stable $\phi=0$, unstable
-$\phi_u=\pi-2\phi_s$; $\eta_1$ adds a second pair at
-$\delta\approx-\eta_0/\eta_1$ (far outside the bucket here, 0.69 at 10 MeV).
-The \textbf{separatrix} is the level line $H(\phi,\delta)=H(\phi_u,0)$; the bucket
-is the region around $(0,0)$ inside it. Stability requires
-$\eta_0\cos\phi_s>0$: below transition ($\eta_0<0$) and with our sign of
-$\phi$ this means $90^\circ<\phi_s\le180^\circ$; acceleration uses
-$\phi_s=150^\circ$ (gain $ZVT\sin\phi_s>0$), the flat top $\phi_s=180^\circ$.
-
-\subsection{Synchrotron tune}
-
-Small amplitude:
+Treating the turn number as continuous yields the smooth Hamiltonian
 
 \[
-Q_s^{\rm smooth}=\sqrt{\frac{h\,\eta_0\,ZVT\cos\phi_s}{2\pi\beta_0^2E_0}},\qquad
-\cos(2\pi Q_s^{\rm kick})=1-\frac{(2\pi Q_s^{\rm smooth})^2}{2}\ \ \text{(one kick per turn)}.
+H(\phi,\delta)=-2\pi h\Bigl(\frac{\eta_0\delta^2}{2}+\frac{\eta_1\delta^3}{3}\Bigr)
++A\bigl(\cos(\phi_s+\phi)+\phi\sin\phi_s\bigr),
 \]
 
-\begin{center}\small\begin{tabular}{p{0.238\linewidth}p{0.238\linewidth}p{0.238\linewidth}p{0.238\linewidth}}\hline
-\textbf{$E$ [MeV], $\phi_s=180^\circ$} & \textbf{tracking} & \textbf{smooth} & \textbf{kick}\\\hline
-10 & 0.0784653 & 0.0777018 & 0.0784950\\
-270 & 0.0129407 & 0.0129376 & 0.0129411\\
-\hline\end{tabular}\end{center}
+which is the average of the full 6D dynamics over one revolution under the
+assumptions of a single RF station, no transverse–longitudinal coupling in the
+averaged equations, and $\delta$ small enough that the closed-orbit expansion
+of the path length converges. Fixed points on $\delta=0$: stable $\phi=0$,
+unstable $\phi_u=\pi-2\phi_s$. The \textbf{separatrix} is the level set
+$H=H(\phi_u,0)$; the RF bucket is the region around the origin inside it.
+Stability requires $\eta_0\cos\phi_s>0$.
 
-At 10 MeV $Q_s$ is large and the discrete-kick formula is needed (1\% vs
-0.04\%).
+Small-amplitude synchrotron tune:
 
-\subsection{Ramp 10 -> 270 MeV}
+\[
+Q_s=\sqrt{\frac{h\,\eta_0\,ZVT\cos\phi_s}{2\pi\beta_0^2 E_0}}
+\qquad\text{(smooth)},\qquad
+\cos(2\pi Q_s^{\mathrm{kick}})=1-\tfrac12(2\pi Q_s)^2
+\qquad\text{(one kick/turn)}.
+\]
 
-Parameters: $L=1$ m, $V=0.2$ MV, $h=5$ ($f_{RF}$ 1.313 -> 6.200 MHz),
-$\phi_s=150^\circ$; gain 0.099702 MeV/turn; 270 MeV reached at turn 2608,
-then 1000 turns at $\phi_s=180^\circ$. Bucket half-height at injection
-$+0.02425/-0.02369$ (asymmetric because of $\eta_1$), stationary bucket at
-270 MeV $0.00976$.
+\subsection{Element-by-element view of one turn}
 
-\begin{center}\small\begin{tabular}{p{0.475\linewidth}p{0.475\linewidth}}\hline
-\textbf{result} & \textbf{value}\\\hline
-tracked & 64 particles x 3608 turns (330 s)\\
-mean gain per turn & 0.099698 MeV (expected 0.099702)\\
-x amplitude 2 mm -> & 0.8701 mm (ratio 0.43506)\\
-y amplitude 2 mm -> & 0.8658 mm (ratio 0.43291)\\
-prediction $\sqrt{p_{inj}/p_{fin}}$ & 0.43142\\
-ensemble particles lost from the bucket & 0 of 60\\
-longitudinal invariant (turn 300 -> 2493) & 1.0000 -> 0.9508\\
-\hline\end{tabular}\end{center}
+Left: absolute $(\phi,\delta)$ with the analytic separatrix. Right: change
+relative to the turn start, with fixed axes set by lattice/RF scales —
 
-The first \~{}200 turns are not adiabatic (gain = 1\% of $E_{kin}$ per turn at
-10 MeV), which explains most of the 5\% drift of the longitudinal invariant.
+- horizontal: $\pm 1.5\,|2\pi h\eta_0|\,\delta_{\mathrm{ens}}$ (full-turn
+  phase-slip scale for the largest $|\delta|$ in the ensemble);
+- vertical: $\pm 1.5\,A$ (RF kick amplitude).
 
-Ensemble: 60 particles with $\phi\sim N(0,0.6)$ rad,
-$\delta\sim N(0,0.25\,\hat\delta_{\rm bucket})$, kept if inside the injection
-separatrix, on their dispersion orbit, $x'=y'=0$. This is deliberately
-mismatched to the bucket so that filamentation is visible. $\eta_1$ and
-$\alpha_1$ enter the separatrix; $\alpha_0=0.23047028$,
-$\alpha_1=0.33900771$ from the ring map (energy independent, as expected
-for scaled magnets).
+Only the cavity changes $\delta$ within a turn; $\phi$ changes continuously
+through path length and velocity.
 
-\begin{figure}[htbp]\centering\includegraphics[width=\linewidth]{C:/GIT_REPOS/BELL/Julia/ring/docs/src/assets/acceleration.png}\caption{Acceleration overview (05\_rf\_acceleration.jl). Top left: reference kinetic energy vs turn; dashed line: start of the flat top. Top right: longitudinal phase space at the end of the ramp (turn 2608); black: analytic separatrix H = H(phi\_u,0) of the smooth Hamiltonian with eta0, eta1 at that energy and phi\_s = 150 deg; red cross: unstable fixed point; green: stable fixed point; blue dots: the 60 ensemble particles; orange: test particle \#4 (delta0 = 1e-3) over the last 300 turns (small, near the centre). Bottom left: betatron amplitudes of the x and y test particles vs turn and the prediction A0 sqrt(p\_inj/p0(n)). Bottom right: synchrotron tune; lines: smooth and one-kick formulas evaluated at every turn (step at turn 2608 where phi\_s changes to 180 deg); markers: tracking, tune fitted to delta of particle \#4 in 200-turn windows moved by 50 turns, plotted at the window centre (windows containing the ramp end are skipped).}\end{figure}
+\begin{quote}\emph{Animation (see HTML or GIF file): Ensemble during acceleration (left: absolute; right: $\delta$ in units of the current bucket half-height).}\end{quote}
 
-\textbf{Animations} (HTML only; the PDF shows the static figure):
-\texttt{assets/longitudinal\_ramp.gif} - ensemble every 20 turns during the ramp
-and flat top, with the separatrix of the current energy and $\phi_s$; right
-panel with $\delta$ divided by the current bucket half-height (removes the
-adiabatic shrinking and shows the filamentation).
-\texttt{assets/longitudinal\_elements.gif} - one turn at injection, frame = exit of
-each element; right panel: change since the turn start (only the cavity
-changes $\delta$; $\phi$ changes in every element through $\eta$-like
-path/velocity terms).
-
-\begin{quote}\emph{Animation assets/longitudinal\_ramp.gif (see the HTML manual or the GIF file): Animation: ensemble during the ramp (GIF)}\end{quote}
-
-\begin{quote}\emph{Animation assets/longitudinal\_elements.gif (see the HTML manual or the GIF file): Animation: one turn element by element (GIF)}\end{quote}
-
+\begin{quote}\emph{Animation (see HTML or GIF file): One turn element by element (left: absolute with separatrix; right: intra-turn change on fixed physical axes).}\end{quote}
 \clearpage
-\section{Symplecticity checks and Taylor-map comparison}
+\section{Sextupole families}
 
-\emph{\texttt{src/Symplectic.jl}, \texttt{src/TaylorMap.jl}, \texttt{src/LieOperators.jl}, script
-\texttt{02\_lie\_maps.jl}.}
+A thin sextupole of integrated strength $k_2 L$ contributes to first-order
+chromaticity
 
-A map $z\mapsto\mathcal M(z)$ is symplectic iff its Jacobian satisfies
-$J^TSJ=S$ with $S=\mathrm{diag}(S_2,S_2,S_2)$, $S_2=\begin{pmatrix}0&1\\-1&0\end{pmatrix}$.
-The code reports $\max|J^TSJ-S|$ for
+\[
+\Delta\xi_{x,y}=\pm\frac{1}{4\pi}\sum k_2 L\,\beta_{x,y}D
+\]
 
-\begin{itemize}
-\item every element Lie map (at $z=0$ and at a finite amplitude),
-\item the ring map built from Lie factors, the factor-by-factor tracking map
-\end{itemize}
-  (Jacobian computed exactly by running the tracker on \texttt{TaylorN}), and the
-  exact integrator (including the cavity).
+and to second-order dispersion / $\alpha_1$ through terms $\propto k_2 L D^2$.
+Three families placed at maxima of $D_x$, $\beta_x$ and $\beta_y$ therefore
+control $(\xi_x,\xi_y,\alpha_1,D_2)$ nearly independently. Strengths may be
+chosen to null $\xi_x,\xi_y$ and optionally $\alpha_1$ or rms $D_2$; that
+choice is an optimisation problem, not part of the lattice model. The natural
+lattice has vanishing sextupole strengths.
 
-Truncated polynomial maps are symplectic only up to the truncation order (the
-error grows like $|z|^{\rm MAP\_ORDER}$); the Lie-factor tracker and the exact
-integrator are symplectic to round-off.
-
-\textbf{Taylor-map comparison module.} \texttt{TaylorMap.jl} builds the one-turn map
-completely independently of the Lie machinery: Hamilton's equations
-$dz/ds=S\nabla H$ are integrated with RK4 in the truncated polynomial
-algebra (a COSY-style differential-algebra map), element by element, and the
-maps are composed. Its coefficients are compared with the Lie-factor product
-and with one-turn tracking. Numbers: printed by \texttt{02\_lie\_maps.jl} (see
-Sextupoles and the optional optimiser for the tables reproduced from the
-latest run).
-
-Latest run of \texttt{02\_lie\_maps.jl} / \texttt{03\_second\_order.jl}:
-
-\begin{center}\small\begin{tabular}{p{0.475\linewidth}p{0.475\linewidth}}\hline
-\textbf{check} & \textbf{value}\\\hline
-linear ring matrix: Lie product vs product of $\exp(LSA)$ & $2.3\times10^{-13}$\\
-linear ring matrix: Taylor/RK4 vs $\exp(LSA)$ & $6.9\times10^{-9}$\\
-max 2nd-order coefficient difference Lie vs Taylor (largest coeff 167.5) & $5.1\times10^{-8}$\\
-symplectic error ring Taylor map at 0 / at finite amplitude & $6.8\times10^{-13}$ / $1.4\times10^{-5}$\\
-one turn: Lie tracking vs Taylor map & $4.7\times10^{-10}$\\
-symplectic error of 1-turn Lie-tracking Jacobian & $2.4\times10^{-14}$\\
-one turn: exact integrator vs Lie (order 3) / vs Taylor / vs linear & $2.4\times10^{-8}$ / $2.4\times10^{-8}$ / $6.9\times10^{-5}$\\
-symplectic error of exact-integrator one-turn Jacobian & $1.1\times10^{-13}$\\
-1000 turns Lie tracking: relative spread of $J_x$, $J_y$ & $2.4\times10^{-3}$, $2.7\times10^{-3}$\\
-\hline\end{tabular}\end{center}
-
+\begin{figure}[htbp]\centering\includegraphics[width=\linewidth]{C:/GIT_REPOS/BELL/Julia/ring/docs/src/assets/chromaticity_corrected.png}\caption{Tunes versus $\delta$ after chromaticity correction.}\end{figure}
 \clearpage
-\section{Sextupoles and the optional optimiser}
+\section{Assumptions}
 
-\emph{Placement (lattice editing, no physics): \texttt{src/Elements.jl}
-(\texttt{find\_optics\_maxima}, \texttt{place\_sextupole\_families}, \texttt{set\_family\_strengths}).
-Optimisation: \texttt{src/Optimizers.jl}, called \textbf{only} by
-\texttt{scripts/04\_optional\_sextupole\_optimization.jl}.}
-
-**Default: all sextupoles have the strength given in the lattice file, which is
-zero for \texttt{magnetic\_2.opt}. No script except 04 changes them.**
-
-\subsection{Placement}
-
-Three families of 0.12 m sextupoles are placed into the nearest existing
-sextupole slot or short drift next to local maxima ($\ge0.8$ of the global
-maximum) of $D_x$ (family SXD, 2 magnets), $\beta_x$ (SXB, 4) and $\beta_y$
-(SYB, 8). A sextupole acts chromatically through $x=D\delta$: the
-first-order chromaticity contribution is
-$\Delta\xi_{x,y}=\pm\frac{1}{4\pi}\sum k_2L\,\beta_{x,y}D$, so SXD/SXB act mostly
-on $\xi_x$ and SYB on $\xi_y$; $D_2$ and $\alpha_1$ are driven by $k_2LD^2$.
-The circumference is unchanged.
-
-\subsection{Response (per unit $k_2=1$ m$^{-3}$ for the whole family)}
-
-\begin{center}\small\begin{tabular}{p{0.19\linewidth}p{0.19\linewidth}p{0.19\linewidth}p{0.19\linewidth}p{0.19\linewidth}}\hline
-\textbf{family} & \textbf{$\Delta\xi_{1x}$} & \textbf{$\Delta\xi_{1y}$} & \textbf{$\Delta\alpha_1$} & \textbf{$\Delta D_2(0)$ [m]}\\\hline
-SXD & 4.32833 & -0.90618 & -1.63792 & 89.86\\
-SXB & 3.67887 & -0.74301 & -0.40970 & -0.034\\
-SYB & 0.84330 & -4.33701 & -0.24240 & 9.455\\
-\hline\end{tabular}\end{center}
-
-$\Delta\eta_1=\Delta\alpha_1$ (sextupoles do not change $c_1,c_2$).
-
-\subsection{Optional example solutions}
-
-These targets are \emph{examples}, not requirements: \textbf{A}
-$\xi_{1x}=\xi_{1y}=\alpha_1=0$; \textbf{B} $\xi_{1x}=\xi_{1y}=0$ and minimum rms
-$D_2$ (least squares).
-
-\begin{center}\small\begin{tabular}{p{0.238\linewidth}p{0.238\linewidth}p{0.238\linewidth}p{0.238\linewidth}}\hline
-\textbf{quantity} & \textbf{natural} & \textbf{A} & \textbf{B}\\\hline
-$k_2$ SXD / SXB / SYB [m$^{-3}$] & 0 / 0 / 0 & 0.2304 / 0.2653 / -0.6067 & 0.1456 / 0.3650 / -0.6061\\
-$\xi_{1x}$ & -1.4615 & 0.0000 & 0.0000\\
-$\xi_{1y}$ & -2.2255 & 0.0000 & 0.0000\\
-$\xi_{2x}$ & 8.555 & 3.934 & 5.165\\
-$\xi_{2y}$ & 8.104 & -0.717 & 1.236\\
-$D_2(0)$ [m] & -10.055 & 4.905 & -2.718\\
-max $\vert D_2\vert $ [m] & 14.41 & 10.04 & 3.81\\
-rms $D_2$ [m] & 7.558 & 5.728 & 2.411\\
-$\alpha_1$ & 0.33901 & 0.00000 & 0.09799\\
-$\eta_1$ (270 MeV) & 1.01721 & 0.67820 & 0.77619\\
-\hline\end{tabular}\end{center}
-
-Tracking check of A: $\xi_{1x}=0.00001$, $\xi_{2x}=3.934$, $\xi_{1y}=0.00000$,
-$\xi_{2y}=-0.717$ (map: identical to 3 digits).
-
-\begin{figure}[htbp]\centering\includegraphics[width=\linewidth]{C:/GIT_REPOS/BELL/Julia/ring/docs/src/assets/chromaticity_corrected.png}\caption{Tunes vs delta after the optional correction A: map (lines) and exact tracking (markers).}\end{figure}
-
-\clearpage
-\section{Assumptions and hypotheses}
-
-Every choice that is not a consequence of the lattice file or of the
-equations is listed here.
+Remaining modelling assumptions (accepted design choices such as injection
+energy, RF parameters, CODATA mass, and the interpretation of the lattice
+file are recorded in the Programmer Manual, not here).
 
 \begin{enumerate}
-\item \textbf{Injection energy 10 MeV} (5 MeV/u): not in \texttt{magnetic\_2.opt}; chosen as a typical linac energy and confirmed by the user. Final 270 MeV (135 MeV/u) is from the file header.
-\item \textbf{RF parameters} (chosen, not from a design): cavity length $L=1$ m, voltage $V=0.2$ MV, harmonic $h=5$, $\phi_s=150^\circ$ during the ramp and $180^\circ$ on the flat top, one cavity in the first \texttt{OBM} drift. $V$ is large so that the ramp takes \~{}2600 turns instead of $10^5$-$10^6$.
-\item \textbf{Cavity field} purely longitudinal on axis, sinusoidal in time, uniform over $L$; \textbf{no transverse RF fields}, no beam loading.
-\item **Magnets ramp with $p_0$** (normalised strengths fixed); RF frequency locked to $h\omega_0(p_0)$ of the synchronous particle.
-\item \textbf{No fringe fields}, hard-edge elements, sector bends; \textbf{no space charge}, no impedances, no radiation, no errors/misalignments.
-\item \textbf{Test amplitudes}: $x_0=2$ mm, $y_0=2$ mm, $\delta_0=10^{-3}$ ($x'=y'=0$); ensemble $\phi\sim N(0,0.6)$, $\delta\sim N(0,0.25\hat\delta)$, 60 particles, seed 1.
-\item \textbf{Optimisation targets A and B} are optional examples; the default lattice has sextupoles at zero.
-\item \textbf{"Number of periods = 2"} in \texttt{magnetic\_2.opt}: the listed sequence already bends by 360 deg, so it is used \textbf{once} (as in the COSY deck).
-\item **$D(0)=0$ in OptiM** initial conditions vs our closed $D(0)=0.0111$ m: OptiM's value is an input, not the closed solution; all other initial Twiss agree to $10^{-5}$.
-\item Mass $2\times938.272$ MeV (as OptiM), not the deuteron mass 1875.613 MeV.
-\item $\alpha_1$ used for the separatrix is linearly interpolated between the maps at 10 and 270 MeV (it turned out equal at both).
-\item Map orders: Hamiltonians to order 4, maps to order 3; tracking with the exact integrator uses $ds=0.2$ m sub-steps (4th order).
+\item Hard-edge magnets, no fringe fields.
+\item No space charge, impedances, radiation or alignment errors.
+\item RF field purely longitudinal on axis (no transverse RF).
+\item Magnets and RF frequency scale with the reference momentum during
 \end{enumerate}
-
-\clearpage
-\section{Code map}
-
-\begin{center}\small\begin{tabular}{p{0.475\linewidth}p{0.475\linewidth}}\hline
-\textbf{file} & \textbf{physics implemented}\\\hline
-\texttt{src/Constants.jl} & constants, deuteron, reference particle, $v(\delta)$, $e(\delta)$, exact user <-> canonical transform\\
-\texttt{src/Jets.jl} & truncated polynomial space (TaylorSeries \texttt{TaylorN}), orders\\
-\texttt{src/Elements.jl} & \textbf{all} element types (Drift, SBend, Quadrupole, Sextupole, thin RFCavity, finite Cavity, Marker), Lattice, lattice-editing helpers (sextupole placement, cavity insertion)\\
-\texttt{src/Hamiltonians.jl} & element Hamiltonians as polynomials\\
-\texttt{src/LieOperators.jl} & Poisson bracket, $\exp(:f:)$, Dragt–Finn factors $R,f_3,f_4$\\
-\texttt{src/OptiMParser.jl} & reader of OptiM \texttt{.opt} files\\
-\texttt{src/LinearOptics.jl} & linear maps, closed Twiss, dispersion, tunes, $\alpha_c$\\
-\texttt{src/Symplectic.jl} & $J^TSJ-S$ checks\\
-\texttt{src/Tracking.jl} & factor-by-factor Lie tracking, thin RF kick\\
-\texttt{src/TaylorMap.jl} & independent DA (RK4) one-turn Taylor map, closed orbit, tunes vs $\delta$\\
-\texttt{src/NormalForm.jl} & linear normalisation (nonlinear normal form: planned)\\
-\texttt{src/SecondOrder.jl} & $D_2$, $\alpha_{0,1}$, $\eta_{0,1}$, $\xi_{1,2}$, longitudinal Hamiltonian, separatrix, $Q_s$\\
-\texttt{src/ExactIntegrator.jl} & exact-H symplectic integrator, finite RF cavity, reference renormalisation\\
-\texttt{src/Acceleration.jl} & ramp loop, tune fit, element-by-element snapshots\\
-\texttt{src/Plotting.jl} & all figures and GIFs\\
-\texttt{src/Optimizers.jl} & OPTIONAL sextupole response and example solutions\\
-\texttt{scripts/01\_linear\_optics.jl} & linear optics + OptiM/COSY comparison\\
-\texttt{scripts/02\_lie\_maps.jl} & Lie maps, symplecticity, Lie vs Taylor, tracking\\
-\texttt{scripts/03\_second\_order.jl} & $D_2$, $\alpha/\eta$, chromaticities\\
-\texttt{scripts/04\_optional\_sextupole\_optimization.jl} & optional optimiser\\
-\texttt{scripts/05\_rf\_acceleration.jl} & RF cavity, ramp, separatrix, GIFs\\
-\texttt{scripts/06\_coordinates.jl} & coordinate transformation checks\\
-\hline\end{tabular}\end{center}
-
-\clearpage
-\section{Programmer manual (stub)}
-
-To be written. Entry point: \texttt{src/LieRing.jl} includes all modules in
-dependency order and re-exports their names; scripts do
-\texttt{include("../src/LieRing.jl"); using .LieRing}. Build these docs with
-\texttt{julia --project=docs docs/make.jl} (HTML in \texttt{docs/build/}) and the PDF with
-\texttt{julia docs/make\_pdf.jl} (needs xelatex).
-
+   acceleration.
+\begin{enumerate}
+\item Single RF station per turn for the averaged longitudinal Hamiltonian.
+\item Truncated maps are symplectic only up to the truncation order; exact
+\end{enumerate}
+   integration of $H$ is symplectic to round-off.
 \end{document}

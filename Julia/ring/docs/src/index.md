@@ -1,30 +1,23 @@
-# LieRing Beam Physics Manual
+# Beam Physics Manual
 
-LieRing is a modular Julia program for symplectic modelling of a storage ring
-(here: the Nuclotron-based lattice `magnetic_2.opt`, deuteron, 270 MeV) built
-on Hamiltonians and Lie algebra. Every map in the code is derived from the
-element Hamiltonians written in this manual; no external code was used for the
-physics. OptiM and COSY INFINITY results are used only as external numeric checks.
-
-This manual describes **only what exists in the code** (status: v0.4). Each
-section names the source file that implements it (see [Code map](codemap.md)).
+Symplectic modelling of a magnetic storage ring with an RF cavity.
+The independent variable is the arc length ``s`` along the reference orbit.
+All dynamics are written in **canonical** phase-space variables; laboratory
+angles and RF phase appear only as derived output.
 
 Contents:
 
-1. [Coordinates and reference particle](coordinates.md)
-2. [Coordinate transformation user <-> canonical](transform.md)
-3. [Element Hamiltonians and Lie maps](elements.md)
-4. [Linear optics](linear.md)
-5. [Second-order dispersion, momentum compaction and slip factor](second_order.md)
-6. [Chromaticity](chromaticity.md)
-7. [RF cavity of finite length](rf.md)
-8. [Acceleration and adiabatic damping](acceleration.md)
-9. [Longitudinal motion, separatrix and synchrotron tune](longitudinal.md)
-10. [Symplecticity checks and Taylor-map comparison](symplectic.md)
-11. [Sextupoles and the optional optimiser](sextupoles.md)
-12. [Assumptions and hypotheses](assumptions.md)
-13. [Code map](codemap.md)
-14. [Programmer manual (stub)](programmer.md)
+1. [Canonical phase space](canonical.md)
+2. [Element Hamiltonians](hamiltonians.md)
+3. [Linear optics](linear.md)
+4. [Second-order dispersion and momentum compaction](second_order.md)
+5. [Chromaticity](chromaticity.md)
+6. [Finite-length RF cavity](rf.md)
+7. [Acceleration and adiabatic damping](acceleration.md)
+8. [Longitudinal motion from the ring average](longitudinal.md)
+9. [Sextupole families](sextupoles.md)
+10. [Assumptions](assumptions.md)
 
-All scripts are run from `Julia/ring` as `julia --project=. scripts/NN_name.jl`;
-the numbers quoted below are copied from their printed output.
+Figures use the Nuclotron-based lattice at deuteron kinetic energy 270 MeV
+unless a ramp from 10 MeV is shown. A separate *Programmer Manual* documents
+the implementation.

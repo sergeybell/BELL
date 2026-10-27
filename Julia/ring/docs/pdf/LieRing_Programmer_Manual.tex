@@ -1,0 +1,69 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage{amsmath,amssymb,graphicx,geometry,hyperref,fontspec}
+\geometry{margin=2.2cm}
+\setlength{\parindent}{0pt}\setlength{\parskip}{4pt}
+\title{LieRing Programmer Manual\\\large modules, scripts, accepted design choices}
+\date{\today}
+\begin{document}
+\maketitle
+\tableofcontents
+\clearpage
+\section{Programmer Manual}
+
+Implementation notes for the LieRing Julia package. Physics is in the
+Beam Physics Manual.
+
+\subsection{Layout}
+
+\begin{center}\small\begin{tabular}{p{0.475\linewidth}p{0.475\linewidth}}\hline
+\textbf{path} & \textbf{role}\\\hline
+\texttt{src/Constants.jl} & CODATA deuteron, reference particle, $v(\delta)$, $e(\delta)$, exact $z\leftrightarrow u$\\
+\texttt{src/Jets.jl} & TaylorN space, \texttt{JET\_ORDER=4}, \texttt{MAP\_ORDER=3}\\
+\texttt{src/Elements.jl} & all element types + lattice-editing helpers\\
+\texttt{src/Hamiltonians.jl} & element $H$ as polynomials\\
+\texttt{src/LieOperators.jl} & Poisson bracket, $\exp(:f:)$, Dragt–Finn\\
+\texttt{src/OptiMParser.jl} & \texttt{.opt} reader (mass from particle, not file header)\\
+\texttt{src/LinearOptics.jl} & Twiss, dispersion, tunes, $\alpha_0$\\
+\texttt{src/Symplectic.jl} & $J^\mathsf{T}SJ-S$\\
+\texttt{src/Tracking.jl} & factorised Lie tracking, thin RF kick\\
+\texttt{src/TaylorMap.jl} & DA (RK4) one-turn map\\
+\texttt{src/NormalForm.jl} & linear normalisation (nonlinear: planned)\\
+\texttt{src/SecondOrder.jl} & $D_2$, $\alpha_{0,1}$, \texttt{blond\_alphas}, BLonD drifts, separatrix\\
+\texttt{src/ExactIntegrator.jl} & exact-$H$ integrator, finite cavity, renormalise\\
+\texttt{src/Acceleration.jl} & ramp, tune fit, turn snapshots\\
+\texttt{src/Plotting.jl} & figures and GIFs\\
+\texttt{src/Optimizers.jl} & optional sextupole response / example solves\\
+\hline\end{tabular}\end{center}
+
+Entry: \texttt{include("src/LieRing.jl"); using .LieRing}.
+
+\subsection{Scripts}
+
+\begin{verbatim}
+julia --project=. scripts/01_linear_optics.jl
+julia --project=. scripts/02_lie_maps.jl
+julia --project=. scripts/03_second_order.jl
+julia --project=. scripts/04_optional_sextupole_optimization.jl
+julia --project=. scripts/05_rf_acceleration.jl
+julia --project=. scripts/06_coordinates.jl
+julia --project=. scripts/07_blond_longitudinal.jl
+\end{verbatim}
+
+\subsection{Accepted design choices}
+
+- Injection kinetic energy 10 MeV; final 270 MeV from the lattice header.
+- RF: $L=1$ m, $V=0.2$ MV, $h=5$, $\phi_s=150^\circ$ (ramp) / $180^\circ$ (flat).
+- Mass = CODATA deuteron $1875.61294257$ MeV (OptiM \texttt{Mass=2*938.272} ignored).
+- Lattice sequence used once (file \texttt{Number of periods=2} is an error; bend is 360 deg).
+- Closed $D(0)=0.011$ m (OptiM initial 0 is not the closed solution).
+- Test amplitudes: $x_0=y_0=2$ mm, $\delta_0=10^{-3}$; ensemble as in script 05.
+- Optimiser targets A/B are examples only; default sextupole strengths are zero.
+
+\subsection{Docs build}
+
+\begin{verbatim}
+julia --project=docs docs/make.jl          # HTML -> docs/build/
+julia docs/make_pdf.jl                     # Beam Physics PDF
+julia docs/make_pdf_programmer.jl          # Programmer PDF
+\end{verbatim}
+\end{document}
