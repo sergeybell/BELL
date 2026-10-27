@@ -155,3 +155,11 @@ periods=2 no longer doubles the sequence (use once if within 1 deg of 360).
 delta_eq(Jx,Jy,Js); not implemented yet.
 
 **Docs.** Beam Physics chapter "Equilibrium momentum shift".
+
+### v0.6b - equilibrium_energy app results
+
+App `Julia/apps/equilibrium_energy`: tests A/B/C vs note ch.1-3.
+delta_eq from harmonic LS fit (constant + 1st + 2nd harmonic); note phase
+convention (phi>0 late). At dm=2e-3, rel err vs -eta1 dm^2/(2 eta0) ~ 2.5%;
+Y-plane Lambda at 20 mm within 1%; Omega/omega_s matches 1-phi^2/16 to 1e-4.
+Beam Physics chapter `equilibrium.md` updated with the table.
