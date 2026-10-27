@@ -11,6 +11,7 @@ const PAGES = [
         "Acceleration" => "acceleration.md",
         "Longitudinal motion" => "longitudinal.md",
         "Sextupoles" => "sextupoles.md",
+        "Equilibrium momentum shift" => "equilibrium.md",
         "Assumptions" => "assumptions.md",
     ],
     "Programmer Manual" => [

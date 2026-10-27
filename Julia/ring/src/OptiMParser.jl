@@ -157,14 +157,17 @@ function parse_optim(path::AbstractString; particle::Particle = DEUTERON, name =
     once = [cache[nm] for nm in seq]
     ang = sum(e -> e isa SBend ? e.angle : 0.0, once)
     nrep = 1
-    if abs(ang - 2pi) < 1e-6
+    # Design (v0.5+): magnetic_2 lists a full 360 deg sequence; "periods=2" is a file error.
+    # Use ONCE whenever the listed bend is within 1 deg of 360 (mass changes shift Brho slightly).
+    if abs(ang - 2pi) < deg2rad(1.0)
         nper != 1 && push!(warnings, "file says 'Number of periods=$nper' but the listed sequence already bends by " *
-                           "$(round(rad2deg(ang), digits=6)) deg -> sequence used ONCE (as in the COSY deck)")
-    elseif abs(ang * nper - 2pi) < 1e-6
+                           "$(round(rad2deg(ang), digits=6)) deg -> sequence used ONCE")
+    elseif abs(ang * nper - 2pi) < deg2rad(1.0)
         nrep = nper
+        push!(warnings, "sequence bend $(round(rad2deg(ang),digits=4)) deg repeated nper=$nper to make 360 deg")
     else
-        push!(warnings, "total bend angle $(rad2deg(ang)) deg (x$nper periods) is not 360 deg")
-        nrep = nper
+        push!(warnings, "total bend angle $(rad2deg(ang)) deg (x$nper periods) is not 360 deg; using sequence once")
+        nrep = 1
     end
     elems = AbstractElement[]
     for _ in 1:nrep

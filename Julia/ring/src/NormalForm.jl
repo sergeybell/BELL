@@ -54,7 +54,29 @@ function rotation_residual(R, po)
     return res
 end
 
+"""
+Plan (v0.6): 6D Lie normal form of the one-turn map WITH RF, to order 2 in
+amplitudes, giving delta_eq(Jx, Jy, Js) as the constant term of delta after
+the normalising transformation, and amplitude-dependent tunes.
+
+Steps (not yet coded):
+  1. Build one-turn Taylor map M including a thin RF kick (or finite cavity
+     DA map) in canonical (x,px,y,py,l,delta), truncated at MAP_ORDER>=3.
+  2. Linear normalisation A that block-diagonalises R into three rotations
+     (Qx, Qy, Qs); remove linear dispersion into the longitudinal block.
+  3. Dragt-Finn / Lie triangularisation to order 3: find generating function
+     F3 so that A^{-1} M A = R o exp(:h3:) with h3 containing only invariants
+     (terms in Jx, Jy, Js, and delta-powers that commute with R).
+  4. Read off:
+       - delta_eq = coeff of the constant (in angles) part of delta(J)
+         after the inverse normalising map, expanded as
+         c00 Js + c10 Jx + c01 Jy + ...  (compare note: -eta1/eta0 * <d^2>
+         with <d^2>~Js, and -Lambda/eta0 with Lambda~-2pi(Jx xi_x+...)/C);
+       - Qx(J), Qy(J), Qs(J) from h3 / from the linearised rotation angles.
+
+Until this exists, use tracking + note formulas (apps/equilibrium_energy).
+"""
 nonlinear_normal_form(args...) =
-    error("nonlinear_normal_form: planned for phase 4 (see PLAN.md); not implemented in phase 1")
+    error("nonlinear_normal_form: planned (v0.6 plan in NormalForm.jl docstring); not implemented yet")
 
 end # module

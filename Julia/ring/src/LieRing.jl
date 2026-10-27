@@ -5,7 +5,8 @@
 # WHAT
 #   Loads all sub-modules in dependency order and re-exports their public
 #   names, so a script only needs
-#       include(joinpath(@__DIR__, "..", "src", "LieRing.jl")); using .LieRing
+#       using LieRing          # after Pkg.develop(path=...)
+#   or  include(...); using .LieRing   (scripts in this repo)
 #
 #   Constants    coordinates, reference particle, canonical <-> user transform
 #   Jets         TaylorN jet space (order 3 in 6 variables), printing helpers

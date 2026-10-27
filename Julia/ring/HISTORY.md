@@ -136,3 +136,22 @@ Magnetic one-turn: exact vs BLonD exact rel err ~2e-6; simple ~1e-3 at
 **Manuals rewritten.** Beam Physics: impersonal, canonical variables only,
 no Julia file references. Programmer Manual: modules, scripts, design
 choices. Both HTML (Documenter) and PDF (xelatex).
+
+## v0.6 - Reusable package + equilibrium-energy app
+
+**Package.** `Julia/ring` is now Julia package `LieRing` v0.6.0 (UUID in
+Project.toml). Install with `Pkg.develop(path=...)`. README shows a few-line
+user lattice in code and OptiM load. Scripts under `scripts/` remain demos.
+
+**App.** `Julia/apps/equilibrium_energy` depends on LieRing via develop.
+Studies delta_eq from note ch.1-3 (magnetic): tests A (dm scan), B (Lambda
+vs xi J), C (cubic phase). Note phase convention in app output (phi>0 late).
+Stationary bucket phi_s=pi, 270 MeV, magnetic_2, exact integrator.
+
+**Parser fix.** With CODATA mass, bend is 360.08 deg (not machine-eps to 2pi);
+periods=2 no longer doubles the sequence (use once if within 1 deg of 360).
+
+**Normal form.** Plan documented in NormalForm.jl for 6D NF with RF ->
+delta_eq(Jx,Jy,Js); not implemented yet.
+
+**Docs.** Beam Physics chapter "Equilibrium momentum shift".

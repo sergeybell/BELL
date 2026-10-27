@@ -8,7 +8,7 @@ const MODE = length(ARGS) > 0 && ARGS[1] == "programmer" ? :programmer : :beam
 const PAGES = MODE === :programmer ?
     ["programmer/index.md"] :
     ["index.md", "canonical.md", "hamiltonians.md", "linear.md", "second_order.md",
-     "chromaticity.md", "rf.md", "acceleration.md", "longitudinal.md", "sextupoles.md", "assumptions.md"]
+     "chromaticity.md", "rf.md", "acceleration.md", "longitudinal.md", "sextupoles.md", "equilibrium.md", "assumptions.md"]
 const OUTNAME = MODE === :programmer ? "LieRing_Programmer_Manual" : "LieRing_Beam_Physics_Manual"
 const TITLE = MODE === :programmer ?
     "LieRing Programmer Manual\\\\\\large modules, scripts, accepted design choices" :

@@ -16,7 +16,8 @@ Contents:
 7. [Acceleration and adiabatic damping](acceleration.md)
 8. [Longitudinal motion from the ring average](longitudinal.md)
 9. [Sextupole families](sextupoles.md)
-10. [Assumptions](assumptions.md)
+10. [Equilibrium momentum shift](equilibrium.md)
+11. [Assumptions](assumptions.md)
 
 Figures use the Nuclotron-based lattice at deuteron kinetic energy 270 MeV
 unless a ramp from 10 MeV is shown. A separate *Programmer Manual* documents
