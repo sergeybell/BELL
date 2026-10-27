@@ -1,0 +1,11 @@
+# Generated / large / local
+docs/build/
+docs/pdf/*.aux
+docs/pdf/*.log
+docs/pdf/*.out
+docs/pdf/*.toc
+docs/pdf/xelatex.log
+output/*.log
+output/done.txt
+.DS_Store
+*.jl.cov
