@@ -1,0 +1,9 @@
+Phase v0.7 summary
+Finite-cavity delta* (V=0.2,L=1) = 1.0731200964174372e-7
+NF coeffs match note: cx,cy,cs
+A table:
+dm=4.9973e-04 note+FP=+3.451699e-07 NF+FP=+3.451714e-07 track=+3.449552e-07 Taylor=+2.385362e-07
+dm=7.4943e-04 note+FP=+6.422433e-07 NF+FP=+6.422462e-07 track=+6.424302e-07 Taylor=+5.375668e-07
+dm=9.9888e-04 note+FP=+1.057627e-06 NF+FP=+1.057632e-06 track=+1.057289e-06 Taylor=+9.558435e-07
+dm=1.4968e-03 note+FP=+2.241244e-06 NF+FP=+2.241255e-06 track=+2.227278e-06 Taylor=+2.136925e-06
+dm=1.9929e-03 note+FP=+3.890263e-06 NF+FP=+3.890281e-06 track=+3.876582e-06 Taylor=+3.810530e-06

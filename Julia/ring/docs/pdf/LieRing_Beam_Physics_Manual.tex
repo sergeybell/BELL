@@ -27,6 +27,7 @@ Contents:
 \item Acceleration and adiabatic damping
 \item Longitudinal motion from the ring average
 \item Sextupole families
+\item Equilibrium momentum shift
 \item Assumptions
 \end{enumerate}
 
@@ -388,6 +389,63 @@ choice is an optimisation problem, not part of the lattice model. The natural
 lattice has vanishing sextupole strengths.
 
 \begin{figure}[htbp]\centering\includegraphics[width=\linewidth]{C:/GIT_REPOS/BELL/Julia/ring/docs/src/assets/chromaticity_corrected.png}\caption{Tunes versus $\delta$ after chromaticity correction.}\end{figure}
+\clearpage
+\section{Equilibrium momentum shift}
+
+In a stationary RF bucket the phase returns to itself after a synchrotron
+period only if the mean time of flight matches the RF period. With a
+nonlinear slip factor this condition fixes a nonzero mean relative momentum
+
+\[
+\delta_{\mathrm{eq}}
+= -\frac{\eta_1}{\eta_0}\,\frac{\delta_m^2}{2}
+- \frac{\Lambda}{\eta_0},
+\qquad
+\Lambda = -\frac{2\pi}{C}\bigl(J_x\,\xi_x+J_y\,\xi_y\bigr),
+\]
+
+where \texttt{delta\_m} is the synchrotron half-amplitude, \texttt{eta\_0} and \texttt{eta\_1} are the
+leading slip-factor coefficients, \texttt{xi\_x,y} the linear chromaticities and
+\texttt{J\_x,y} the Courant-Snyder actions. A cubic truncation of the RF waveform
+(\texttt{sin phi \~{} phi - phi\^{}3/6}) multiplies the \texttt{eta\_1 delta\_m\^{}2/2} piece by
+\texttt{1 - phi\_hat\^{}2/32} and shifts the synchrotron frequency by
+\texttt{Omega/omega\_s = 1 - phi\_hat\^{}2/16}.
+
+The mean energy and Lorentz factor receive both the shift \texttt{delta\_eq} and a
+kinematic term from the mean square of delta:
+
+\[
+\Delta E_{\mathrm{eq}}
+=\beta_s^2 E_s\Bigl(\delta_{\mathrm{eq}}+\frac{\delta_m^2}{4\gamma_s^2}\Bigr).
+\]
+
+\subsection{Numeric check (magnetic ring, deuteron 270 MeV, stationary bucket)}
+
+Full-ring symplectic tracking in canonical variables, harmonic least-squares
+extraction of \texttt{delta\_eq} (constant term of a two-harmonic fit of delta over
+many synchrotron periods; half-split systematic error at most about 1e-8).
+Phase reported in the late-positive convention of the analytic note.
+
+\textbf{Longitudinal only} (Lambda = 0), delta\_m scan:
+
+\begin{center}\small\begin{tabular}{p{0.238\linewidth}p{0.238\linewidth}p{0.238\linewidth}p{0.238\linewidth}}\hline
+\textbf{delta\_m} & \textbf{delta\_eq (track)} & \textbf{-eta1 dm\^{}2/(2 eta0)} & \textbf{rel.}\\\hline
+5.0e-4 & 3.45e-7 & 2.38e-7 & 0.45\\
+1.0e-3 & 1.06e-6 & 9.50e-7 & 0.11\\
+2.0e-3 & 3.88e-6 & 3.78e-6 & 0.025\\
+\hline\end{tabular}\end{center}
+
+\textbf{Betatron contribution.} At \texttt{delta\_m \~{} 3e-4} and vertical amplitude 20 mm,
+\texttt{Lambda\_fit / Lambda\_form = 1.009}; with sextupoles set to \texttt{xi \~{} 0} the fitted
+Lambda drops by an order of magnitude toward the longitudinal baseline.
+
+\textbf{Cubic phase.} For \texttt{phi\_hat} in [0.30, 0.50], the measured \texttt{Omega/omega\_s}
+agrees with \texttt{1 - phi\_hat\^{}2/16} to 1e-4, and
+\texttt{<(delta-deq)\^{}2> / (dm\^{}2/2)} stays within 1\% of unity (cubic correction
+\texttt{1 - phi\_hat\^{}2/32} is a few parts in 1e3).
+
+These relations are verified by symplectic tracking of the full ring
+Hamiltonians against the formulae above.
 \clearpage
 \section{Assumptions}
 
