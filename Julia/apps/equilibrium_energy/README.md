@@ -23,3 +23,15 @@ Outputs under `output/`: `A_delta_eq.png`, `B_lambda.png`, `C_cubic_phase.png`, 
 Lattice: `magnetic_2.opt`, deuteron, 270 MeV, stationary bucket φ_s = π
 (LieRing; late sync in the note), exact integrator in canonical variables.
 δ_eq is the constant term of a two-harmonic least-squares fit of δ(n).
+## v0.8 (thin RF everywhere)
+
+```
+julia --project=. scripts/run_v08.jl     # ~7 min; log in output/run_v08.log
+cd note; latexmk -xelatex main.tex       # note/main.pdf
+```
+
+Models: M1 analytic formula, M2 6D Dragt-Finn normal form (`dragt_finn_nf6d`),
+M3 exact symplectic element-by-element tracking + exact thin RF kick at s=0,
+M4 iterated order-3 Taylor map. All numbers in the note come from
+`note/gen/*.tex`, written by `run_v08.jl`. `run_v07.jl` (finite cavity) is
+kept only for history.

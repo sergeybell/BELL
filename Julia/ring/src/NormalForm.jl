@@ -331,4 +331,176 @@ end
 # Keep old stub name as alias
 nonlinear_normal_form(args...; kwargs...) = normal_form_rf(args...; kwargs...)
 
+
+# =============================================================================
+# v0.8: explicit 6D Dragt-Finn normal form of the one-turn map (thin RF)
+# =============================================================================
+#
+#   M (order-3 Taylor map, thin RF kick)  --fixed point z*-->  M_c
+#   R = linear part of M_c;  A = symplectic eigen-normalisation (A^T S A = S):
+#       A^{-1} R A = diag(rot(mu_x), rot(mu_y), rot(mu_s)),
+#       rot(mu) = [cos mu  sin mu; -sin mu  cos mu] = exp(:-mu J:),
+#       J_k = (w_{2k-1}^2 + w_{2k}^2)/2.
+#   M_n = A^{-1} o M_c o A = R_rot o exp(:f3:) o exp(:f4:)   (Dragt-Finn)
+#   Order 3: T3 = exp(:F3:), M' = T3^{-1} o M_n o T3; f3' = f3 + L3 F3 is
+#            linear in F3; solve f3' = 0 (no cubic resonances).
+#   Order 4: T4 = exp(:F4:), f4'' = f4' + L4 F4 = h4 in span{J_i J_j}.
+#   Normal map N = exp(:h:), h(J) = -mu.J + sum_{i<=j} c_ij J_i J_j.
+#   Lab coordinates  z = z* + A (T3 o T4)(w),  w on the torus of actions J.
+#   delta_eq(J) = z*_6 + < (A (T3 o T4)(w))_6 >_theta
+#               = z*_6 + sum_k d_k J_k   (+ O(J^2), not kept at map order 3)
+#   d_k = (1/2)(d^2/dq_k^2 + d^2/dp_k^2) U_6 |_0 ,  U_6 = sum_j A_6j (T3 o T4)_j
+# =============================================================================
+
+export NF6D, dragt_finn_nf6d, nf6d_delta_eq, nf6d_actions, nf6d_tunes, symplectic_eigen_A
+
+_mono(e) = prod(Z[i]^e[i] for i in 1:6)
+_hp_basis(k) = [_mono(e) for e in Jets.exponents_of_order(k)]
+_hcoeffs(p::TaylorN, k) = [Float64(getcoeff(p, e)) for e in Jets.exponents_of_order(k)]
+
+"Symplectic eigen-normalisation of a stable 6x6 matrix. Returns (A, mu[3]) with plane order x, y, s."
+function symplectic_eigen_A(R)
+    S = SYMPLECTIC_S
+    ev = eigen(R)
+    pairs = []
+    for i in 1:6
+        imag(ev.values[i]) > 0 || continue
+        v = ev.vectors[:, i]; a = real.(v); b = imag.(v)
+        n = dot(a, S * b); mu = angle(ev.values[i])
+        if n < 0
+            b = -b; n = -n; mu = -mu
+        end
+        push!(pairs, (a = a ./ sqrt(n), b = b ./ sqrt(n), mu = mu))
+    end
+    length(pairs) == 3 || error("one-turn matrix not stable")
+    w(p, r) = sum(abs2, p.a[r]) + sum(abs2, p.b[r])
+    is = argmax([abs(p.a[6]) + abs(p.b[6]) for p in pairs] ./ [sqrt(w(p, 1:6)) for p in pairs])
+    rest = setdiff(1:3, is)
+    ix = w(pairs[rest[1]], 1:2) > w(pairs[rest[2]], 1:2) ? rest[1] : rest[2]
+    iy = setdiff(rest, ix)[1]
+    A = zeros(6, 6); mu = zeros(3)
+    for (k, j) in enumerate((ix, iy, is))
+        A[:, 2k-1] = pairs[j].a; A[:, 2k] = pairs[j].b; mu[k] = pairs[j].mu
+    end
+    return A, mu
+end
+
+struct NF6D
+    zstar::Vector{Float64}
+    A::Matrix{Float64}
+    mu::Vector{Float64}          # linear phase advances (rad), planes x,y,s
+    Rn_residual::Float64         # |A^-1 R A - rotations|
+    symp_residual::Float64       # |A^T S A - S|
+    F3::TaylorN{Float64}
+    F4::TaylorN{Float64}
+    f3_before::Float64           # max|coef| of f3 before / after
+    f3_after::Float64
+    f4_nonres_after::Float64     # max|f4 - h4| after order-4 step
+    c::Matrix{Float64}           # h4 = sum_{i<=j} c[i,j] J_i J_j
+    d::Vector{Float64}           # delta_eq = z*_6 + d . J
+    d_grid::Vector{Float64}      # same, from numerical torus average (check)
+    T::Vector{TaylorN{Float64}}  # w -> u
+    Tinv::Vector{TaylorN{Float64}}
+    U6::TaylorN{Float64}
+    sigma_delta_s::Float64       # delta amplitude per sqrt(2 Js): sqrt(A65^2+A66^2)
+    sigma_l_s::Float64           # l amplitude per sqrt(2 Js)
+end
+
+_lie_map_of(F) = [truncate_to(lie_exp(F, Z[i]), MAP_ORDER) for i in 1:6]
+_conj(Mx, F) = compose_maps(_lie_map_of(-F), compose_maps(Mx, _lie_map_of(F)))
+
+"""
+    dragt_finn_nf6d(M) -> NF6D
+
+Explicit order-by-order Dragt-Finn normal form of an order-3 one-turn map M
+(6D, with RF). See header comment above for the formulas.
+"""
+function dragt_finn_nf6d(M)
+    zstar = fixed_point_6d(M)
+    Mc = center_map_at(M, zstar)
+    R = map_linear_part(Mc)
+    A, mu = symplectic_eigen_A(R)
+    Ai = inv(A)
+    Rn = Ai * R * A
+    Rrot = zeros(6, 6)
+    for k in 1:3
+        c, s = cos(mu[k]), sin(mu[k])
+        Rrot[2k-1:2k, 2k-1:2k] = [c s; -s c]
+    end
+    ZA = [sum(A[i, j] * Z[j] for j in 1:6) for i in 1:6]
+    McA = [truncate_to(evaluate(Mc[i], ZA), MAP_ORDER) for i in 1:6]
+    Mn = [truncate_to(sum(Ai[i, j] * McA[j] for j in 1:6), MAP_ORDER) for i in 1:6]
+    # ---- order 3
+    D0 = dragt_finn_factor(Mn)
+    b3 = _hp_basis(3); f30 = _hcoeffs(D0.f3, 3)
+    L3 = hcat([_hcoeffs(dragt_finn_factor(_conj(Mn, e)).f3, 3) .- f30 for e in b3]...)
+    x3 = -(L3 \ f30)
+    F3 = sum(x3[j] * b3[j] for j in eachindex(b3))
+    M3 = _conj(Mn, F3)
+    D1 = dragt_finn_factor(M3)
+    # ---- order 4
+    b4 = _hp_basis(4); f40 = _hcoeffs(D1.f4, 4)
+    L4 = hcat([_hcoeffs(dragt_finn_factor(_conj(M3, e)).f4, 4) .- f40 for e in b4]...)
+    Iq = [(Z[2k-1]^2 + Z[2k]^2) / 2 for k in 1:3]
+    pairs = [(i, j) for i in 1:3 for j in i:3]
+    B = hcat([_hcoeffs(Iq[i] * Iq[j], 4) for (i, j) in pairs]...)
+    x = pinv([L4 -B]) * (-f40)
+    nb = length(b4)
+    F4 = sum(x[j] * b4[j] for j in 1:nb)
+    cvec = x[nb+1:end]
+    cmat = zeros(3, 3)
+    for (k, (i, j)) in enumerate(pairs)
+        cmat[i, j] = cvec[k]
+    end
+    M4 = _conj(M3, F4)
+    D2 = dragt_finn_factor(M4)
+    h4 = sum(cvec[k] * Iq[i] * Iq[j] for (k, (i, j)) in enumerate(pairs))
+    # ---- transformation and delta_eq
+    T = compose_maps(_lie_map_of(F3), _lie_map_of(F4))
+    Tinv = compose_maps(_lie_map_of(-F4), _lie_map_of(-F3))
+    U6 = sum(A[6, j] * T[j] for j in 1:6)
+    d = [0.5 * (constant_term(differentiate(differentiate(U6, 2k-1), 2k-1)) +
+                constant_term(differentiate(differentiate(U6, 2k), 2k))) for k in 1:3]
+    # numerical torus average check (unit actions scaled small)
+    dg = zeros(3)
+    for k in 1:3
+        J = zeros(3); J[k] = 1e-8
+        dg[k] = (_torus_mean(U6, J) ) / 1e-8
+    end
+    sds = hypot(A[6, 5], A[6, 6]); sls = hypot(A[5, 5], A[5, 6])
+    return NF6D(zstar, A, mu, maximum(abs, Rn - Rrot), maximum(abs, A' * SYMPLECTIC_S * A - SYMPLECTIC_S),
+                F3, F4, maximum(abs, f30), maxabs(D1.f3), maxabs(D2.f4 - h4), cmat, d, dg,
+                T, Tinv, U6, sds, sls)
+end
+
+function _torus_mean(P, J; nth = 8)
+    acc = 0.0; n = 0
+    r = sqrt.(2 .* J)
+    for i in 0:nth-1, j in 0:nth-1, k in 0:nth-1
+        t = 2pi .* (i, j, k) ./ nth
+        w = [r[1] * cos(t[1]), -r[1] * sin(t[1]), r[2] * cos(t[2]), -r[2] * sin(t[2]),
+             r[3] * cos(t[3]), -r[3] * sin(t[3])]
+        acc += Float64(evaluate(P, w)); n += 1
+    end
+    return acc / n
+end
+
+"delta_eq(J) = z*_6 + d . J  (J = (Jx, Jy, Js), normal-form actions)."
+nf6d_delta_eq(nf::NF6D, J) = nf.zstar[6] + dot(nf.d, J)
+
+"Nonlinear normal-form actions (Jx, Jy, Js) of a lab-frame canonical point z."
+function nf6d_actions(nf::NF6D, z; linear = false)
+    u = nf.A \ (collect(z) .- nf.zstar)
+    w = linear ? u : [Float64(evaluate(nf.Tinv[i], u)) for i in 1:6]
+    return [(w[2k-1]^2 + w[2k]^2) / 2 for k in 1:3]
+end
+
+"Amplitude-dependent phase advances mu_k(J) = mu_k - dh4/dJ_k and tunes |mu|/2pi."
+function nf6d_tunes(nf::NF6D, J)
+    c = nf.c
+    g = [2c[k, k] * J[k] + sum(c[min(k, j), max(k, j)] * J[j] for j in 1:3 if j != k) for k in 1:3]
+    muJ = nf.mu .- g
+    return (mu = muJ, Q = mod.(muJ ./ (2pi), 1.0), dmu = -g)
+end
+
 end # module

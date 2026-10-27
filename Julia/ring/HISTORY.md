@@ -195,3 +195,50 @@ Manual).
 Tracking `delta_eq ≈ note + delta*`; thin-RF NF / Taylor match the bare note.
 
 **Local only.** Commits + tag `v0.7`; no push.
+
+## v0.8 - thin RF everywhere, explicit 6D Dragt-Finn normal form, models M1-M4 (2026-10-27)
+
+**Goal.** The v0.7 research note was too thin. Make RF a thin kick in every
+model of `apps/equilibrium_energy`, remove the finite-cavity `delta*`
+contribution from numbers and text (one sentence only: finite cavity is a
+separate future study), derive `delta_eq` from an explicit normal form, define
+the models, explain every number, and develop the time-evolution / averaging
+figures.
+
+**LieRing (`NormalForm.jl`).** New explicit order-by-order normal form
+`dragt_finn_nf6d(M)` (+ `nf6d_delta_eq`, `nf6d_actions`, `nf6d_tunes`,
+`symplectic_eigen_A`, type `NF6D`):
+
+* fixed point z*, symplectic eigen-normalisation A (A^T S A = S,
+  A^-1 R A = rotations; residual 1e-13);
+* Dragt-Finn `M_n = rot o e^{:f3:} e^{:f4:}`; order 3: homological equation
+  `f3' = f3 + F3 - F3 o rot = 0` solved as a 56x56 linear system built by
+  exact map composition (f3 0.26 -> 3e-16); order 4: F4 removes all
+  non-resonant quartic terms, `h4 = sum c_ij J_i J_j` (residual 1.5e-13);
+* `delta_eq = z*_6 + d.J`, `d_k = (1/2)(d_qq + d_pp) U6 |_0`,
+  `U6 = (A T3 T4)_6`, checked by 8^3 torus grid average.
+* Result: `d = (0.14665244, 0.22328941, 2.4770639e-3)` vs formula
+  `(2pi xi_x/(C eta0), 2pi xi_y/(C eta0), -eta1 sigma_delta^2/eta0)`
+  `= (0.14665257, 0.22328971, 2.4770642e-3)`: rel. diff <= 1.4e-6.
+  Old `normal_form_rf` / phase-condition fit kept (unused by v0.8 app).
+
+**Constants check.** `DEUTERON` mass 1875.61294257 MeV = CODATA 2018
+(m_d c^2 = 1875.612 942 57(57) MeV); c exact; G_d = -0.142987272 (CODATA 2018
+-0.1429872722) - nothing changed. The OptiM file mass 1876.544 (= 2*938.272)
+is parsed but not used for the reference particle (documented in the note).
+
+**App `equilibrium_energy`.** `scripts/run_v08.jl` (thin RF, kick at s=0):
+M1 analytic formula, M2 normal form, M3 exact symplectic element-by-element
+tracking + exact thin kick, M4 iterated order-3 Taylor map. Test A (5 dm,
+12000 turns), Qs(J) check, Test B (x/y, 5-20 mm, 6000 turns), fast betatron
+averaging of path length (within turn, turn-by-turn), slow synchrotron
+averaging (running mean, period mean, LS fit, convergence vs N, spectra),
+M3 vs M4. Numbers/tables written to `note/gen/*.tex` and `\input` by the
+note (no hand-copied numbers). Note rewritten (16 pp., Russian).
+
+Key numbers (thin RF): dm=1e-3: M1 0.9520e-6, M2 0.9546e-6, M3 0.9499e-6,
+M4 0.9519e-6; dm=2e-3: M1 3.789e-6, M2 3.831e-6, M3 3.737e-6, M4 3.770e-6.
+Test B: M1/M2/M3 agree to 0.05%. Qs(J): NF vs tracking < 1e-6.
+No constant offset any more (v0.7 `~1e-7` was the finite-cavity fixed point).
+
+**Local only.** Commit + tag `v0.8`; no push.
