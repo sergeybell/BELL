@@ -2,6 +2,9 @@
 # 01_hello.jl - first steps in Julia
 # =============================================================================
 #
+#
+# Author: Kolokolchikov Sergey Dmitrievich <sergey.bell13@gmail.com>
+#
 # WHAT THIS EXAMPLE TEACHES
 #   The very basics of the language, enough to read the later physics examples:
 #   printing, variables and their types, arithmetic (including the difference

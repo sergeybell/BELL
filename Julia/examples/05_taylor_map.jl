@@ -2,6 +2,9 @@
 # 05_taylor_map.jl - what a Taylor map is and how to work with it
 # =============================================================================
 #
+#
+# Author: Kolokolchikov Sergey Dmitrievich <sergey.bell13@gmail.com>
+#
 # WHAT THIS EXAMPLE TEACHES
 #   The object at the heart of map-based beam dynamics (COSY INFINITY, DA):
 #   a Taylor map = a vector of multivariate polynomials truncated at order N,

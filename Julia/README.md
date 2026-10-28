@@ -1,20 +1,29 @@
-# Julia — learning examples
+# Bell
 
-[Julia](https://julialang.org) is a high-level, dynamically typed language that is
-compiled just-in-time (via LLVM) to native code, so plain loops run at C/Fortran speed.
-Its core idea is *multiple dispatch*: functions are specialised on the types of all
-arguments, which makes it easy to write generic numerical code (e.g. the same tracking
-code works for `Float64`, dual numbers, or Taylor/DA polynomials).
+**Author:** Kolokolchikov Sergey Dmitrievich (`sergey.bell13@gmail.com`)
 
-The goal of this folder: learn Julia step by step towards a small, transparent
-tracking code for a magnetic FODO ring based on transfer maps, Lie generators and
-Poisson brackets (to be validated later against COSY INFINITY).
+Julia package for symplectic modelling of a magnetic ring. The object of
+the ring is a product of Lie transformations. Linear optics and higher-order
+numbers are readings of that product. A truncated Taylor map is an independent
+check. Architecture: [`docs/architecture.md`](docs/architecture.md). Physics
+manual: [`docs/src/index.md`](docs/src/index.md).
 
-The ring package is `ring/` (LieRing): Hamiltonians in canonical coordinates,
-product of Lie factors, thin RF, normal form, torus average of `δ`. Open its
-manuals in a browser: `ring/index.html`. Learning examples below do not depend
-on it. The equilibrium-momentum study lives in
-`C:\GIT_REPOS\SCT_2\Julia\equilibrium_energy\` and depends on this package.
+```julia
+using Pkg
+Pkg.activate(".")
+Pkg.instantiate()
+using Bell
+lat = load_structure("lattices/fodo.bell")
+```
+
+A concrete ring is a structure file under `lattices/`. Convert an OptiM
+`.opt` with `convert_optim(opt_path, structure_path)`, then
+`load_structure`. The equilibrium-momentum study lives in
+`C:\GIT_REPOS\SCT_2\Julia\equilibrium_energy\` and should `Pkg.develop`
+this folder.
+
+Tutorial examples `01`–`06` teach the language and do not load the package.
+Program examples start at `10_linear_optics.jl`.
 
 ## Install
 
@@ -91,9 +100,19 @@ garbles Unicode).
 | `examples/05_taylor_map.jl` | Taylor maps with `TaylorSeries` (`JetSpace`, `TaylorN`): truncated polynomial algebra, expansions, coefficient table (final\|monomial), composition, inverse, Jacobian |
 | `examples/06_poisson_bracket.jl` | Poisson brackets and Lie operators: bracket rules, conserved quantities, Lie transformation `exp(:-tH:)` as the time-t flow, BCH, symplecticity |
 | `examples/linear_optics.jl` | Helper with transfer matrices and Twiss functions - currently unused (kept for later) |
+| `examples/10_linear_optics.jl` | Load the Nuclotron-based structure, closed Twiss, dispersion, tunes |
+| `examples/11_lie_maps.jl` | Lie factors, tracking, Taylor-map check |
+| `examples/12_higher_order.jl` | D2, slip, chromaticity from the one-turn factor |
+| `examples/13_optional_sextupole_optimization.jl` | Optional sextupole families |
+| `examples/14_rf_acceleration.jl` | Finite cavity and ramp |
+| `examples/15_coordinates.jl` | Canonical ↔ laboratory transform |
+| `examples/16_blond_longitudinal.jl` | External (dt, dE) drift formulae (not the ring product) |
+| `examples/17_lie_product.jl` | BCH product of two factors |
+| `examples/18_lie_normal_form.jl` | One-turn factor and torus average |
 
-Scripts 01, 02 and 04 use only the standard library; 03 needs `Plots`, 05-06 need `TaylorSeries`.
-All of them can be run the same way: `julia --project=. examples/XX_name.jl`.
+Tutorials 01, 02 and 04 use only the standard library; 03 needs `Plots`, 05-06 need `TaylorSeries`.
+Program examples 10–18 need `using Bell`.
+All of them: `julia --project=. examples/XX_name.jl`.
 
 ### 01 - Julia basics
 

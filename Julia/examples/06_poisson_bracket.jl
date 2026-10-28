@@ -2,6 +2,9 @@
 # 06_poisson_bracket.jl - Poisson brackets and Lie operators
 # =============================================================================
 #
+#
+# Author: Kolokolchikov Sergey Dmitrievich <sergey.bell13@gmail.com>
+#
 # WHAT THIS EXAMPLE TEACHES
 #   How Hamiltonian dynamics can be done with algebra on polynomials: the
 #   Poisson bracket, conserved quantities, and the Lie transformation

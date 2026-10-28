@@ -1,3 +1,6 @@
+#
+# Author: Kolokolchikov Sergey Dmitrievich <sergey.bell13@gmail.com>
+#
 # linear_optics.jl — shared helper functions (transfer matrices), included by
 # example 06 (03 is self-contained).  Not meant to be run on its own.
 #

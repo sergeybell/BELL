@@ -1,0 +1,32 @@
+# Bell structure file
+# Author: Kolokolchikov Sergey Dmitrievich <sergey.bell13@gmail.com>
+# Minimal FODO cell, repeated 16 times.  Units: m, rad, 1/m^2.
+
+reference
+  particle deuteron
+  kinetic_MeV 270
+  harmonic 1
+
+parameters
+  L_d = 2.0
+  L_q = 0.4
+  L_b = 1.5
+  k_f = 0.3
+  h = 0.05
+  angle_b = h * L_b
+
+elements
+  D1   drift        L = L_d
+  QF   quadrupole   L = L_q    k1 = k_f
+  D2   drift        L = L_d
+  B    sbend        L = L_b    angle = angle_b
+  D3   drift        L = L_d
+  QD   quadrupole   L = L_q    k1 = -k_f
+  D4   drift        L = L_d
+  B2   sbend        L = L_b    angle = angle_b
+
+sequence cell
+  D1 QF D2 B D3 QD D4 B2
+
+sequence
+  16 * cell

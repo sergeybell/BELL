@@ -2,6 +2,9 @@
 # 03_fodo_linear.jl - standard linear-optics procedure for one FODO cell
 # =============================================================================
 #
+#
+# Author: Kolokolchikov Sergey Dmitrievich <sergey.bell13@gmail.com>
+#
 # WHAT THIS EXAMPLE TEACHES
 #   The standard procedure of linear beam optics for a periodic lattice, done
 #   "by hand" with 2x2 / 3x3 transfer matrices, for one FODO cell of a small

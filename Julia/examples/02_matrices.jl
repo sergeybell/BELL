@@ -2,6 +2,9 @@
 # 02_matrices.jl - vectors and matrices in Julia
 # =============================================================================
 #
+#
+# Author: Kolokolchikov Sergey Dmitrievich <sergey.bell13@gmail.com>
+#
 # WHAT THIS EXAMPLE TEACHES
 #   How to create and use vectors and matrices with the standard library
 #   LinearAlgebra - the tools needed later for transfer matrices in beam optics.

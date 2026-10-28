@@ -2,6 +2,9 @@
 # 04_dual_numbers.jl - automatic differentiation with hand-made dual numbers
 # =============================================================================
 #
+#
+# Author: Kolokolchikov Sergey Dmitrievich <sergey.bell13@gmail.com>
+#
 # THE PROBLEM
 #   Given a function that is computed by a PROGRAM (a chain of +, *, /, sin,
 #   exp, ... - possibly thousands of lines, e.g. a particle tracking code),
