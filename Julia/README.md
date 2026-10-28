@@ -22,8 +22,10 @@ A concrete ring is a structure file under `lattices/`. Convert an OptiM
 `C:\GIT_REPOS\SCT_2\Julia\equilibrium_energy\` and should `Pkg.develop`
 this folder.
 
-Tutorial examples `01`–`06` teach the language and do not load the package.
-Program examples start at `10_linear_optics.jl`.
+Package version `0.10.0` (not a product release). Tutorial examples `01`–`06`
+teach the language and do not load the package. Program examples start at
+`10_linear_optics.jl`. There are no `07`–`09`. Notebook:
+`examples/Bell_examples.ipynb`.
 
 ## Install
 
@@ -87,9 +89,10 @@ Every example is self-documenting:
   a heading with 1-3 lines explaining what is computed and what to look for, then the results,
   and at the end a *Summary / what you learned*.
 
-The small printing helpers (`banner`, `section`, `print_summary`) are defined at the top of each
-file, so every example is self-contained. Printed text is plain ASCII (the Windows console
-garbles Unicode).
+Program examples `10`–`18` take `banner` / `section` from `print_util.jl` and
+the OptiM/COSY numbers from `reference_values.jl`. Those two files are not
+examples. `linear_optics.jl` is leftover 2×2-matrix helpers; example `03` does
+not include it. Printed text is plain ASCII.
 
 | File | Content |
 |------|---------|
@@ -99,7 +102,10 @@ garbles Unicode).
 | `examples/04_dual_numbers.jl` | Hand-written dual numbers (first-order automatic differentiation = 1st-order DA); transfer matrix of a beamline by tracking `x0 + eps` |
 | `examples/05_taylor_map.jl` | Taylor maps with `TaylorSeries` (`JetSpace`, `TaylorN`): truncated polynomial algebra, expansions, coefficient table (final\|monomial), composition, inverse, Jacobian |
 | `examples/06_poisson_bracket.jl` | Poisson brackets and Lie operators: bracket rules, conserved quantities, Lie transformation `exp(:-tH:)` as the time-t flow, BCH, symplecticity |
-| `examples/linear_optics.jl` | Helper with transfer matrices and Twiss functions - currently unused (kept for later) |
+| `examples/linear_optics.jl` | Not an example: leftover 2×2 transfer-matrix helpers (`03` is self-contained) |
+| `examples/print_util.jl` | Not an example: `banner` / `section` used by `10`–`18` |
+| `examples/reference_values.jl` | Not an example: OptiM path and COSY numbers used by `10`–`16`, `18` |
+| `examples/Bell_examples.ipynb` | Notebook: descriptions + `include` of every numbered example |
 | `examples/10_linear_optics.jl` | Load the Nuclotron-based structure, closed Twiss, dispersion, tunes |
 | `examples/11_lie_maps.jl` | Lie factors, tracking, Taylor-map check |
 | `examples/12_higher_order.jl` | D2, slip, chromaticity from the one-turn factor |

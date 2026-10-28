@@ -1,6 +1,6 @@
 name = "Bell"
 uuid = "15ed3219-68f0-4cc9-8228-483d95d0d998"
-version = "1.0.0"
+version = "0.10.0"
 authors = ["Kolokolchikov Sergey Dmitrievich <sergey.bell13@gmail.com>"]
 
 [deps]

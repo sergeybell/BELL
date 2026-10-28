@@ -4,8 +4,8 @@ Local tags and commits live in `C:\GIT_REPOS\BELL` (never pushed by this
 work). Phases 1 and 2 were not snapshotted separately; their content is
 summarised here so a future reader / AI can reconstruct the thought process
 without digging through chat. The code as committed under tag `v0.4` contains
-everything of phases 1-3. From v1.0 the program is the Julia package `Bell`
-in `Julia/`, not the folder `Julia/ring`.
+everything of phases 1-3. From v0.10 the program is the Julia package `Bell`
+in `Julia/`, not the folder `Julia/ring`. This is not a product release.
 
 ## v0.1 - Julia learning examples (sibling folder)
 
@@ -286,7 +286,7 @@ It still depends on this package via `Pkg.develop`. `Julia/apps` is removed.
 like BLonD). PDFs: `docs/pdf/LieRing_Beam_Physics_Manual.pdf` and
 `LieRing_Programmer_Manual.pdf`. Architecture figures sit on the home page.
 
-## v1.0 - Bell package; lattice in its own file
+## v0.10 - Bell package; lattice in its own file; examples notebook
 
 **Layout.** The ring experiment `Julia/ring` (LieRing) is gone. The program is
 the Julia package `Bell` in `Julia/src`: one file per block. A concrete ring
@@ -314,11 +314,22 @@ an independent check: high-order numbers come from the Lie product
 `SecondOrder` was split so 6D tracking does not live in the reduced
 `(φ, δ)` module.
 
-**Examples.** Tutorials `01`–`06` teach Julia and do not load the package.
-Program examples start at `10_linear_optics.jl` and load `Bell` plus a
-structure file. Console layout (`banner` / `section`) is in
-`examples/print_util.jl`. BLonD `(dt, dE)` formulae stay in
-`16_blond_longitudinal.jl`, not in the 6D path.
+**Examples.** Numbered scripts are `01`–`06` (Julia language, no Bell) and
+`10`–`18` (Bell + structure file). There are no `07`–`09`: those names were
+the old `Julia/ring` scripts that became `16`–`18`. Helpers, not examples:
+
+* `print_util.jl` — `banner` / `section` for `10`–`18`
+* `reference_values.jl` — OptiM path, COSY numbers for comparison tables
+* `linear_optics.jl` — leftover 2×2 transfer-matrix helpers from the
+  tutorial FODO; `03_fodo_linear.jl` is self-contained and does not include it
+
+BLonD `(dt, dE)` formulae stay in `16_blond_longitudinal.jl`, not in `src/`.
+Notebook `examples/Bell_examples.ipynb` runs every numbered example in order
+(executed: 18 code cells, 0 errors).
+
+**Block coverage.** Every `src/` block is called from `10`–`18`. The notebook
+table lists which example uses which file. FODO through
+`load_structure("lattices/fodo.bell")` is a notebook cell, not a separate `07`.
 
 **Docs.** `docs/architecture.md` (English) says how the blocks connect, where
 orders come from, how Lie tracking differs from the exact integrator, and
@@ -327,3 +338,5 @@ Programmer notes: `docs/src/programmer/`.
 
 **Downstream.** `C:\GIT_REPOS\SCT_2\Julia\equilibrium_energy` should
 `Pkg.develop` `Julia/`, not `Julia/ring`.
+
+**Not a product.** Package version is `0.10.0`. There is no 1.0 release.

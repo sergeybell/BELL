@@ -1,8 +1,9 @@
 #
 # Author: Kolokolchikov Sergey Dmitrievich <sergey.bell13@gmail.com>
 #
-# linear_optics.jl — shared helper functions (transfer matrices), included by
-# example 06 (03 is self-contained).  Not meant to be run on its own.
+# linear_optics.jl — leftover 2x2 transfer-matrix helpers from the Julia
+# tutorial.  Example 03 is self-contained and does not include this file.
+# Not a Bell example.  Not meant to be run on its own.
 #
 # Coordinates: (x, x') with x' = px/p0, s = path length along the reference orbit.
 # Linear equation of motion  x'' + K(s) x = 0.
