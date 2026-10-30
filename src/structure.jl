@@ -277,7 +277,8 @@ function _make_element(name, kind, kv)
     if k == "drift"
         return Drift(name, L)
     elseif k == "sbend" || k == "bend"
-        return SBend(name, L, get(kv, "angle", 0.0), get(kv, "k1", 0.0))
+        return SBend(name, L, get(kv, "angle", 0.0), get(kv, "k1", 0.0),
+                     get(kv, "e1", 0.0), get(kv, "e2", 0.0), get(kv, "gap", 0.0), get(kv, "fint", 0.0))
     elseif k == "quadrupole" || k == "quad"
         return Quadrupole(name, L, get(kv, "k1", 0.0))
     elseif k == "sextupole" || k == "sext"
@@ -427,8 +428,12 @@ function _card_line(e::AbstractElement)
     if e isa Drift
         return @sprintf("%s %-12s L = %-20s", nm, "drift", _fmt(e.L))
     elseif e isa SBend
-        return @sprintf("%s %-12s L = %-20s angle = %-20s k1 = %s",
-                        nm, "sbend", _fmt(e.L), _fmt(e.angle), _fmt(e.k1))
+        s = @sprintf("%s %-12s L = %-20s angle = %-20s k1 = %s",
+                     nm, "sbend", _fmt(e.L), _fmt(e.angle), _fmt(e.k1))
+        for (k, v) in (("e1", e.e1), ("e2", e.e2), ("gap", e.gap), ("fint", e.fint))
+            iszero(v) || (s *= "  $k = $(_fmt(v))")
+        end
+        return s
     elseif e isa Quadrupole
         return @sprintf("%s %-12s L = %-20s k1 = %s", nm, "quadrupole", _fmt(e.L), _fmt(e.k1))
     elseif e isa Sextupole

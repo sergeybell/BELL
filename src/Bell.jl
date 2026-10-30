@@ -26,16 +26,17 @@ include("longitudinal.jl")
 include("exact_integrator.jl")
 include("acceleration.jl")
 include("normal_form.jl")
+include("fringe.jl")
 include("plotting.jl")
 include("optimizers.jl")
 
 using .Coordinates, .Elements, .Structure, .LieAlgebra, .Hamiltonians, .OptimConverter,
       .Linear, .Symplectic, .Tracking, .HigherOrder, .DifferentialAlgebra, .NormalForm,
-      .Longitudinal, .ExactIntegrator, .Acceleration, .Plotting, .Optimizers
+      .Longitudinal, .ExactIntegrator, .Acceleration, .Plotting, .Optimizers, .Fringe
 
 for mod in (Coordinates, Elements, Structure, LieAlgebra, Hamiltonians, OptimConverter,
             Linear, Symplectic, Tracking, HigherOrder, DifferentialAlgebra, NormalForm,
-            Longitudinal, ExactIntegrator, Acceleration, Plotting, Optimizers)
+            Longitudinal, ExactIntegrator, Acceleration, Plotting, Optimizers, Fringe)
     for n in names(mod)
         n === nameof(mod) && continue
         @eval export $n

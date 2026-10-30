@@ -8,8 +8,12 @@
 #   Plain data types describing beam-line elements, in SI units and in the
 #   normalised strengths that enter the Hamiltonians:
 #     Drift(name, L)
-#     SBend(name, L, angle, k1)      sector dipole, no fringe fields,
-#                                    h = angle/L = 1/rho, optional gradient k1
+#     SBend(name, L, angle, k1)      sector dipole, h = angle/L = 1/rho,
+#                                    optional gradient k1
+#     SBend(name, L, angle, k1, e1, e2, gap, fint)
+#                                    + pole-face angles e1/e2 [rad], full gap [m]
+#                                    and fringe integral FINT; read only by the
+#                                    edge maps of fringe.jl (body H unchanged)
 #     Quadrupole(name, L, k1)        k1 = (dBy/dx)/(B rho)   [1/m^2], k1>0 focuses x
 #     Sextupole(name, L, k2)         k2 = (d2By/dx2)/(B rho) [1/m^3]
 #     RFCavity(name, V, h, phi_s)    thin cavity, voltage V [MV] (per unit charge)
@@ -34,14 +38,19 @@ struct Drift <: AbstractElement
     L::Float64
 end
 
-"Sector bend: reference orbit is an arc of radius rho = L/angle; no fringe fields."
+"Sector bend: reference orbit is an arc of radius rho = L/angle; edges are data for fringe.jl."
 struct SBend <: AbstractElement
     name::String
     L::Float64
     angle::Float64
     k1::Float64
+    e1::Float64
+    e2::Float64
+    gap::Float64
+    fint::Float64
 end
 SBend(name, L, angle) = SBend(name, L, angle, 0.0)
+SBend(name, L, angle, k1) = SBend(name, L, angle, k1, 0.0, 0.0, 0.0, 0.0)
 
 struct Quadrupole <: AbstractElement
     name::String
@@ -99,6 +108,8 @@ kind_string(::Cavity) = "Cavity"
 function Base.show(io::IO, e::AbstractElement)
     s = "$(kind_string(e))($(e.name), L=$(elem_length(e)) m"
     e isa SBend && (s *= ", angle=$(e.angle) rad, k1=$(e.k1)")
+    e isa SBend && any(!iszero, (e.e1, e.e2, e.gap, e.fint)) &&
+        (s *= ", e1=$(e.e1), e2=$(e.e2), gap=$(e.gap), fint=$(e.fint)")
     e isa Quadrupole && (s *= ", k1=$(e.k1) 1/m^2")
     e isa Sextupole && (s *= ", k2=$(e.k2) 1/m^3")
     (e isa RFCavity || e isa Cavity) && (s *= ", V=$(e.voltage_MV) MV, h=$(e.harmonic), phi_s=$(e.phi_s)")
