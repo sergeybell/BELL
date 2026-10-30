@@ -99,21 +99,3 @@ with ``q_i`` the quadratic part of ``M_i``. Path length on that orbit:
 \alpha_0 = -\frac{l_1}{C} + c_1,\quad \alpha_1 = -\frac{l_2}{C} + c_2,\quad
 \eta_0 = -\frac{l_1}{C},\quad \eta_1 = -\frac{l_2}{C} + \frac{l_1}{C}c_1 .
 ```
-
-## Reference
-
-```@docs
-hessian
-linear_matrix
-ring_matrix
-periodic_optics
-optics_along
-observables
-closed_orbit
-tunes_at_delta
-chromaticity_orders
-dispersion_orders
-dispersion_along
-path_expansion
-velocity_expansion
-```

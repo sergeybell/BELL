@@ -111,31 +111,3 @@ homological equation (`resonant_cubic` returns ``h_3 = 0`` and stores
 ``F_3 = f_3``), and ``h_4`` is taken as ``f_4``. The fitted coefficients are compared
 with the analytic counterparts ``-\eta_1/(\eta_0\beta_s)``, ``(2\pi/C)\xi_{x,y}/\eta_0``.
 Use route 1 for the normal form itself.
-
-## Reference
-
-```@docs
-dragt_finn_nf6d
-NF6D
-NormalForm._nf6d_from_factor
-one_turn_factor_rf
-symplectic_eigen_A
-homological_operator
-nf6d_delta_eq
-nf6d_actions
-nf6d_tunes
-normal_form_rf
-NormalFormRF
-delta_eq_nf
-tunes_nf
-nonlinear_normal_form
-delta_eq_phase_condition
-NormalForm.linear_A_6d
-one_turn_map_rf
-rf_kick_taylor
-fixed_point_6d
-center_map_at
-evaluate_map
-linear_normalizing_matrix
-rotation_residual
-```

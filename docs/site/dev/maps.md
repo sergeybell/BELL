@@ -19,21 +19,6 @@ Changing the orders is the only global switch of the nonlinear accuracy. A degre
 Hamiltonian gives maps exact to degree 3, and a Dragt-Finn factor then has
 generators f3 and f4.
 
-```@docs
-JET_ORDER
-MAP_ORDER
-SPACE
-Z
-truncate_to
-hom
-maxabs
-coeff
-map_linear_part
-exponents_of_order
-poly_string
-map_string
-```
-
 ## Element Hamiltonians
 
 [`hamiltonian`](@ref) is the single source of element physics. The exact
@@ -41,11 +26,6 @@ expression is evaluated in `TaylorN` arithmetic, so the square root
 ``p_s`` and the energy term [`energy_term`](@ref) are expanded by the
 polynomial engine, not by hand. A check that H has no linear part
 guarantees that the reference orbit solves the equations of motion.
-
-```@docs
-hamiltonian
-hamiltonian_formula
-```
 
 ## Poisson bracket and Lie transformations
 
@@ -60,14 +40,6 @@ Hamiltonian ``H`` over length ``L`` is
 [`lie_exp`](@ref) sums this series term by term until it converges in relative
 terms. Because brackets lower the degree by 2 and the space is truncated, the
 series for nonlinear generators terminates exactly.
-
-```@docs
-SYMPLECTIC_S
-poisson
-lie_exp
-lie_map
-compose_maps
-```
 
 ## Dragt–Finn factorisation
 
@@ -114,19 +86,7 @@ symplectic map, and only the generators are truncated.
 R = exp(L·S·A) is symplectic because S·A is Hamiltonian. The truncated
 polynomial `factor_to_map(F)` is symplectic only up to degree MAP_ORDER.
 That is why tracking applies the factor by symplectic flows instead (see
-[Tracking and integrators](tracking.md)).
-
-```@docs
-LieFactor
-identity_factor
-dragt_finn_factor
-concatenate
-product_factors
-factor_to_map
-pull_generator
-LieAlgebra.linear_on_Z
-rotation_matrix_6
-```
+[Tracking](tracking.md)).
 
 ## Differential-algebra (RK4) maps
 
@@ -135,19 +95,4 @@ classical RK4, where z is a vector of polynomials starting from the identity.
 The integration is 4th order in the step and not symplectic. It is used only to
 cross-check the Lie product and as the input of the map-based normal form.
 
-```@docs
-taylor_map_element
-element_maps
-ring_taylor_map
-user_map
-chromaticity
-momentum_compaction
-```
-
 ## Symplecticity checks
-
-```@docs
-symplectic_error
-jacobian_of_map
-jacobian_of_function
-```

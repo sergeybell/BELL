@@ -63,16 +63,6 @@ H(\varphi,\delta) = -2\pi h\Big(\eta_0\frac{\delta^2}{2} + \eta_1\frac{\delta^3}
 This model is truncated at second order in ``\delta`` *deliberately*, as an
 analysis object to compare with the exact tracking.
 
-```@docs
-LongitudinalParams
-long_H
-synchrotron_tune
-fixed_points
-separatrix
-bucket_height
-longitudinal_hamiltonian_text
-```
-
 ## Acceleration
 
 The full algorithm (order of operations per turn, where the kick is applied, the
@@ -80,9 +70,3 @@ kick formula, and which reference quantities are recomputed) is in
 [Tracking → One turn with acceleration](tracking.md). [`measure_tune`](@ref)
 extracts tunes from turn-by-turn data by fitting
 ``x_{n+1}+x_{n-1} = 2\cos(2\pi Q)\,x_n + b``, so an unknown fixed point does not bias ``Q``.
-
-```@docs
-accelerate
-turn_snapshots
-measure_tune
-```

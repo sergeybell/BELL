@@ -275,19 +275,3 @@ Identity map, no factor contribution (``R=I``, ``f_3=f_4=0``).
 
 Edges (EdgeIn/EdgeOut) are separate thin items produced by `fringe_sequence`; their
 explicit maps are on the [Fringe fields](fringe.md) page.
-
-## Reference
-
-```@docs
-AbstractElement
-Drift
-SBend
-Quadrupole
-Sextupole
-RFCavity
-Cavity
-Marker
-elem_length
-curvature
-kind_string
-```

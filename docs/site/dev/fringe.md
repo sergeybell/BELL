@@ -10,13 +10,8 @@ ring is built.
 
 ## Template: how an edge is inserted
 
-```julia
-model = FringeModel(dipole = SoftEdge(profile = Enge(gap = 0.05),
-                                      method  = Splitting(n = 20, order = 4)),
-                    quad = HardEdge(order = 2), sext = NoEdge(),
-                    override = Dict("BM3" => HardEdge(order = 1)))
-F = ring_lie_factor(lat, model)
-```
+(How to choose a model: User's Guide, [Fringe-field models](../guide/fringe.md).)
+
 
 ```
 fringe_sequence(lat, model):                    # model chosen per element: override[name] > family > NoEdge
@@ -178,31 +173,3 @@ Tunes, ``\xi_1``, ``\xi_2`` of the ring with the model (via `chromaticity_orders
 `factor_to_map(ring_lie_factor(lat, model))`), symplecticity error of every edge
 map (linear part and Jacobian at a test point) and of the ring ``R``, and the
 computing time.
-
-## Reference
-
-```@docs
-FringeModel
-edge_model
-EdgeModel
-NoEdge
-HardEdge
-SoftEdge
-FringeProfile
-Enge
-ENGE_DEFAULT
-Tanh
-LinearRamp
-Tabulated
-FringeMethod
-Splitting
-Magnus
-TaylorIntegrate
-EdgeMap
-fringe_sequence
-edge_map
-profile_function
-fringe_integral
-fringe_hamiltonian
-fringe_observables
-```

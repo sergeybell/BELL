@@ -180,26 +180,3 @@ variables to ``(l,\delta)`` is canonical, so the kick is symplectic.
 | RF | finite cavity, exact ``\sin\Phi``, t-dependent | thin kick, exact formulas |
 | reference energy | updated after every cavity (`renormalize`) | fixed |
 | step error | ``O(\Delta s^4)`` | none per factor (flows of 2 midpoint steps) |
-
-## Reference
-
-```@docs
-build_factors
-ring_lie_factor
-element_lie_map
-apply_factor
-Tracking.apply_nonlinear
-Tracking._flow
-track
-rf_kick
-exact_track_element
-exact_track_turn
-cavity_parameters
-transit_factor
-renormalize
-ExactIntegrator.W1
-ExactIntegrator._field_mag
-ExactIntegrator._field_cav
-ExactIntegrator._midpoint
-ExactIntegrator._integrate
-```

@@ -6,9 +6,8 @@ CurrentModule = Bell
 
 This page explains how the package is organised, which conventions every
 module uses, and how data flows from a lattice file to the ring observables.
-The rest of the Programmer Manual has one page per package area. Each page
-gives a hand-written explanation of the algorithms, then the reference of every
-type and function.
+The other Developer's Guide pages describe the algorithms of each area; the
+function reference is in the API Reference.
 
 ## Package layout
 
@@ -26,7 +25,7 @@ src/
   tracking.jl             Tracking           Lie-factor tracking, thin RF kick
   higher_order.jl         HigherOrder        readings of the one-turn map
   differential_algebra.jl DifferentialAlgebra RK4-in-TaylorN maps (cross-check)
-  longitudinal.jl         Longitudinal       smooth (phi, delta) model, bucket (analysis only)
+  longitudinal.jl         Longitudinal       smooth (phi, delta) motion, bucket
   exact_integrator.jl     ExactIntegrator    exact-H symplectic integrator, cavity
   acceleration.jl         Acceleration       energy ramp, adiabatic damping
   normal_form.jl          NormalForm         6D normal forms with RF
@@ -140,17 +139,9 @@ independent cross-checks.
 ## Building this manual
 
 ```
-julia --project=docs -e 'using Pkg; Pkg.develop(path="."); Pkg.instantiate()'   # once
 julia --project=docs docs/make.jl          # HTML -> docs/build/index.html
-julia --project=docs docs/make_pdf.jl programmer   # old PDF programmer overview
 ```
 
-Docstrings live next to the code in `src/*.jl`. A new exported name needs a
-docstring and an entry in a `@docs` block on the page of its area. `make.jl`
-runs with `checkdocs = :exports` and reports any exported name that is missing.
-
-## Module docstring
-
-```@docs
-Bell
-```
+Docstrings live next to the code in `src/*.jl`. The API Reference pages collect
+them with `@autodocs` per module, so a new docstring appears there
+automatically; `checkdocs = :exports` reports exported names without a docstring.
