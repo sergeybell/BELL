@@ -26,7 +26,7 @@ using LinearAlgebra
 using ..DiffAlgebra
 using ..Coordinates, ..Elements, ..Structure
 
-export hamiltonian_da, lie_flow_map, element_flow_maps, one_turn_map_flow, flow_space
+export hamiltonian_da, lie_flow_map, element_flow_maps, one_turn_map_flow, flow_space, chromaticity_series
 
 const _SPACES = Dict{Tuple{Int,Int},DASpace}()
 """
@@ -126,6 +126,62 @@ function one_turn_map_flow(lat::Lattice, N::Integer; cache::Bool = true)
         M = compose(Me, M)
     end
     M
+end
+
+@doc raw"""
+    chromaticity_series(M; iters = N + 2) -> NamedTuple
+    chromaticity_series(lat, N; cache = true) -> NamedTuple
+
+Exact chromaticity series of a one-turn DA map ``\mathcal M`` (variables
+``x, p_x, y, p_y, l, \delta``, order ``N``, e.g. [`one_turn_map_flow`](@ref)) - no finite
+differences, no fit:
+
+1. parametric closed orbit ``u(\delta)``, ``\mathcal M_{1..4}(u(\delta), 0, \delta) = u(\delta)``, as a DA
+   series in ``\delta`` (Newton iteration with the constant matrix ``(R_0 - I)^{-1}``, one order
+   per step);
+2. the map shifted to the orbit, ``\tilde{\mathcal M}(z) = \mathcal M(u + z_\perp, l, \delta) - u``, and its
+   linear part on the orbit ``R_{ij}(\delta) = \partial\tilde{\mathcal M}_i/\partial z_j|_{z_\perp = 0}`` as DA in
+   ``\delta`` (exact through ``\delta^{N-1}``);
+3. ``\cos\mu(\delta) = \tfrac12\operatorname{tr}R_{\rm plane}(\delta)``, solved for ``\mu`` by Newton in the DA,
+   started from the branch ``\mu_0 \in (0,\pi)`` if ``R_{12}(0) > 0``, ``\mu_0 \in (\pi, 2\pi)`` otherwise;
+   ``Q = \mu/2\pi`` (fractional tune).
+
+Returns `(x = q, y = q, xi_x, xi_y, orbit, nmax)`: `q[n+1]` ``= q_n`` with
+``Q(\delta) = \sum_n q_n\delta^n``, `xi[n]` ``= \xi_n = n!\,q_n = d^nQ/d\delta^n`` for
+``n = 1\dots N-1`` (``q_N`` is not exact and is not returned), `orbit` = ``u(\delta)`` (4 DA).
+Planes are treated as uncoupled (2x2 blocks). The `Lattice` method drops thin `RFCavity`
+elements (``\delta`` is a parameter) and uses [`one_turn_map_flow`](@ref) (no SBend edges/fringes).
+"""
+function chromaticity_series(M::AbstractVector{<:DA}; iters::Integer = order(M[1]) + 2)
+    sp = M[1].sp; N = sp.no
+    z = da_vars(sp); d = z[6]; O = zero(d)
+    A = inv(linear_part(M)[1:4, 1:4] - I)
+    u = [O, O, O, O]
+    for _ in 1:iters
+        Mu = compose(M[1:4], [u; O; d])
+        r = Mu .- u
+        u = [u[i] - sum(A[i, j] * r[j] for j in 1:4) for i in 1:4]
+    end
+    Ms = compose(M[1:4], [u[1] + z[1], u[2] + z[2], u[3] + z[3], u[4] + z[4], z[5], d])
+    on = [O, O, O, O, O, d]
+    R = [compose([deriv(Ms[i], j)], on)[1] for i in 1:4, j in 1:4]
+    function tune(a, b)
+        c = (R[a, a] + R[b, b]) / 2
+        c0 = constant_part(c); abs(c0) < 1 || error("chromaticity_series: plane $a unstable, |tr R/2| = $(abs(c0))")
+        mu0 = acos(c0); constant_part(R[a, b]) < 0 && (mu0 = 2pi - mu0)
+        mu = da_const(sp, mu0)
+        for _ in 1:N + 2
+            mu = mu + (cos(mu) - c) / sin(mu)
+        end
+        q = [coefficient(mu, [0, 0, 0, 0, 0, n]) / (2pi) for n in 0:N-1]
+        q, [factorial(n) * q[n+1] for n in 1:N-1]
+    end
+    qx, xx = tune(1, 2); qy, xy = tune(3, 4)
+    (x = qx, y = qy, xi_x = xx, xi_y = xy, orbit = u, nmax = N - 1)
+end
+function chromaticity_series(lat::Lattice, N::Integer; cache::Bool = true)
+    l2 = Lattice(lat.name, AbstractElement[e for e in lat.elements if !(e isa RFCavity)], lat.ref, lat.harmonic)
+    chromaticity_series(one_turn_map_flow(l2, N; cache = cache))
 end
 
 end # module

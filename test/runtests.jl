@@ -141,4 +141,22 @@ end
         @test maxdiff(M, ML) < 1e-12
         @test da_symplectic_error(one_turn_map_flow(lat, 6)) < 1e-11
     end
+    @testset "chromaticity_series (exact, no finite differences)" begin
+        cell = AbstractElement[Quadrupole("QF", 0.2, 1.2), Drift("D1", 0.5), SBend("B", 1.5, pi / 8), Drift("D2", 0.5),
+                               Quadrupole("QD", 0.4, -1.2), Drift("D3", 0.5), SBend("B", 1.5, pi / 8), Drift("D4", 0.5),
+                               Sextupole("S", 0.1, 4.0), Quadrupole("QF", 0.2, 1.2)]
+        ring = Lattice("ring8", AbstractElement[e for _ in 1:8 for e in cell], ref, 1)
+        c5 = chromaticity_series(ring, 5); c7 = chromaticity_series(ring, 7)
+        @test length(c5.xi_x) == 4 && length(c7.xi_y) == 6
+        @test isapprox(c5.xi_x, c7.xi_x[1:4]; rtol = 1e-10) && isapprox(c5.xi_y, c7.xi_y[1:4]; rtol = 1e-10)
+        MDF = factor_to_map(ring_lie_factor(ring)); sp = flow_space(3)
+        MD = [DA(sp, [tcoef(MDF[i], monomial_exponents(sp, m)) for m in 1:nmonomials(sp)]) for i in 1:6]
+        cd = chromaticity_series(MD)
+        @test isapprox(cd.xi_x, c7.xi_x[1:2]; rtol = 1e-10) && isapprox(cd.xi_y, c7.xi_y[1:2]; rtol = 1e-10)
+        q0 = tunes_at_delta(MDF, 0.0)
+        @test abs(q0[1] - c7.x[1]) < 1e-12 && abs(q0[2] - c7.y[1]) < 1e-12
+        h = chromaticity_orders(MDF; dd = 1e-5)
+        @test abs(h.x[2] - c7.xi_x[1]) < 1e-5 * abs(c7.xi_x[1]) && abs(h.y[2] - c7.xi_y[1]) < 1e-5 * abs(c7.xi_y[1])
+        println("  chromaticity_series ring8: Q = ", (c7.x[1], c7.y[1]), " xi_x = ", c7.xi_x[1:3], " xi_y = ", c7.xi_y[1:3])
+    end
 end

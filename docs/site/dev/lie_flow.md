@@ -57,3 +57,22 @@ equals the DOP853 solution of ``z' = S\nabla H`` (order 5) to ``10^{-12}``; ``J^
 for ``N = 3, 6`` and ``L`` up to 10 m (scaling-and-squaring path); one-turn FODO map at order 3
 equals the composed Lie maps to ``10^{-12}``.
 Benchmarks against COSY INFINITY: SCT_2 `benchmarks/lie_flow`.
+
+## Higher-order chromaticity: `chromaticity_series`
+
+`chromaticity_series(lat, N)` (or `chromaticity_series(M)` for a ready DA map) reads the series
+``Q(\delta) = \sum_n q_n\delta^n`` directly from the one-turn map of order ``N``, with no finite differences:
+
+1. parametric closed orbit ``u(\delta)``: ``\mathcal M_{1..4}(u, 0, \delta) = u`` is solved in the DA by Newton
+   iteration with the constant matrix ``(R_0 - I)^{-1}`` (each step gains one order in ``\delta``);
+2. the map is shifted to the orbit, ``\tilde{\mathcal M}(z) = \mathcal M(u + z_\perp, l, \delta) - u``, and its linear part
+   ``R_{ij}(\delta) = \partial\tilde{\mathcal M}_i/\partial z_j|_{z_\perp=0}`` is a DA in ``\delta``, exact through
+   ``\delta^{N-1}`` (the derivative of an order-``N`` map is exact through ``N-1``);
+3. ``\cos\mu = \tfrac12\operatorname{tr}R`` is solved for ``\mu(\delta)`` by Newton in the DA, started on the branch
+   ``\mu_0\in(0,\pi)`` if ``R_{12}(0)>0`` (else ``2\pi-\arccos``); ``Q = \mu/2\pi``.
+
+It returns ``q_0..q_{N-1}`` and ``\xi_n = n!\,q_n`` (``n = 1..N-1``); planes are treated as uncoupled.
+The `Lattice` method drops thin `RFCavity` elements and uses [`one_turn_map_flow`](@ref), i.e. no fringe
+fields and no dipole edge angles. The old `chromaticity_orders` (central difference with step `dd` on the
+order-3 map) has an error ``\approx q_3^{\rm trunc}\,dd^2`` in ``\xi_1``, where ``q_3^{\rm trunc}`` is the unreliable
+cubic coefficient of the truncated map; `chromaticity_series` has no such error.
