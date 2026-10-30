@@ -6,12 +6,12 @@
 # Injection energy is assumed (5 MeV/u); it is not in the OptiM file.
 # Takes a few minutes.
 #
-#   julia --project=. examples/14_rf_acceleration.jl
+#   julia --project=examples examples/14_rf_acceleration/run.jl
 
 using Bell, Printf, LinearAlgebra, TaylorSeries, Random
 
-include(joinpath(@__DIR__, "print_util.jl"))
-include(joinpath(@__DIR__, "reference_values.jl"))
+include(joinpath(@__DIR__, "..", "common", "print_util.jl"))
+include(joinpath(@__DIR__, "..", "common", "reference_values.jl"))
 
 banner("Finite RF cavity, synchrotron motion, acceleration")
 
@@ -270,7 +270,7 @@ end
 println()
 println("  (the first ~200 turns are NOT adiabatic: at 10 MeV the gain of 0.1 MeV/turn is 1% of E_kin per turn)")
 
-outdir = joinpath(@__DIR__, "..", "output")
+outdir = joinpath(@__DIR__, "output")
 mkpath(outdir)
 lp_end = long_params(rec.Ekin[flat+1], phis)
 ens = 5:length(users)

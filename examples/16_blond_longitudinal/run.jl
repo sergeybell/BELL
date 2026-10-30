@@ -5,12 +5,12 @@
 # BLonD-like (dt, dE) drift compared with element-by-element tracking.
 # The BLonD formulae live here, not in the 6D ring path.
 #
-#   julia --project=. examples/16_blond_longitudinal.jl
+#   julia --project=examples examples/16_blond_longitudinal/run.jl
 
 using Bell, Printf, LinearAlgebra, TaylorSeries
 
-include(joinpath(@__DIR__, "print_util.jl"))
-include(joinpath(@__DIR__, "reference_values.jl"))
+include(joinpath(@__DIR__, "..", "common", "print_util.jl"))
+include(joinpath(@__DIR__, "..", "common", "reference_values.jl"))
 
 function blond_alphas(M, ref::RefParticle, C::Real;
                       deltas = [-2e-3, -1e-3, -5e-4, 5e-4, 1e-3, 2e-3])

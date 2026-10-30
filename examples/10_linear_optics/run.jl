@@ -5,12 +5,12 @@
 # Closed linear optics of lattices/magnetic_2.bell.
 # OptiM is converted first; the structure file is what Bell loads.
 #
-#   julia --project=. examples/10_linear_optics.jl
+#   julia --project=examples examples/10_linear_optics/run.jl
 
 using Bell, Printf, LinearAlgebra
 
-include(joinpath(@__DIR__, "print_util.jl"))
-include(joinpath(@__DIR__, "reference_values.jl"))
+include(joinpath(@__DIR__, "..", "common", "print_util.jl"))
+include(joinpath(@__DIR__, "..", "common", "reference_values.jl"))
 
 banner("Linear optics of magnetic_2")
 
@@ -125,7 +125,7 @@ println()
 
 section("7. Plot")
 
-outdir = joinpath(@__DIR__, "..", "output")
+outdir = joinpath(@__DIR__, "output")
 mkpath(outdir)
 png = plot_twiss(opt, joinpath(outdir, "magnetic_2_twiss.png"); title = "magnetic_2: closed optics (Bell)")
 println("  written: ", abspath(png))

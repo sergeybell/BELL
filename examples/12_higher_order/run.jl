@@ -5,12 +5,12 @@
 # D2, alpha0/alpha1, eta0/eta1, xi1/xi2 on the natural lattice (sextupoles 0).
 # Cross-check: exact-H tracking vs the one-turn map.
 #
-#   julia --project=. examples/12_higher_order.jl
+#   julia --project=examples examples/12_higher_order/run.jl
 
 using Bell, Printf, LinearAlgebra, TaylorSeries
 
-include(joinpath(@__DIR__, "print_util.jl"))
-include(joinpath(@__DIR__, "reference_values.jl"))
+include(joinpath(@__DIR__, "..", "common", "print_util.jl"))
+include(joinpath(@__DIR__, "..", "common", "reference_values.jl"))
 
 banner("Second-order dispersion, compaction, slip, chromaticity")
 
@@ -164,7 +164,7 @@ for (k, dl) in enumerate(dls)
             dl, qxt[k], tm[1], ch.x[1] + ch.x[2] * dl + ch.x[3] * dl^2 / 2, qyt[k], tm[2])
 end
 
-outdir = joinpath(@__DIR__, "..", "output")
+outdir = joinpath(@__DIR__, "output")
 mkpath(outdir)
 png = plot_chromatic(
     [(title = "natural lattice (sextupoles 0)",

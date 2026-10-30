@@ -6,11 +6,11 @@
 # concatenate(Fa, Fb) is checked against the Lie series of a pair of elements.
 # Sign of the BCH term (1/2)[f3b o Ra, f3a] is fixed by this comparison.
 #
-#   julia --project=. examples/17_lie_product.jl
+#   julia --project=examples examples/17_lie_product/run.jl
 
 using Bell, Printf, LinearAlgebra, TaylorSeries
 
-include(joinpath(@__DIR__, "print_util.jl"))
+include(joinpath(@__DIR__, "..", "common", "print_util.jl"))
 
 err(a, b) = maxabs(a - b)
 maperr(A, B) = maximum(err(a, b) for (a, b) in zip(A, B))

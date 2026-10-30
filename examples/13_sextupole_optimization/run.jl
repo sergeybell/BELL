@@ -5,12 +5,12 @@
 # Optional: place three sextupole families and solve two example targets.
 # Other examples leave the lattice as given (sextupoles at zero).
 #
-#   julia --project=. examples/13_optional_sextupole_optimization.jl
+#   julia --project=examples examples/13_sextupole_optimization/run.jl
 
 using Bell, Printf, LinearAlgebra, TaylorSeries
 
-include(joinpath(@__DIR__, "print_util.jl"))
-include(joinpath(@__DIR__, "reference_values.jl"))
+include(joinpath(@__DIR__, "..", "common", "print_util.jl"))
+include(joinpath(@__DIR__, "..", "common", "reference_values.jl"))
 
 banner("Sextupole families and example optimisation")
 
@@ -150,7 +150,7 @@ fy = V2 \ qy
 @printf("  map         A: xi1_x = %.5f  xi2_x = %.3f   xi1_y = %.5f  xi2_y = %.3f\n",
         mA.xi1x, mA.xi2x, mA.xi1y, mA.xi2y)
 
-outdir = joinpath(@__DIR__, "..", "output")
+outdir = joinpath(@__DIR__, "output")
 mkpath(outdir)
 
 p1 = plot_chromatic(

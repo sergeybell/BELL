@@ -4,12 +4,12 @@
 #
 # One-turn Lie product with thin RF, then homological normal form on generators.
 #
-#   julia --project=. examples/18_lie_normal_form.jl
+#   julia --project=examples examples/18_lie_normal_form/run.jl
 
 using Bell, Printf, LinearAlgebra, TaylorSeries
 
-include(joinpath(@__DIR__, "print_util.jl"))
-include(joinpath(@__DIR__, "reference_values.jl"))
+include(joinpath(@__DIR__, "..", "common", "print_util.jl"))
+include(joinpath(@__DIR__, "..", "common", "reference_values.jl"))
 
 banner("One-turn Lie factor and normal form")
 

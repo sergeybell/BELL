@@ -5,12 +5,12 @@
 # Exact conversion (x, x', y, y', phi, delta) <-> (x, px, y, py, l, delta).
 # User coordinates are not canonical: the user-map Jacobian is not symplectic.
 #
-#   julia --project=. examples/15_coordinates.jl
+#   julia --project=examples examples/15_coordinates/run.jl
 
 using Bell, Printf, LinearAlgebra, TaylorSeries
 
-include(joinpath(@__DIR__, "print_util.jl"))
-include(joinpath(@__DIR__, "reference_values.jl"))
+include(joinpath(@__DIR__, "..", "common", "print_util.jl"))
+include(joinpath(@__DIR__, "..", "common", "reference_values.jl"))
 
 banner("Exact coordinate transformation user <-> canonical")
 

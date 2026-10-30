@@ -5,12 +5,12 @@
 # Element Hamiltonians, Dragt-Finn factors, ring Lie product vs Taylor map,
 # chromaticity, and symplectic tracking.
 #
-#   julia --project=. examples/11_lie_maps.jl
+#   julia --project=examples examples/11_lie_maps/run.jl
 
 using Bell, Printf, LinearAlgebra, TaylorSeries
 
-include(joinpath(@__DIR__, "print_util.jl"))
-include(joinpath(@__DIR__, "reference_values.jl"))
+include(joinpath(@__DIR__, "..", "common", "print_util.jl"))
+include(joinpath(@__DIR__, "..", "common", "reference_values.jl"))
 
 banner("2nd-order Lie maps, symplectic tracking, Taylor-map check")
 

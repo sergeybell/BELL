@@ -5,7 +5,7 @@
 # Numbers copied from OptiM / COSY output files. Used only in comparison
 # tables in examples 10 and 11. No model code path reads these constants.
 
-const OPTIM_FILE = raw"C:\GIT_REPOS\SCT\OptiM\magnetic\magnetic_2.opt"
+const OPTIM_FILE = joinpath(@__DIR__, "..", "lattices", "magnetic_2.opt")
 const STRUCTURE_FILE = joinpath(@__DIR__, "..", "lattices", "magnetic_2.bell")
 
 # OptiM "Initial:" block of magnetic_2.opt (start of the lattice), listed
