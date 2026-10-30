@@ -34,24 +34,21 @@ md(r"""
 This notebook runs every numbered example of the Julia package Bell.
 It is not a product release (`Project.toml` version `0.10.0`).
 
-Open from the `Julia` folder, or open this file in Jupyter with the
-working directory `Julia/examples`. The first cell activates the Bell
-project one directory up.
+Open this file in Jupyter with the working directory `examples/`.
+The first cell activates the examples environment (`examples/Project.toml`),
+where Bell is a dev dependency on the repository root.
 
 ## What is an example, and what is not
 
 | File | Role |
 |------|------|
-| `01`–`06` | Julia language tutorials. They do not `using Bell`. |
 | `10`–`18` | Program examples. They load Bell and a structure file. |
-| `07`–`09` | Do not exist. Old `Julia/ring` scripts `07`–`09` became `16`–`18`. |
-| `print_util.jl` | Helper: `banner` / `section` for `10`–`18`. |
-| `reference_values.jl` | Helper: OptiM path and COSY numbers for comparison tables. |
-| `linear_optics.jl` | Leftover 2×2 transfer-matrix helpers. `03` is self-contained and does not include it. |
+| `common/print_util.jl` | Helper: `banner` / `section` for `10`–`18`. |
+| `common/reference_values.jl` | Helper: OptiM path and COSY numbers for comparison tables. |
 
-Each numbered example is `run_example("NN_....jl")` in a fresh module, so
-constants such as `N` in `03` and `05` do not clash. The printed output
-is the same as `julia --project=. examples/NN_....jl`.
+Each example is `run_example("NN_name/run.jl")` in a fresh module, so
+constants of different examples do not clash. The printed output is the
+same as `julia --project=examples examples/NN_name/run.jl`.
 
 ## Blocks of the program vs examples
 
@@ -82,13 +79,13 @@ Those BLonD formulae are not a `src/` block.
 code(r"""
 import Pkg
 # Jupyter cwd is the notebook folder (examples/).
-Pkg.activate(joinpath(pwd(), ".."))
+Pkg.activate(pwd())
 Pkg.instantiate()
 ENV["GKSwstype"] = "100"   # headless Plots
 using Dates
 
 # Each example file is a script for Main.  A fresh module avoids const
-# clashes (N in 03 vs 05) but must still have include().
+# clashes between examples but must still have include().
 function run_example(path)
     m = Module()
     Core.eval(m, :(include(x) = Base.include(@__MODULE__, x)))
@@ -102,66 +99,15 @@ println("started  = ", now())
 """)
 
 md(r"""
-## 01 — Julia basics
-
-Printing, types, arithmetic (`/` vs `div`), functions, `if`, `for`, arrays.
-No physics. No Bell.
-""")
-code('run_example("01_hello.jl")')
-
-md(r"""
-## 02 — Vectors and matrices
-
-`LinearAlgebra`: product vs element-wise `.*`, `det`, `inv`, `A \\ b`,
-eigenvalues, a 2-D rotation. Needed later for transfer matrices.
-""")
-code('run_example("02_matrices.jl")')
-
-md(r"""
-## 03 — FODO cell by hand (not Bell)
-
-Standard linear optics with 2×2 / 3×3 transfer matrices for one FODO
-cell: periodic Twiss, dispersion, tune, chromaticity, plots. This is
-the language tutorial. The same lattice as a Bell structure file is
-`lattices/fodo.bell` (cell after example 06).
-""")
-code('run_example("03_fodo_linear.jl")')
-
-md(r"""
-## 04 — Dual numbers
-
-First-order automatic differentiation: feed `x0 + ε` into an unchanged
-program, read `f'(x0)` from the `ε` coefficient. Prototype of DA.
-""")
-code('run_example("04_dual_numbers.jl")')
-
-md(r"""
-## 05 — Taylor maps (`TaylorSeries`)
-
-A map as a vector of truncated multivariate polynomials: coefficients
-`(final | monomial)`, composition, inverse, Jacobian. This is the DA
-object. In Bell it is the *check*, not the ring object.
-""")
-code('run_example("05_taylor_map.jl")')
-
-md(r"""
-## 06 — Poisson bracket and Lie operators
-
-`[f,g]`, Lie operator `:f:`, flow `exp(:-t H:)`. Language of
-`src/lie_algebra.jl`.
-""")
-code('run_example("06_poisson_bracket.jl")')
-
-md(r"""
 ## FODO through Bell (`lattices/fodo.bell`)
 
-Examples `01`–`06` do not load the package. This cell does:
+This cell loads a structure file directly:
 `load_structure` → `Lattice` → one-turn `R` → closed Twiss.
 It is the structure-file block without OptiM.
 """)
 code(r"""
 using Bell, Printf
-lat = load_structure(joinpath(pwd(), "..", "lattices", "fodo.bell"))
+lat = load_structure(joinpath(pwd(), "lattices", "fodo.bell"))
 C = circumference(lat)
 po = periodic_optics(ring_matrix(lat), lat.ref, C)
 @printf("  name      = %s\n", lat.name)
@@ -183,7 +129,7 @@ and COSY numbers.
 Blocks: converter, structure, coordinates, elements, Hamiltonians,
 linear, symplectic, plotting.
 """)
-code('run_example("10_linear_optics.jl")')
+code('run_example(joinpath("10_linear_optics", "run.jl"))')
 
 md(r"""
 ## 11 — Lie maps and tracking
@@ -194,7 +140,7 @@ RK4 Taylor map, chromaticity, symplectic factor-by-factor tracking.
 Blocks: Hamiltonians, Lie algebra, differential algebra (check),
 tracking, symplectic.
 """)
-code('run_example("11_lie_maps.jl")')
+code('run_example(joinpath("11_lie_maps", "run.jl"))')
 
 md(r"""
 ## 12 — Higher order (`D2`, `η`, `ξ`)
@@ -205,7 +151,7 @@ Cross-check with the exact-H integrator.
 Blocks: higher order, differential algebra, exact integrator,
 longitudinal (tune formula), plotting.
 """)
-code('run_example("12_higher_order.jl")')
+code('run_example(joinpath("12_higher_order", "run.jl"))')
 
 md(r"""
 ## 13 — Optional sextupole families
@@ -215,7 +161,7 @@ examples leave sextupoles at zero.
 
 Block: optimizers (optional; not part of the model).
 """)
-code('run_example("13_optional_sextupole_optimization.jl")')
+code('run_example(joinpath("13_sextupole_optimization", "run.jl"))')
 
 md(r"""
 ## 14 — Finite RF cavity and acceleration
@@ -226,7 +172,7 @@ few minutes.
 
 Blocks: exact integrator, acceleration, longitudinal, plotting.
 """)
-code('run_example("14_rf_acceleration.jl")')
+code('run_example(joinpath("14_rf_acceleration", "run.jl"))')
 
 md(r"""
 ## 15 — User ↔ canonical coordinates
@@ -236,7 +182,7 @@ The user Jacobian is not symplectic.
 
 Block: coordinates.
 """)
-code('run_example("15_coordinates.jl")')
+code('run_example(joinpath("15_coordinates", "run.jl"))')
 
 md(r"""
 ## 16 — BLonD-like longitudinal drift (external formulae)
@@ -244,7 +190,7 @@ md(r"""
 `(dt, dE)` drift of BLonD compared with element tracking. The formulae
 live in this example, not in `src/`.
 """)
-code('run_example("16_blond_longitudinal.jl")')
+code('run_example(joinpath("16_blond_longitudinal", "run.jl"))')
 
 md(r"""
 ## 17 — Lie product of two factors
@@ -254,7 +200,7 @@ Fixes the sign of the BCH term.
 
 Block: Lie algebra (product of Dragt–Finn factors).
 """)
-code('run_example("17_lie_product.jl")')
+code('run_example(joinpath("17_lie_product", "run.jl"))')
 
 md(r"""
 ## 18 — Normal form on generators
@@ -264,13 +210,13 @@ One-turn Lie factor with thin RF, then the homological equation on
 
 Block: normal form.
 """)
-code('run_example("18_lie_normal_form.jl")')
+code('run_example(joinpath("18_lie_normal_form", "run.jl"))')
 
 md(r"""
 ## Done
 
 Every numbered example has been included. Plots and GIFs are under
-`Julia/output/`.
+`examples/NN_name/output/`.
 """)
 code(r"""
 println("finished = ", now())
