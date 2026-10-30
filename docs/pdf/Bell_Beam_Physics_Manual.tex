@@ -2,13 +2,219 @@
 \usepackage{amsmath,amssymb,graphicx,geometry,hyperref,fontspec}
 \geometry{margin=2.2cm}
 \setlength{\parindent}{0pt}\setlength{\parskip}{4pt}
-\title{LieRing Beam Physics Manual\\\large canonical variables, Lie maps, RF, acceleration}
+\title{Bell Beam Physics Manual\\\large canonical variables, Lie maps, RF, acceleration}
 \date{\today}
 \begin{document}
 \maketitle
 \tableofcontents
 \clearpage
+\section{Bell architecture}
+
+\textbf{Author:} Kolokolchikov Sergey Dmitrievich  
+\textbf{Email:} sergey.bell13@gmail.com
+
+Bell is a Julia program for symplectic modelling of a magnetic ring. The
+object of the ring is a product of Lie transformations. Linear optics and
+higher-order numbers are readings of that product. A truncated Taylor map
+is an independent check of the same Hamiltonians; it does not define the
+ring.
+
+This page describes the program: blocks, how they call each other, the two
+six-dimensional propagators, and the structure file. Physics is in the
+Beam Physics Manual.
+
+\subsection{Blocks}
+
+\begin{verbatim}
+flowchart TD
+  structureFile[StructureFile] --> elements[Elements]
+  elements --> hamiltonians[Hamiltonians]
+  hamiltonians --> lie[LieAlgebra]
+  hamiltonians --> da[DifferentialAlgebra]
+  lie --> factor[OneTurnFactor]
+  da --> taylorCheck[TaylorMap_check]
+  factor --> linear[Linear]
+  factor --> higher[HigherOrder]
+  factor --> normalForm[NormalForm]
+  factor --> lieTrack[LieTracking]
+  hamiltonians --> exact[ExactIntegrator]
+  higher --> longitudinal[LongitudinalReduced]
+  exact --> acceleration[Acceleration]
+  linear --> optimizers[Optimizers]
+  higher --> optimizers
+  optimizers --> structureFile
+  linear --> plotting[Plotting]
+  higher --> plotting
+  normalForm --> plotting
+  lieTrack --> plotting
+  exact --> plotting
+  longitudinal --> plotting
+\end{verbatim}
+
+\begin{center}\small\begin{tabular}{p{0.317\linewidth}p{0.317\linewidth}p{0.317\linewidth}}\hline
+\textbf{File} & \textbf{Block} & \textbf{Role}\\\hline
+\texttt{src/coordinates.jl} & Coordinates & Particle, reference, canonical \texttt{(x, px, y, py, l, δ)} and the exact map to laboratory angles\\
+\texttt{src/elements.jl} & Elements & Data types only: drift, sector bend, quadrupole, sextupole, thin RF, finite cavity, marker\\
+\texttt{src/structure.jl} & Structure & Named parameters, element cards, sequence of names, \texttt{Lattice}\\
+\texttt{src/hamiltonians.jl} & Hamiltonians & Exact \texttt{s}-Hamiltonian of each element, expanded as a polynomial\\
+\texttt{src/lie\_algebra.jl} & Lie algebra & Poisson bracket, Lie series, Dragt–Finn factor, product of factors\\
+\texttt{src/differential\_algebra.jl} & Differential algebra & Independent RK4 Taylor map of the same \texttt{H}. Check only\\
+\texttt{src/linear.jl} & Linear & Degree-1 reading: \texttt{R = exp(:f₂:)}, Twiss, dispersion, \texttt{α\_c}\\
+\texttt{src/higher\_order.jl} & Higher order & Readings of the one-turn polynomial: \texttt{D₂}, \texttt{η}, chromaticity\\
+\texttt{src/normal\_form.jl} & Normal form & Homological equation on the generators; torus average of \texttt{δ}\\
+\texttt{src/tracking.jl} & Lie tracking & Flow of each truncated factor; thin RF kick\\
+\texttt{src/exact\_integrator.jl} & Exact integrator & Unexpanded \texttt{H}, Yoshida midpoint, finite cavity\\
+\texttt{src/longitudinal.jl} & Longitudinal & Averaged turn-by-turn motion in \texttt{(φ, δ)} from already-read \texttt{η}\\
+\texttt{src/acceleration.jl} & Acceleration & Reference ramp through the exact integrator\\
+\texttt{src/optimizers.jl} & Optimizers & Optional change of named strengths; never part of the model\\
+\texttt{src/plotting.jl} & Plotting & Figures. No physics\\
+\texttt{src/symplectic.jl} & Symplectic & \texttt{Jᵀ S J − S}\\
+\texttt{src/optim\_converter.jl} & Converter & Writes a structure file from an OptiM \texttt{.opt}\\
+\hline\end{tabular}\end{center}
+
+A script loads a structure file and calls readers. An application of a
+concrete ring lives outside this package and depends on it.
+
+\subsection{Where the orders come from}
+
+Linear optics and higher-order optics are homogeneous pieces of one
+one-turn Lie factor
+
+\begin{verbatim}
+F = R ∘ exp(:f₃:) ∘ exp(:f₄:)
+\end{verbatim}
+
+\texttt{observables(lat)} builds that factor once. Twiss and \texttt{η₀} come from
+degree 1 (\texttt{F.R}). \texttt{D₂} and \texttt{η₁} come from degree 2 of the polynomial of
+\texttt{F}. Chromaticity \texttt{ξ₁} comes from degree 3. The RK4 Taylor map is not
+used for these numbers.
+
+An element in the structure file is a card of parameters. It is not a
+procedure that writes into a global map. \texttt{hamiltonians.jl} writes \texttt{H}.
+The Lie algebra builds a factor from \texttt{H}. Differential algebra repeats
+the flow of the same \texttt{H} as a truncated polynomial and stops there.
+
+\subsection{Two six-dimensional propagators}
+
+Both live in \texttt{(x, px, y, py, l, δ)}. Neither lives in the reduced
+longitudinal model.
+
+\textbf{Lie tracking} applies an already-built Dragt–Finn factor: the flow of
+\texttt{f₄}, then \texttt{f₃}, then the matrix \texttt{R}. A thin RF cavity is a separate
+canonical kick. There are no terms above the stored polynomial degree.
+The factor does not depend on \texttt{s}, so a finite cavity whose field varies
+along \texttt{s} is not this propagator.
+
+\textbf{Exact integrator} integrates Hamilton's equations with the unexpanded
+\texttt{H} (square roots, not a polynomial) by a symplectic implicit midpoint
+composed as Yoshida's fourth-order jump. It does not cut a polynomial
+order; it cuts the step in \texttt{s}. It is the propagator for a finite cavity
+and for a ramp of the reference energy. After the cavity,
+\texttt{renormalize} makes the synchronous particle the new reference.
+
+Full six-dimensional motion is already here. Truncation exists only in
+Lie tracking and equals the factor order.
+
+The exact integrator reads \texttt{H}, not the factor. Reading the factor would
+turn the finite cavity and the ramp back into a truncated map.
+
+\subsection{Reduced longitudinal model}
+
+\texttt{longitudinal.jl} does not track the ring in 6D. It is the smooth
+turn-by-turn Hamiltonian in \texttt{(φ, δ)}:
+
+\begin{verbatim}
+dφ/dn     = −2π h (η₀ δ + η₁ δ²)
+dδ/dn     = (Z V T / (β² E)) (sin(φ_s + φ) − sin φ_s)
+\end{verbatim}
+
+\texttt{η} is taken from the higher-order reading of the Lie factor. The ring
+product does not use this model. Synchrotron tune, separatrix and bucket
+height are readings of this \texttt{H}.
+
+\subsection{Structure file}
+
+Three parts in one file. The sequence holds names only. Numbers of an
+element sit on its card. Named parameters sit above the cards so an
+optimizer changes a name, not a line of the sequence. A quadrupole is
+written once. The sequence repeats its name as many times as the magnet
+stands in the ring.
+
+\begin{verbatim}
+reference
+  particle deuteron
+  kinetic_MeV 270
+  harmonic 1
+
+parameters
+  L_d = 2.0
+  k_f = 0.3
+
+elements
+  D1   drift        L = L_d
+  QF   quadrupole   L = 0.4    k1 = k_f
+  QD   quadrupole   L = 0.4    k1 = -k_f
+  B1   sbend        L = 1.5    angle = 0.3926990817
+
+sequence cell
+  D1 QF D1 B1 D1 QD D1 B1
+
+sequence
+  16 * cell
+\end{verbatim}
+
+Units are those that already enter the Hamiltonian:
+
+- length: m
+- bend angle: rad (\texttt{deg} on a card is converted when the file is read)
+- \texttt{k1}: 1/m², \texttt{k2}: 1/m³
+- RF voltage: MV per unit charge; phase: rad; harmonic: integer
+- kinetic energy and rest energy: MeV
+
+Magnetic rigidity is not stored. It is computed from the reference
+particle. \texttt{16 * cell} repeats an already expanded list of names. There
+are no loops, conditions or matching commands.
+
+\texttt{load\_structure} builds a \texttt{Lattice}. \texttt{convert\_optim} writes this file
+from an OptiM \texttt{.opt}. The OptiM reader does not assemble a \texttt{Lattice}.
+
+\subsection{Coordinates kept by Bell}
+
+Independent variable: arc length \texttt{s} along the reference orbit.
+
+Canonical variables, used in every Hamiltonian and every map:
+
+\begin{verbatim}
+z = (x, px, y, py, l, δ)
+px = Px / p0,   py = Py / p0
+l  = −v(δ) dt     [m]
+δ  = (p − p0) / p0
+\end{verbatim}
+
+Laboratory angles \texttt{(x', φ)} are input and output only:
+
+\begin{verbatim}
+x'  = px / ps
+φ   = −h ω₀ dt     (late particle: dt > 0 ⇒ φ < 0)
+\end{verbatim}
+
+\subsection{Install}
+
+From the \texttt{Julia} folder:
+
+\begin{verbatim}
+using Pkg
+Pkg.activate(".")
+Pkg.instantiate()
+using Bell
+\end{verbatim}
+
+\clearpage
 \section{Beam Physics Manual}
+
+\textbf{Author:} Kolokolchikov Sergey Dmitrievich (\texttt{sergey.bell13@gmail.com})
+
+Program blocks and the structure file: Architecture.
 
 Symplectic modelling of a magnetic storage ring with an RF cavity.
 The independent variable is the arc length $s$ along the reference orbit.
@@ -24,12 +230,12 @@ normal form are readings of $\mathcal{F}$. Tracking applies
 $\mathcal{F}$ to a point. An RK4 polynomial map is kept as a check; it
 does not define the ring.
 
-\begin{figure}[htbp]\centering\includegraphics[width=\linewidth]{C:/GIT_REPOS/BELL/Julia/ring/docs/src/assets/architecture_object.png}\caption{The ring is one Lie factor: Hamiltonians are concatenated in the algebra; the product is read, tracked, or checked.}\end{figure}
+\begin{figure}[htbp]\centering\includegraphics[width=\linewidth]{../src/assets/architecture_object.png}\caption{The ring is one Lie factor: Hamiltonians are concatenated in the algebra; the product is read, tracked, or checked.}\end{figure}
 
 Linear optics, second-order slip and chromaticity are homogeneous pieces
 of the same polynomial, not layers derived from one another.
 
-\begin{figure}[htbp]\centering\includegraphics[width=\linewidth]{C:/GIT_REPOS/BELL/Julia/ring/docs/src/assets/architecture_orders.png}\caption{One polynomial, three homogeneous readings: degree 1 gives Twiss and $\eta_0$; degree 2 gives $D_2$ and $\eta_1$; degree 3 gives $\xi_1$.}\end{figure}
+\begin{figure}[htbp]\centering\includegraphics[width=\linewidth]{../src/assets/architecture_orders.png}\caption{One polynomial, three homogeneous readings: degree 1 gives Twiss and $\eta_0$; degree 2 gives $D_2$ and $\eta_1$; degree 3 gives $\xi_1$.}\end{figure}
 
 Contents:
 
@@ -333,7 +539,7 @@ to first order:
 Twiss and dispersion propagated in slices close after one turn to machine
 precision.
 
-\begin{figure}[htbp]\centering\includegraphics[width=\linewidth]{C:/GIT_REPOS/BELL/Julia/ring/docs/src/assets/magnetic_2_twiss.png}\caption{Closed beta functions, horizontal dispersion and magnet layout.}\end{figure}
+\begin{figure}[htbp]\centering\includegraphics[width=\linewidth]{../src/assets/magnetic_2_twiss.png}\caption{Closed beta functions, horizontal dispersion and magnet layout.}\end{figure}
 \clearpage
 \section{Second-order dispersion and momentum compaction}
 
@@ -388,7 +594,7 @@ and in the formula for $\delta_{\mathrm{eq}}$. They come from the
 one-turn Lie product, expanded to a polynomial only to read $l_1$ and
 $l_2$.
 
-\begin{figure}[htbp]\centering\includegraphics[width=\linewidth]{C:/GIT_REPOS/BELL/Julia/ring/docs/src/assets/sextupoles_dispersion2.png}\caption{Second-order dispersion along the ring.}\end{figure}
+\begin{figure}[htbp]\centering\includegraphics[width=\linewidth]{../src/assets/sextupoles_dispersion2.png}\caption{Second-order dispersion along the ring.}\end{figure}
 \clearpage
 \section{Chromaticity}
 
@@ -405,7 +611,7 @@ Since $\delta$ is conserved without RF, these are invariants of the
 one-turn map. Cross-check: integrate the exact Hamiltonians at several
 $\delta$ and fit the tune of a small betatron oscillation.
 
-\begin{figure}[htbp]\centering\includegraphics[width=\linewidth]{C:/GIT_REPOS/BELL/Julia/ring/docs/src/assets/chromaticity_natural.png}\caption{Fractional tunes versus momentum deviation.}\end{figure}
+\begin{figure}[htbp]\centering\includegraphics[width=\linewidth]{../src/assets/chromaticity_natural.png}\caption{Fractional tunes versus momentum deviation.}\end{figure}
 \clearpage
 \section{Finite-length RF cavity}
 
@@ -460,7 +666,7 @@ amplitudes damp as
 \frac{A(n)}{A(0)}=\sqrt{\frac{p_{\mathrm{inj}}}{p_0(n)}}.
 \]
 
-\begin{figure}[htbp]\centering\includegraphics[width=\linewidth]{C:/GIT_REPOS/BELL/Julia/ring/docs/src/assets/acceleration.png}\caption{Reference energy, longitudinal phase space with separatrix, adiabatic damping of betatron amplitudes, and synchrotron tune during a ramp.}\end{figure}
+\begin{figure}[htbp]\centering\includegraphics[width=\linewidth]{../src/assets/acceleration.png}\caption{Reference energy, longitudinal phase space with separatrix, adiabatic damping of betatron amplitudes, and synchrotron tune during a ramp.}\end{figure}
 \clearpage
 \section{Longitudinal motion from the ring average}
 
@@ -536,7 +742,7 @@ chosen to null $\xi_x,\xi_y$ and optionally $\alpha_1$ or rms $D_2$; that
 choice is an optimisation problem, not part of the lattice model. The natural
 lattice has vanishing sextupole strengths.
 
-\begin{figure}[htbp]\centering\includegraphics[width=\linewidth]{C:/GIT_REPOS/BELL/Julia/ring/docs/src/assets/chromaticity_corrected.png}\caption{Tunes versus $\delta$ after chromaticity correction.}\end{figure}
+\begin{figure}[htbp]\centering\includegraphics[width=\linewidth]{../src/assets/chromaticity_corrected.png}\caption{Tunes versus $\delta$ after chromaticity correction.}\end{figure}
 \clearpage
 \section{Equilibrium momentum shift}
 

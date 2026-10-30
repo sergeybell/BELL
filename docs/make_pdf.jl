@@ -1,4 +1,4 @@
-﻿# =============================================================================
+# =============================================================================
 # docs/make_pdf.jl - PDF from docs/src Markdown (beam physics or programmer)
 # Usage: julia docs/make_pdf.jl              -> Beam Physics PDF
 #        julia docs/make_pdf.jl programmer   -> Programmer PDF
@@ -64,7 +64,7 @@ function convert_md(md; srcfile=joinpath(DOC, "src"))
             if endswith(path, ".gif")
                 push!(out, "\\begin{quote}\\emph{Animation (see HTML or GIF file): " * inline(cap) * "}\\end{quote}")
             else
-                fp = replace(normpath(joinpath(dirname(srcfile), path)), "\\" => "/")
+                fp = replace(relpath(normpath(joinpath(dirname(srcfile), path)), joinpath(DOC, "pdf")), "\\" => "/")
                 push!(out, "\\begin{figure}[htbp]\\centering\\includegraphics[width=\\linewidth]{$fp}\\caption{" * inline(cap) * "}\\end{figure}")
             end
         elseif (m = match(r"^(\d+)\.\s+(.*)$", l)) !== nothing
