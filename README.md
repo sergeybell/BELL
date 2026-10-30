@@ -109,6 +109,7 @@ own `output/` (git-ignored). Shared files:
 | `examples/16_blond_longitudinal/` | External (dt, dE) drift formulae (not the ring product) |
 | `examples/17_lie_product/` | BCH product of two factors |
 | `examples/18_lie_normal_form/` | One-turn factor and torus average |
+| `examples/19_fringe_models/` | Fringe-field models: NoEdge, hard edge (linear / nonlinear), soft edge (Enge, Tanh, linear ramp, tabulated) with Splitting / Magnus / Taylor integration; gap -> 0 limit, convergence, symplecticity |
 | `examples/Bell_examples.ipynb` | Notebook running every example (built by `_make_notebook.py`) |
 
 Every example only needs `using Bell`. Run any of them from the repository root:
