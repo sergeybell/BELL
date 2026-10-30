@@ -26,7 +26,7 @@ src/
   tracking.jl             Tracking           Lie-factor tracking, thin RF kick
   higher_order.jl         HigherOrder        readings of the one-turn map
   differential_algebra.jl DifferentialAlgebra RK4-in-TaylorN maps (cross-check)
-  longitudinal.jl         Longitudinal       smooth (phi, delta) motion, bucket
+  longitudinal.jl         Longitudinal       smooth (phi, delta) model, bucket (analysis only)
   exact_integrator.jl     ExactIntegrator    exact-H symplectic integrator, cavity
   acceleration.jl         Acceleration       energy ramp, adiabatic damping
   normal_form.jl          NormalForm         6D normal forms with RF

@@ -17,6 +17,17 @@ polynomial and is not that object.
 
 ![One polynomial, three homogeneous readings: degree 1 gives Twiss and ``\eta_0``; degree 2 gives ``D_2`` and ``\eta_1``; degree 3 gives ``\xi_1``.](../assets/architecture_orders.png)
 
+## Where each algorithm is written out
+
+| question | page |
+|:--|:--|
+| which Hamiltonian, matrix, polynomial map and Lie generators each element produces (with ``\delta``-dependence) | [Elements: explicit maps](elements.md) |
+| how a particle is integrated through an element and through one turn; the RF kick; how ``p_0`` is ramped | [Tracking](tracking.md) |
+| whether the longitudinal motion is truncated (it is not, in 6D tracking) | [RF & longitudinal](rf.md) |
+| how Twiss, dispersion, tunes, ``\alpha_c`` and ``\xi`` are extracted, and from which order | [Optics](optics.md) |
+| the steps of the normal form | [Normal form](normal_form.md) |
+| field profiles, edge maps and how edges are inserted | [Fringe fields](fringe.md) |
+
 ## Layout
 
 | path | role |
@@ -34,7 +45,7 @@ polynomial and is not that object.
 | `src/differential_algebra.jl` | independent DA map (RK4 in polynomials) — a check |
 | `src/normal_form.jl` | one-turn factor with thin RF; torus average of ``\delta`` |
 | `src/fringe.jl` | edge models (hard / soft) as thin maps chosen at build time |
-| `src/longitudinal.jl` | averaged longitudinal Hamiltonian in ``(\varphi,\delta)`` |
+| `src/longitudinal.jl` | averaged longitudinal Hamiltonian in ``(\varphi,\delta)`` (analysis only, not used by tracking) |
 | `src/exact_integrator.jl` | unexpanded ``H``, finite cavity, renormalise |
 | `src/acceleration.jl` | ramp, tune fit |
 | `src/plotting.jl` | figures |

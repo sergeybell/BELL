@@ -80,7 +80,21 @@ A symplectic map with a fixed point at the origin is written
 with R the 6×6 linear part and ``f_3, f_4`` homogeneous generators.
 [`dragt_finn_factor`](@ref) extracts them from a polynomial map. Each
 order is inverted with the Euler-homogeneity identity
-``f = \frac{1}{k}\sum_k (q_k\,g_{p_k} - p_k\, g_{q_k})``, where g is the vector field.
+``f = \frac{1}{m}\sum_{k=1}^{3} (q_k\,g_{p_k} - p_k\, g_{q_k})`` for a homogeneous
+generator of degree ``m``, where ``g`` is the corresponding homogeneous part of the map.
+
+**Algorithm of [`dragt_finn_factor`](@ref)** (input: polynomial map ``M`` of degree 3,
+``M(0)=0``):
+
+1. ``R = \partial M/\partial z|_0``; ``N = R^{-1}M = z + N_2 + N_3``.
+2. ``f_3 = \tfrac13\sum_k (q_k N_{2,p_k} - p_k N_{2,q_k})`` (the degree-2 part of ``N`` is the
+   vector field of ``f_3``).
+3. ``P = e^{-{:}f_3{:}}\circ N`` (truncated substitution), then
+   ``f_4 = \tfrac14\sum_k (q_k P_{3,p_k} - p_k P_{3,q_k})``.
+
+Applied to a point the factor acts as ``z \mapsto R\,\big(e^{:f_3:}(e^{:f_4:}z)\big)``:
+first ``f_4``, then ``f_3``, then ``R``. Example (drift, see [Elements](elements.md)):
+``f_3 = -LH_3``, ``f_4 = -LH_4`` exactly.
 
 **Products.** [`concatenate`](@ref) multiplies two factors with the
 Baker-Campbell-Hausdorff formula truncated at degree 4. The second generators

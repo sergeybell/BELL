@@ -1,4 +1,4 @@
-# Lattice, elements and I/O
+# Lattice, structure files and I/O
 
 ```@meta
 CurrentModule = Bell
@@ -31,19 +31,10 @@ To add a new element type:
 4. Add an `_params` method in ExactIntegrator, or a dedicated field.
 5. Add the card in `_make_element` and `_card_line` of `structure.jl`.
 
-```@docs
-AbstractElement
-Drift
-SBend
-Quadrupole
-Sextupole
-RFCavity
-Cavity
-Marker
-elem_length
-curvature
-kind_string
-```
+The explicit Hamiltonian, matrix, polynomial map and Lie generators of every
+element type are on the page [Elements: explicit maps](elements.md); the
+element types are documented there as well.
+
 
 ## The `Lattice`
 
