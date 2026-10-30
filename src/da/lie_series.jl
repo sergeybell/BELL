@@ -107,19 +107,38 @@ in a space of order ``N+1`` and keep the result through order ``N``** ([`change_
 then the map is exact through ``N`` up to roundoff. A warning is issued if ``F(0) \ne 0``.
 
 **Scaling and squaring.** The series converges like ``e^{L\rho}``, ``\rho = \|\partial F/\partial z(0)\|``.
-With `nsquare = :auto`, ``k = \max(0, \lceil\log_2(L\rho/0.5)\rceil)`` and, if the series has
+With `nsquare = :auto`, ``k`` is chosen by [`vector_field_flow`](@ref) (``L\rho/2^k \le 3``) and, if the series has
 not converged in `nmax` terms, ``k`` is increased; the map for ``L/2^k`` is then squared
 ``k`` times, ``\mathcal M_L = (\mathcal M_{L/2^k})^{\circ 2^k}`` (exact: the flow is a one-parameter group).
 Pass an integer to force ``k``.
 """
-function lie_flow(H::DA, L::Real; pairs = canonical_pairs(H.sp.nv), tol = eps(), nmax::Integer = 60,
-                  nsquare = :auto)
-    sp = H.sp; F = hamiltonian_vector_field(H; pairs = pairs); idx = _nzcomp(F)
+lie_flow(H::DA, L::Real; pairs = canonical_pairs(H.sp.nv), kw...) =
+    vector_field_flow(hamiltonian_vector_field(H; pairs = pairs), L; kw...)
+
+@doc raw"""
+    vector_field_flow(F, L; tol = eps(), nmax = 60, nsquare = :auto, threshold = 3.0) -> Vector{DA}
+
+Flow of the autonomous system ``z' = F(z)`` over ``L``: ``\sum_n \frac{L^n}{n!}(F\cdot\nabla)^n z`` for all
+components (the engine of [`lie_flow`](@ref), where ``F = S\nabla H``).
+
+**Order bookkeeping.** If ``F(0) = 0`` and ``F`` is correct through order ``N`` (e.g. ``F = S\nabla H``
+with ``H`` built at order ``N+1`` and then [`change_order`](@ref) to ``N``), the series summed in
+``{}_ND_v`` is exact through ``N``: the degree-``N`` part of ``F_i\,\partial_i g`` needs only ``F``
+through ``N`` and ``g`` through ``N``. This is cheaper than summing in ``{}_{N+1}D_v``.
+
+**Scaling and squaring.** ``\rho = \|\partial F/\partial z(0)\|_\infty``; if ``L\rho >`` `threshold`
+(default 3: the largest term of the series is then at most ~4.5 times the result, i.e. less than one digit
+of cancellation) the series is summed for ``L/2^k``, ``k = \lceil\log_2(L\rho/\text{threshold})\rceil``,
+and the map is squared ``k`` times; ``k`` is increased if the series does not converge in `nmax` terms.
+"""
+function vector_field_flow(F::AbstractVector{<:DA}, L::Real; tol = eps(), nmax::Integer = 60,
+                           nsquare = :auto, threshold::Real = 3.0)
+    sp = F[1].sp; idx = _nzcomp(F)
     maximum(abs(F[i].c[1]) for i in eachindex(F)) > 1e-13 * max(1.0, maximum(coeffnorm, F)) &&
-        @warn "lie_flow: H has linear terms (F(0) ≠ 0); the top order of the map is not exact"
+        @warn "lie_flow: F(0) != 0 (H has linear terms); the top order of the map is not exact"
     A = [F[i].c[1+j] for i in 1:sp.nv, j in 1:sp.nv]
     rho = opnorm(A, Inf)
-    k = nsquare === :auto ? max(0, ceil(Int, log2(max(abs(L) * rho, 1e-300) / 0.5))) : Int(nsquare)
+    k = nsquare === :auto ? max(0, ceil(Int, log2(max(abs(L) * rho, 1e-300) / threshold))) : Int(nsquare)
     X = identity_map(sp)
     while true
         h = L / 2^k; M = similar(X); ok = true

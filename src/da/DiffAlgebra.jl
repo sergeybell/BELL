@@ -34,7 +34,7 @@ using LinearAlgebra, Printf
 export DASpace, DA, da_var, da_vars, da_const, coefficient, constant_part, linear_part,
        truncate_da, deriv, antideriv, compose, inverse_map, identity_map, nmonomials,
        monomial_exponents, coeffnorm, order, nvars,
-       canonical_pairs, poisson_bracket, hamiltonian_vector_field, lie_series, lie_flow,
+       canonical_pairs, poisson_bracket, hamiltonian_vector_field, lie_series, lie_flow, vector_field_flow,
        change_order, da_symplectic_error
 
 # ----------------------------------------------------------------------------- space

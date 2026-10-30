@@ -82,8 +82,9 @@ Transfer map of the s-independent element `e` to order ``N`` by the Lie flow ope
 {:}H{:}\,g = [H, g],
 ```
 with the full Hamiltonian ([`hamiltonian_da`](@ref)) built in ``{}_{N+1}D_6`` and the series
-summed to machine precision (`DiffAlgebra.lie_flow`, with scaling-and-squaring when
-``L\,\|\partial F/\partial z\|`` is large); the result is returned in [`flow_space`](@ref)`(N)`
+its vector field ``F = S\nabla H`` kept through order ``N``, and the series summed in ``{}_ND_6`` to
+machine precision (`DiffAlgebra.vector_field_flow`, scaling-and-squaring when ``L\,\|\partial F/\partial z\|``
+is large); the result is in [`flow_space`](@ref)`(N)`
 and is exact through order ``N`` up to roundoff. `SBend`: body only, edge angles ``e_1, e_2``
 and fringe fields are not included. `Marker`: identity. Thin `RFCavity`: error.
 """
@@ -92,9 +93,9 @@ function lie_flow_map(e::AbstractElement, ref::RefParticle, N::Integer; tol = ep
     sp = flow_space(N)
     e isa Marker && return identity_map(sp)
     L = elem_length(e); L == 0 && return identity_map(sp)
-    H = hamiltonian_da(e, ref, flow_space(N + 1))
-    M = lie_flow(H, L; tol = tol, nmax = nmax, nsquare = nsquare)
-    [change_order(m, sp) for m in M]
+    H = hamiltonian_da(e, ref, flow_space(N + 1))                    # H through N+1 ...
+    F = [change_order(f, sp) for f in hamiltonian_vector_field(H)]   # ... F = S grad H through N
+    vector_field_flow(F, L; tol = tol, nmax = nmax, nsquare = nsquare) # series summed at order N
 end
 
 const _FLOWCACHE = Dict{Any,Vector{DA{Float64}}}()

@@ -25,11 +25,12 @@ because ``-{:}H{:}g = [g,H] = F\cdot\nabla g``. `lie_flow(H, L)` sums it term by
 
 * **Exactness.** The reference orbit is a solution, so ``H`` has no linear terms and ``F(0)=0``:
   ``F\cdot\nabla`` does not lower the degree. The degree-``N`` coefficients of the map need the
-  degree-``(N+1)`` terms of ``H``, therefore ``H`` is built in ``{}_{N+1}D_6`` and the map is kept
-  through ``N`` (`change_order`). The result is exact through ``N`` up to roundoff, with the
+  degree-``(N+1)`` terms of ``H``, therefore ``H`` is built in ``{}_{N+1}D_6``, its vector field ``F=S\nabla H`` is kept through ``N``
+  (`change_order`) and the series is summed in ``{}_ND_6`` (`vector_field_flow`): the degree-``N`` part of
+  ``F\cdot\nabla g`` needs only ``F`` and ``g`` through ``N``. The result is exact through ``N`` up to roundoff, with the
   full square root ``p_s``, the curvature ``(1+hx)`` and the energy term — nothing is expanded by hand.
 * **Scaling and squaring.** The series behaves like ``e^{L\rho}``, ``\rho=\|\partial F/\partial z(0)\|_\infty``.
-  For ``L\rho > 1/2`` the map for ``L/2^k`` is computed and squared ``k`` times
+  For ``L\rho > 3`` (at most one digit of cancellation below that) the map for ``L/2^k`` is computed and squared ``k`` times
   (``\mathcal M_{L} = \mathcal M_{L/2^k}^{\circ 2^k}``, exact for a one-parameter group); if the series
   still does not converge in `nmax` terms, ``k`` is increased.
 * `poisson_bracket`, `hamiltonian_vector_field`, `lie_series` (``e^{t{:}H{:}}g`` for any ``g``) and
