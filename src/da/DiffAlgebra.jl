@@ -33,7 +33,9 @@ using LinearAlgebra, Printf
 
 export DASpace, DA, da_var, da_vars, da_const, coefficient, constant_part, linear_part,
        truncate_da, deriv, antideriv, compose, inverse_map, identity_map, nmonomials,
-       monomial_exponents, coeffnorm, order, nvars
+       monomial_exponents, coeffnorm, order, nvars,
+       canonical_pairs, poisson_bracket, hamiltonian_vector_field, lie_series, lie_flow,
+       change_order, da_symplectic_error
 
 # ----------------------------------------------------------------------------- space
 @doc raw"""
@@ -358,8 +360,47 @@ the exact re-expansion only when ``M`` is a polynomial (it always is in ``{}_N D
 case is ``N(0) = 0``.
 """
 function compose(M::AbstractVector{<:DA}, N::AbstractVector)
+    N isa AbstractVector{DA{Float64}} && eltype(M) == DA{Float64} && return _compose_da(M, N)
     v = _monomial_values(M[1].sp, N)
     [sum(Mi.c[m] * v[m] for m in eachindex(v) if !iszero(Mi.c[m]); init = zero(v[1]) * 0) for Mi in M]
+end
+# c = a * b (coefficient arrays of space sp), loops over the nonzero entries bnz of b only
+function _mul_into!(c::Vector{Float64}, sp::DASpace, a::Vector{Float64}, b::Vector{Float64}, bnz)
+    fill!(c, 0.0); ds = sp.degstart; key = sp.key; N = sp.no
+    @inbounds for i in eachindex(a)
+        ai = a[i]; iszero(ai) && continue
+        jmax = ds[N-sp.deg[i]+2] - 1; ki = key[i]
+        for j in bnz
+            j > jmax && break
+            c[_index(sp, ki + key[j])] += ai * b[j]
+        end
+    end
+    c
+end
+# M o N for DA arguments: monomial table of N built in place (one product per monomial, each
+# against the sparse N[pvar]); if N(0) = 0, monomials of degree > order(N) vanish and are skipped;
+# the result is accumulated in place.  Same values as the generic path.
+function _compose_da(M::AbstractVector{DA{Float64}}, N::AbstractVector{DA{Float64}})
+    spM = M[1].sp; spN = N[1].sp; length(N) == spM.nv || throw(ArgumentError("need $(spM.nv) arguments"))
+    len = nmonomials(spN); nm = nmonomials(spM)
+    used = falses(nm); for Mi in M, m in 1:nm; iszero(Mi.c[m]) || (used[m] = true); end
+    n0 = all(iszero(n.c[1]) for n in N)
+    # a monomial value is needed if it is used or is the parent of a needed one
+    need = copy(used); for m in nm:-1:2; need[m] && (need[spM.parent[m]] = true); end
+    Nnz = [findall(!iszero, n.c) for n in N]
+    V = Vector{Vector{Float64}}(undef, nm); V[1] = zeros(len); V[1][1] = 1.0
+    for m in 2:nm
+        (!need[m] || (n0 && spM.deg[m] > spN.no)) && (V[m] = Float64[]; continue)
+        par = V[spM.parent[m]]
+        isempty(par) && (V[m] = Float64[]; continue)
+        V[m] = _mul_into!(zeros(len), spN, par, N[spM.pvar[m]].c, Nnz[spM.pvar[m]])
+    end
+    out = [zeros(len) for _ in M]
+    for (o, Mi) in zip(out, M), m in 1:nm
+        c = Mi.c[m]; (iszero(c) || isempty(V[m])) && continue
+        v = V[m]; @inbounds @simd for i in eachindex(v); o[i] += c * v[i]; end
+    end
+    [DA(spN, o) for o in out]
 end
 @doc raw"""
     inverse_map(M) -> Vector{DA}
@@ -402,5 +443,7 @@ function Base.show(io::IO, ::MIME"text/plain", a::DA)
     end
     k == 0 && println(io, "  (zero)")
 end
+
+include("lie_series.jl")
 
 end # module

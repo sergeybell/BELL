@@ -89,3 +89,56 @@ end
         end
     end
 end
+@testset "LieFlow (flow-operator element maps)" begin
+    tcoef(p, ex) = Bell.LieAlgebra.TaylorSeries.getcoeff(p, ex)
+    maxdiff(M, ML) = maximum(abs(M[i].c[m] - tcoef(ML[i], monomial_exponents(M[1].sp, m))) for i in 1:6, m in 1:nmonomials(M[1].sp))
+    ref = reference_from_kinetic(DEUTERON, 270.0)
+    els = [Drift("D", 1.3), Quadrupole("Q", 0.4, 1.7), Sextupole("S", 0.3, 15.0), SBend("B", 1.2, 0.3, 0.2)]
+    @testset "= Dragt-Finn/Lie route at order 3" begin
+        for e in els
+            @test maxdiff(lie_flow_map(e, ref, 3), lie_map(hamiltonian(e, ref), elem_length(e))) < 1e-13
+        end
+    end
+    @testset "analytic drift and quadrupole" begin
+        N = 6; sp = flow_space(N); X = da_vars(sp); L = 2.0
+        M = lie_flow_map(Drift("D", L), ref, N)
+        ps = sqrt((1 + X[6])^2 - X[2]^2 - X[4]^2)
+        de = deriv(energy_term(X[6], ref), 6)
+        @test coeffnorm(M[1] - (X[1] + L * X[2] / ps)) < 1e-14
+        @test coeffnorm(M[3] - (X[3] + L * X[4] / ps)) < 1e-14
+        @test coeffnorm(truncate_da(M[5] - (X[5] + L * (de - (1 + X[6]) / ps)), N - 1)) < 1e-13
+        @test all(coeffnorm(M[i] - X[i]) == 0 for i in (2, 4, 6))
+        k = 1.7; Lq = 0.6; w = sqrt(k) * Lq
+        R = linear_part(lie_flow_map(Quadrupole("Q", Lq, k), ref, N))
+        @test norm(R[1:2, 1:2] - [cos(w) sin(w)/sqrt(k); -sqrt(k)*sin(w) cos(w)]) < 1e-14
+        @test norm(R[3:4, 3:4] - [cosh(w) sinh(w)/sqrt(k); sqrt(k)*sinh(w) cosh(w)]) < 1e-14
+    end
+    @testset "force form z' = S grad H (DOP853)" begin
+        N = 5; q = Quadrupole("Q", 0.5, 2.0); M = lie_flow_map(q, ref, N)
+        F = hamiltonian_vector_field(hamiltonian_da(q, ref, flow_space(N + 1)))
+        z0 = da_vars(flow_space(N + 1))
+        r = Bell.Integrators.integrate((z, s) -> [f(z) for f in F], z0, 0.0, 0.5; method = DormandPrince853(), tol = 1e-14).z
+        @test maximum(coeffnorm(M[i] - change_order(r[i], flow_space(N))) for i in 1:6) < 1e-11
+    end
+    @testset "symplecticity vs order and length (scaling and squaring)" begin
+        for N in (3, 6), L in (0.5, 3.0, 10.0)
+            for e in (Quadrupole("Q", L, 1.2), SBend("B", L, 0.2L, 0.1), Sextupole("S", L, 5.0))
+                M = lie_flow_map(e, ref, N)
+                sc = maximum(coeffnorm, M)
+                @test da_symplectic_error(M) < 1e-13 * sc^2
+            end
+        end
+    end
+    @testset "compose fast path = generic evaluation; ring map" begin
+        sp = flow_space(5); X = da_vars(sp)
+        A = lie_flow_map(Quadrupole("Q", 0.4, 1.7), ref, 5); B = lie_flow_map(SBend("B", 1.2, 0.3), ref, 5)
+        C = compose(A, B)
+        @test maximum(coeffnorm(C[i] - A[i](B)) for i in 1:6) < 1e-14
+        lat = Lattice("fodo", AbstractElement[Quadrupole("QF", 0.3, 1.5), Drift("D1", 1.0), SBend("B", 1.2, 0.3),
+                      Drift("D2", 1.0), Quadrupole("QD", 0.3, -1.5), Sextupole("S", 0.2, 3.0)], ref, 1)
+        M = one_turn_map_flow(lat, 3; cache = false)
+        ML = collect(Z); for e in lat.elements; ML = compose_maps(lie_map(hamiltonian(e, ref), elem_length(e)), ML); end
+        @test maxdiff(M, ML) < 1e-12
+        @test da_symplectic_error(one_turn_map_flow(lat, 6)) < 1e-11
+    end
+end

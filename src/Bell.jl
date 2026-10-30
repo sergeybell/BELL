@@ -45,16 +45,17 @@ include("exact_integrator.jl")
 include("acceleration.jl")
 include("normal_form.jl")
 include("fringe.jl")
+include("lie_flow.jl")
 include("plotting.jl")
 include("optimizers.jl")
 
 using .Coordinates, .Elements, .Structure, .LieAlgebra, .Hamiltonians, .OptimConverter,
       .Linear, .Symplectic, .Tracking, .HigherOrder, .DifferentialAlgebra, .NormalForm,
-      .Longitudinal, .ExactIntegrator, .Acceleration, .Plotting, .Optimizers, .Fringe
+      .Longitudinal, .ExactIntegrator, .Acceleration, .Plotting, .Optimizers, .Fringe, .LieFlow
 
 for mod in (Coordinates, Elements, Structure, LieAlgebra, Hamiltonians, OptimConverter,
             Linear, Symplectic, Tracking, HigherOrder, DifferentialAlgebra, NormalForm,
-            Longitudinal, ExactIntegrator, Acceleration, Plotting, Optimizers, Fringe)
+            Longitudinal, ExactIntegrator, Acceleration, Plotting, Optimizers, Fringe, LieFlow)
     for n in names(mod)
         n === nameof(mod) && continue
         @eval export $n

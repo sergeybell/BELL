@@ -1,4 +1,4 @@
-# Differential algebra & integrators
+# Differential algebra, integrators, Lie flow
 
 ```@autodocs
 Modules = [Bell.DiffAlgebra]
@@ -6,4 +6,7 @@ Modules = [Bell.DiffAlgebra]
 
 ```@autodocs
 Modules = [Bell.Integrators]
+```
+```@autodocs
+Modules = [Bell.LieFlow]
 ```
