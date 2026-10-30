@@ -43,6 +43,7 @@ polynomial and is not that object.
 \texttt{src/higher\_order.jl} & closed orbit, $D_2$, $\eta$, chromaticity, \texttt{observables}\\
 \texttt{src/differential\_algebra.jl} & independent DA map (RK4 in polynomials) — a check\\
 \texttt{src/normal\_form.jl} & one-turn factor with thin RF; torus average of $\delta$\\
+\texttt{src/fringe.jl} & edge models (hard / soft) as thin maps chosen at build time\\
 \texttt{src/longitudinal.jl} & averaged longitudinal Hamiltonian in $(\varphi,\delta)$\\
 \texttt{src/exact\_integrator.jl} & unexpanded $H$, finite cavity, renormalise\\
 \texttt{src/acceleration.jl} & ramp, tune fit\\
@@ -90,5 +91,60 @@ julia --project=docs docs/make.jl
 \end{verbatim}
 
 Developer: Kolokolchikov Sergey Dmitrievich, sergey.bell13@gmail.com.
+
+\subsection{Fringe fields (\texttt{src/fringe.jl})}
+
+Module \texttt{Fringe}. The lattice stays physical (an \texttt{SBend} carries \texttt{e1}, \texttt{e2},
+\texttt{gap}, \texttt{fint}; the structure file accepts the same keys). The edge model is
+an argument of the ring construction:
+
+\begin{verbatim}
+model = FringeModel(dipole = SoftEdge(profile = Enge(gap = 0.05),
+                                      method  = Splitting(n = 20, order = 4)),
+                    quad = HardEdge(order = 2), sext = NoEdge(),
+                    override = Dict("BM" => HardEdge(order = 2)))
+F   = ring_lie_factor(lat, model)      # one-turn LieFactor with edges
+obs = fringe_observables(lat, model)   # Qx, Qy, xi, symplecticity, time
+\end{verbatim}
+
+\texttt{FringeModel()} (all \texttt{NoEdge}) returns the element list unchanged, so the
+result is identical to \texttt{ring\_lie\_factor(lat)}.
+
+\begin{center}\small\begin{tabular}{p{0.475\linewidth}p{0.475\linewidth}}\hline
+\textbf{type} & \textbf{role}\\\hline
+\texttt{EdgeModel} & \texttt{NoEdge}, \texttt{HardEdge(order, gap, fint)}, \texttt{SoftEdge(profile, method)}\\
+\texttt{FringeProfile} & \texttt{Enge(coeffs; gap)}, \texttt{Tanh(lambda)}, \texttt{LinearRamp(width)}, \texttt{Tabulated(z, B)}\\
+\texttt{FringeMethod} & \texttt{Splitting(n, order)}, \texttt{Magnus(n, order)}, \texttt{TaylorIntegrate(tol)}\\
+\texttt{FringeModel} & model per family (\texttt{dipole}, \texttt{quad}, \texttt{sext}) and per element name (\texttt{override})\\
+\texttt{EdgeMap} & thin item \texttt{(name, parent, side, model)} placed around the parent\\
+\hline\end{tabular}\end{center}
+
+Flow:
+
+\begin{enumerate}
+\item \texttt{fringe\_sequence(lat, model)}: every magnet with a model other than
+\end{enumerate}
+   \texttt{NoEdge} becomes \texttt{EdgeMap(:in)}, element, \texttt{EdgeMap(:out)}.
+\begin{enumerate}
+\item \texttt{edge\_map(E, ref)}: polynomial map of an edge (cached by parent, side,
+\end{enumerate}
+   model, momentum). Hard edges are \texttt{lie\_map(K, 1)} of a generator.
+   Soft edges: \texttt{profile\_function} gives $F$ with the EFB at 0 (equal area)
+   and the half-width $W$; the method integrates the region; the result
+   is wrapped as \texttt{Body(-W) o Soft o Drift(-W)} (entrance) or
+   \texttt{Drift(-W) o Soft o Body(-W)} (exit) so neighbouring elements keep
+   their lengths.
+\begin{enumerate}
+\item \texttt{build\_factors(lat, model)}: Dragt–Finn factor of every element and
+\end{enumerate}
+   every edge; \texttt{ring\_lie\_factor(lat, model)} multiplies them.
+
+The body Hamiltonians in \texttt{hamiltonians.jl} are not used for the fringe
+region except as \texttt{Body(-W)} in the wrapper. New profiles need \texttt{\_raw(p, z)}
+and \texttt{\_halfwidth(p)}; new methods need \texttt{\_soft(E::\_Edge, m, ref)}; new edge
+models need a method of \texttt{edge\_map}.
+
+Example: \texttt{examples/19\_fringe\_models/run.jl} runs every model, the
+$g\to 0$ limit, the convergence in $n$ and the symplecticity check.
 
 \end{document}

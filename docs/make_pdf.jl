@@ -8,7 +8,7 @@ const MODE = length(ARGS) > 0 && ARGS[1] == "programmer" ? :programmer : :beam
 const PAGES = MODE === :programmer ?
     ["programmer/index.md"] :
     ["architecture.md", "index.md", "canonical.md", "hamiltonians.md", "lie.md", "linear.md", "second_order.md",
-     "chromaticity.md", "rf.md", "acceleration.md", "longitudinal.md", "sextupoles.md", "equilibrium.md", "assumptions.md"]
+     "chromaticity.md", "fringe.md", "rf.md", "acceleration.md", "longitudinal.md", "sextupoles.md", "equilibrium.md", "assumptions.md"]
 const OUTNAME = MODE === :programmer ? "Bell_Programmer_Manual" : "Bell_Beam_Physics_Manual"
 const TITLE = MODE === :programmer ?
     "Bell Programmer Manual\\\\\\large modules, examples, structure file" :

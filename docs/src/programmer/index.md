@@ -33,6 +33,7 @@ polynomial and is not that object.
 | `src/higher_order.jl` | closed orbit, ``D_2``, ``\eta``, chromaticity, `observables` |
 | `src/differential_algebra.jl` | independent DA map (RK4 in polynomials) — a check |
 | `src/normal_form.jl` | one-turn factor with thin RF; torus average of ``\delta`` |
+| `src/fringe.jl` | edge models (hard / soft) as thin maps chosen at build time |
 | `src/longitudinal.jl` | averaged longitudinal Hamiltonian in ``(\varphi,\delta)`` |
 | `src/exact_integrator.jl` | unexpanded ``H``, finite cavity, renormalise |
 | `src/acceleration.jl` | ramp, tune fit |
@@ -79,3 +80,51 @@ julia --project=docs docs/make.jl
 ```
 
 Developer: Kolokolchikov Sergey Dmitrievich, sergey.bell13@gmail.com.
+
+## Fringe fields (`src/fringe.jl`)
+
+Module `Fringe`. The lattice stays physical (an `SBend` carries `e1`, `e2`,
+`gap`, `fint`; the structure file accepts the same keys). The edge model is
+an argument of the ring construction:
+
+```julia
+model = FringeModel(dipole = SoftEdge(profile = Enge(gap = 0.05),
+                                      method  = Splitting(n = 20, order = 4)),
+                    quad = HardEdge(order = 2), sext = NoEdge(),
+                    override = Dict("BM" => HardEdge(order = 2)))
+F   = ring_lie_factor(lat, model)      # one-turn LieFactor with edges
+obs = fringe_observables(lat, model)   # Qx, Qy, xi, symplecticity, time
+```
+
+`FringeModel()` (all `NoEdge`) returns the element list unchanged, so the
+result is identical to `ring_lie_factor(lat)`.
+
+| type | role |
+|---|---|
+| `EdgeModel` | `NoEdge`, `HardEdge(order, gap, fint)`, `SoftEdge(profile, method)` |
+| `FringeProfile` | `Enge(coeffs; gap)`, `Tanh(lambda)`, `LinearRamp(width)`, `Tabulated(z, B)` |
+| `FringeMethod` | `Splitting(n, order)`, `Magnus(n, order)`, `TaylorIntegrate(tol)` |
+| `FringeModel` | model per family (`dipole`, `quad`, `sext`) and per element name (`override`) |
+| `EdgeMap` | thin item `(name, parent, side, model)` placed around the parent |
+
+Flow:
+
+1. `fringe_sequence(lat, model)`: every magnet with a model other than
+   `NoEdge` becomes `EdgeMap(:in)`, element, `EdgeMap(:out)`.
+2. `edge_map(E, ref)`: polynomial map of an edge (cached by parent, side,
+   model, momentum). Hard edges are `lie_map(K, 1)` of a generator.
+   Soft edges: `profile_function` gives ``F`` with the EFB at 0 (equal area)
+   and the half-width ``W``; the method integrates the region; the result
+   is wrapped as `Body(-W) o Soft o Drift(-W)` (entrance) or
+   `Drift(-W) o Soft o Body(-W)` (exit) so neighbouring elements keep
+   their lengths.
+3. `build_factors(lat, model)`: Dragt–Finn factor of every element and
+   every edge; `ring_lie_factor(lat, model)` multiplies them.
+
+The body Hamiltonians in `hamiltonians.jl` are not used for the fringe
+region except as `Body(-W)` in the wrapper. New profiles need `_raw(p, z)`
+and `_halfwidth(p)`; new methods need `_soft(E::_Edge, m, ref)`; new edge
+models need a method of `edge_map`.
+
+Example: `examples/19_fringe_models/run.jl` runs every model, the
+``g\to 0`` limit, the convergence in ``n`` and the symplecticity check.

@@ -10,6 +10,7 @@ const PAGES = [
         "Linear optics" => "linear.md",
         "Second order" => "second_order.md",
         "Chromaticity" => "chromaticity.md",
+        "Fringe fields" => "fringe.md",
         "RF cavity" => "rf.md",
         "Acceleration" => "acceleration.md",
         "Longitudinal motion" => "longitudinal.md",
