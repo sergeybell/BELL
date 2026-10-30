@@ -200,8 +200,7 @@ Je = jacobian_of_function(z -> exact_track_turn(z, lat), z0)
 
 
 section("8. Notes",
-        "COSY comparison items (from phase 1) remain open:",
-        "tunes differ from COSY by ~0.015; natural chromaticity differs (COSY -1.84/-1.85);",
+        "Natural lattice (no fringe fields): compare with COSY FR 0 below.",
         "sextupole strengths in magnetic_2.opt are all zero (natural lattice above).")
 
 @printf("  COSY natural chromaticity (reference only): xi_x = %.6f, xi_y = %.6f\n",

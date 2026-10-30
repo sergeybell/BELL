@@ -141,9 +141,9 @@ rows = [
     ("alpha_y(s=0)", po.y.alpha, ini["AlfaY"], "OptiM Initial"),
     ("D_x(s=0) [m]", po.D4[1], ini["DispersX[cm]"] / 100, "OptiM Initial"),
     ("D'_x(s=0)", po.D4[2], ini["Dsp_PrimeX"], "OptiM Initial"),
-    ("Qx fractional", mod(opt.Qx, 1), COSY_REF.Qx_frac[1], "COSY wp_natural.dat"),
-    ("Qy fractional", mod(opt.Qy, 1), COSY_REF.Qy_frac[1], "COSY wp_natural.dat"),
-    ("alpha_c", po.alpha_c, COSY_REF.alpha0[1], "COSY integrals_Icirc.dat"),
+    ("Qx fractional", mod(opt.Qx, 1), COSY_REF.Qx_frac[1], "COSY FR 0 (OV 3 2 1)"),
+    ("Qy fractional", mod(opt.Qy, 1), COSY_REF.Qy_frac[1], "COSY FR 0 (OV 3 2 1)"),
+    ("alpha_c", po.alpha_c, COSY_REF.alpha0[1], "COSY FR 0 (OV 3 3 0)"),
 ]
 
 @printf("  %-18s %18s %18s %12s  %s\n", "quantity", "Bell", "reference", "diff", "source")
