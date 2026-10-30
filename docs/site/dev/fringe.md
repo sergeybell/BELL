@@ -29,7 +29,7 @@ ring_lie_factor(lat, model) = product_factors(all factors)
 So a bend with an edge model becomes three Lie factors:
 **EdgeIn → Body(L) → EdgeOut**. `FringeModel()` (all `NoEdge`) leaves the list
 unchanged and reproduces the plain ring exactly. Every edge map is a polynomial
-map of degree 3 (`MAP_ORDER`), cached by (parent, side, model, ``p_0``).
+map of degree 3 (`MAP_ORDER`), cached by (parent, side, model, ``p_0``); the model key is `repr(model)` plus the table contents for a `Tabulated` profile.
 
 ## Hard edge (`HardEdge(order)`)
 
@@ -107,7 +107,7 @@ In the Frenet frame that follows the field, ``h(s) = h_0F(s)``:
 
 ```math
 H(s) = e(\delta) - (1+hx)\sqrt{(1+\delta)^2 - (p_x - a_x)^2 - p_y^2} + hx + \frac{h^2x^2}{2}
- + \frac{b_1}{2}(x^2-y^2) + \frac{b_2}{6}(x^3 - 3xy^2),
+ + \frac{b_1}{2}(x^2-y^2) + \frac{b_2}{6}(x^3 - 3xy^2) + h\,b_1\Big(\frac{x^3}{3} - \frac{xy^2}{2}\Big),
 ```
 
 ```math
@@ -173,3 +173,7 @@ Tunes, ``\xi_1``, ``\xi_2`` of the ring with the model (via `chromaticity_orders
 `factor_to_map(ring_lie_factor(lat, model))`), symplecticity error of every edge
 map (linear part and Jacobian at a test point) and of the ring ``R``, and the
 computing time.
+
+
+!!! note "Metric term `h\,b_1`"
+    In the curved frame the force carries the factor `(1+hx)`, so the gradient term contributes `h b_1 x^2` (horizontal) and `h b_1 xy` (vertical). Since `\int h b_1\,ds = -\tfrac12\int b_2\,ds` (`\theta' = h_0F`), the horizontal sextupole-like term of the straight EFB cancels and the vertical one is `b_2/2`. Without this term (before Oct 2026) SoftEdge differed from COSY FR 3 by `\Delta\xi_x \approx -2.9\cdot10^{-3}`, `\Delta\xi_y \approx +1.0\cdot10^{-3}` at a 10 cm gap; with it the single-dipole second-order map agrees with COSY to `10^{-9}`.

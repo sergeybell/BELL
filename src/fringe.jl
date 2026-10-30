@@ -52,7 +52,8 @@
 #
 #   Soft-edge Hamiltonian (Frenet frame that follows the field, h(s) = h0 F):
 #     H = e(delta) - (1 + h x) sqrt((1+delta)^2 - (px - a_x)^2 - py^2)
-#         + h x + h^2 x^2 / 2 + b1 (x^2 - y^2)/2 + b2 (x^3 - 3 x y^2)/6,
+#         + h x + h^2 x^2 / 2 + b1 (x^2 - y^2)/2 + h b1 (x^3/3 - x y^2/2)
+#         + b2 (x^3 - 3 x y^2)/6,     (h b1 term: metric factor (1 + h x) of the force)
 #     a_x = -y^2 h0 F'(s) / (2 (1 + h x)),
 #     b1 = h0 F' theta,  b2 = h0 F'' theta^2   (straight EFB seen from the
 #     curved orbit: field h0 F(s + x theta(s)), theta = orbit angle to the
@@ -418,8 +419,12 @@ function fringe_hamiltonian(h0::Real, F::Real, Fp::Real, ref::RefParticle; b1::R
     h = h0 * F
     ax = -y^2 * (h0 * Fp) / (2 * (1 + h * x))
     ps = sqrt((1 + d)^2 - (px - ax)^2 - py^2)
+    # field terms of the curved frame: the force carries the metric factor (1 + h x), so the gradient
+    # b1 contributes h b1 x^2 (horizontal) and h b1 x y (vertical) as well; h b1 (x^3/3 - x y^2/2) is
+    # the lowest-order curl-free completion (A_s = -int (1 + h x) B_y dx).  Without it the soft edge
+    # had a spurious sextupole-like term: int h b1 ds = -int b2/2 ds exactly (theta' = h0 F).
     H = energy_term(d, ref) - (1 + h * x) * ps + h * x + h^2 * x^2 / 2 +
-        b1 * (x^2 - y^2) / 2 + b2 * (x^3 - 3x * y^2) / 6
+        b1 * (x^2 - y^2) / 2 + h * b1 * (x^3 / 3 - x * y^2 / 2) + b2 * (x^3 - 3x * y^2) / 6
     return H - constant_term(H)
 end
 
@@ -549,6 +554,12 @@ _soft_edge(e::AbstractElement, side, m::SoftEdge, ref) =
 
 const _ECACHE = Dict{Any,Any}()
 
+# Cache key of an edge model: repr() for analytic models, plus the table contents for a
+# Tabulated profile (its repr is only "Tabulated(N points)", so two different tables of the
+# same length used to share one cache entry).
+_model_key(m::EdgeModel) = m isa SoftEdge && m.profile isa Tabulated ?
+    (repr(m), Tuple(m.profile.z), Tuple(m.profile.B)) : repr(m)
+
 """
     edge_map(E::EdgeMap, ref) -> Vector{TaylorN}
 
@@ -557,7 +568,7 @@ hard-edge Lie map for `HardEdge`, or the composed soft-edge map for `SoftEdge`.
 Cached per (parent magnet, side, model, p0).
 """
 edge_map(E::EdgeMap, ref::RefParticle) =
-    get!(_ECACHE, (E.parent, E.side, repr(E.model), ref.p0_MeV)) do
+    get!(_ECACHE, (E.parent, E.side, _model_key(E.model), ref.p0_MeV)) do
         E.model isa NoEdge && return collect(Z)
         E.model isa HardEdge && return _hard(E.parent, E.side, E.model, ref)
         return _soft_edge(E.parent, E.side, E.model, ref)
@@ -573,7 +584,7 @@ function build_factors(lat::Lattice, model::FringeModel)
             push!(out, it)
         elseif it isa EdgeMap
             push!(out, get!(() -> dragt_finn_factor(edge_map(it, lat.ref); name = it.name), cache,
-                            (it.parent, it.side, repr(it.model))))
+                            (it.parent, it.side, _model_key(it.model))))
         else
             push!(out, get!(() -> dragt_finn_factor(element_lie_map(it, lat.ref); name = it.name), cache, it))
         end
