@@ -176,11 +176,11 @@ function set_family_strengths(lat::Lattice, fam_idx, k2::Dict)
 end
 
 """
-    insert_cavity(lat, cav::Cavity; in_element = "OBM") -> Lattice
+    insert_cavity(lat, cav::Cavity; in_element = "OBM") -> (Lattice, index)
 
 Split the first drift named `in_element` into drift(L1) – `cav` – drift(L1)
 with L1 = (L_drift − L_cav)/2, keeping the circumference. Errors if the drift
-is shorter than the cavity.
+is shorter than the cavity. Returns the new lattice and the index of the cavity in it.
 """
 function insert_cavity(lat::Lattice, cav::Cavity; in_element = "OBM")
     i = findfirst(e -> e.name == in_element, lat.elements)

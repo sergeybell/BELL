@@ -177,24 +177,40 @@ function reference_from_kinetic(p::Particle, Ekin_MeV::Real; mass_MeV::Real = p.
     return RefParticle(p, mass_MeV, Ekin_MeV, gamma, beta, bg, p0, brho)
 end
 
-"""
+@doc raw"""
     energy_term(δ, ref) -> same type as δ
 
-Energy term of the s-Hamiltonian in the canonical pair (l, δ):
+Energy term of the s-Hamiltonian in the canonical pair ``(l, \delta)``:
 
-e(δ) = √((1+δ)² + 1/(β0γ0)²)/β0 − 1/β0²  (constant chosen so that e(0) = 0).
+```math
+e(\delta) = \frac{1}{\beta_0}\sqrt{(1+\delta)^2 + \frac{1}{\beta_0^2\gamma_0^2}} - \frac{1}{\beta_0^2}
+\qquad (e(0) = 0).
+```
 
-Expansion: e(δ) = δ + δ²/(2γ0²) − δ³/(2β0²γ0²) + … . Generic: `δ` may be a
-number or a `TaylorN` polynomial (this is how every element Hamiltonian gets it).
+Expansion:
+
+```math
+e(\delta) = \delta + \frac{\delta^2}{2\gamma_0^2} - \frac{\beta_0^2\delta^3}{2\gamma_0^2}
++ \Big(-\frac{\beta_0^2}{8} + \frac{3\beta_0^4}{4} - \frac{5\beta_0^6}{8}\Big)\delta^4 + \dots
+```
+
+and ``\partial e/\partial\delta = v(\delta)/v_0``. Generic: `δ` may be a number or a
+`TaylorN` polynomial (this is how every element Hamiltonian gets it).
 """
 energy_term(d, ref::RefParticle) = sqrt((1 + d)^2 + 1 / ref.betagamma^2) / ref.beta - 1 / ref.beta^2
 
-"""
+@doc raw"""
     velocity_ratio(δ, ref) -> v(δ)/v0
 
-Velocity of a particle with momentum deviation δ relative to the reference
-velocity: (1+δ)/√((1+δ)² + 1/(β0γ0)²)/β0. Numbers or `TaylorN`.
-Used to convert l ↔ time of flight (l = −v·Δt) and RF phase.
+Velocity relative to the reference velocity,
+
+```math
+\frac{v}{v_0} = \frac{1+\delta}{\beta_0\sqrt{(1+\delta)^2 + 1/(\beta_0\gamma_0)^2}}
+= 1 + \frac{\delta}{\gamma_0^2} - \frac{3\beta_0^2\delta^2}{2\gamma_0^2} + \dots
+```
+
+Numbers or `TaylorN`. Used to convert ``l \leftrightarrow`` time of flight
+(``l = -v\,\Delta t``) and RF phase.
 """
 velocity_ratio(d, ref::RefParticle) = (1 + d) / sqrt((1 + d)^2 + 1 / ref.betagamma^2) / ref.beta
 

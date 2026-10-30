@@ -56,17 +56,19 @@ function _SA(e::AbstractElement, ref::RefParticle)
     end
 end
 
-"""
+@doc raw"""
     linear_matrix(e, ref, L = elem_length(e)) -> Matrix{Float64} (6×6)
 
 Exact linear transfer matrix of element `e` (or of a slice of length `L`).
 
 # Algorithm
-R = exp(L · S · A), where A = [`hessian`](@ref)(hamiltonian(e, ref)) and S =
-[`SYMPLECTIC_S`](@ref). S·A is a Hamiltonian matrix, so R is symplectic up to
-round-off. No textbook element formulas are used; the matrix follows from
-the same H as the nonlinear maps. S·A is cached per (element value, p0).
-Markers, thin RF and zero-length slices give the identity.
+```math
+R = \exp(L\,S A),\qquad A_{ij} = \left.\frac{\partial^2 H}{\partial z_i\,\partial z_j}\right|_{z=0},
+```
+where ``H`` = `hamiltonian(e, ref)` (only its quadratic part enters) and ``S`` =
+[`SYMPLECTIC_S`](@ref). ``SA`` is a Hamiltonian matrix, so ``R`` is symplectic up to
+round-off. No textbook element formulas are used. ``SA`` is cached per (element
+value, ``p_0``). Markers, thin RF and zero-length slices give the identity.
 """
 function linear_matrix(e::AbstractElement, ref::RefParticle, L::Real = elem_length(e))
     (e isa Marker || e isa RFCavity || L == 0) && return Matrix{Float64}(I, 6, 6)
@@ -89,21 +91,22 @@ function _plane(m)
     return (stable = true, cosmu = c, beta = m[1, 2] / s, alpha = (m[1, 1] - m[2, 2]) / (2s), mu = mu)
 end
 
-"""
+@doc raw"""
     periodic_optics(R, ref, C) -> NamedTuple
 
 Periodic (closed) linear optics of the one-turn matrix `R` of a ring of
 circumference `C` [m].
 
 # Returns
-- `x`, `y` – per plane: `(stable, cosmu, beta [m], alpha, mu [rad])` from the
-  2×2 diagonal blocks: cos μ = tr/2, sin μ = sign(R12)√(1 − cos²μ),
-  β = R12/sin μ, α = (R11 − R22)/(2 sin μ).
-- `D4` – periodic dispersion (D_x, D_x', D_y, D_y') = (I − R₄)⁻¹ R_{1:4,6}.
-- `l_delta_closed` – (l|δ) on the dispersion orbit = R56 + R_{5,1:4}·D4 [m].
-- `alpha_c` – momentum compaction 1/γ0² − (l|δ)_closed/C.
-- `eta_slip` – α_c − 1/γ0²; `gamma_t` – 1/√α_c (NaN if α_c ≤ 0).
-- `coupling` – max |x–y block| of R (0 for an uncoupled ring); `R`.
+- `x`, `y` – per plane `(stable, cosmu, beta [m], alpha, mu [rad])` from the 2×2
+  diagonal block ``m``: ``\cos\mu = \tfrac12(m_{11}+m_{22})``,
+  ``\sin\mu = \operatorname{sign}(m_{12})\sqrt{1-\cos^2\mu}``, ``\beta = m_{12}/\sin\mu``,
+  ``\alpha = (m_{11}-m_{22})/(2\sin\mu)``.
+- `D4` – periodic dispersion ``(D_x, D_x', D_y, D_y') = (I - R_4)^{-1}R_{1:4,6}``.
+- `l_delta_closed` – ``(l|\delta)`` on the dispersion orbit ``= R_{56} + R_{5,1:4}\cdot D_4`` [m].
+- `alpha_c` – momentum compaction ``1/\gamma_0^2 - (l|\delta)_\text{closed}/C``.
+- `eta_slip` – ``\alpha_c - 1/\gamma_0^2``; `gamma_t` – ``1/\sqrt{\alpha_c}`` (NaN if ``\alpha_c \le 0``).
+- `coupling` – max |x–y block| of `R` (0 for an uncoupled ring); `R`.
 """
 function periodic_optics(R::AbstractMatrix, ref::RefParticle, C::Real)
     px = _plane(R[1:2, 1:2]); py = _plane(R[3:4, 3:4])

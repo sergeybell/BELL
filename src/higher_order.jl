@@ -95,11 +95,11 @@ function dispersion_orders(M)
     return (D1 = D1, D2 = D2, w = w, R = R)
 end
 
-"""
+@doc raw"""
     velocity_expansion(ref) -> (c1, c2, c3)
 
-Exact Taylor coefficients v/v0 − 1 = c1 δ + c2 δ² + c3 δ³:
-c1 = 1/γ0², c2 = −3β0²/(2γ0²), c3 = β0²(5β0² − 1)/(2γ0²).
+Exact Taylor coefficients ``v/v_0 - 1 = c_1\delta + c_2\delta^2 + c_3\delta^3``:
+``c_1 = 1/\gamma_0^2``, ``c_2 = -3\beta_0^2/(2\gamma_0^2)``, ``c_3 = \beta_0^2(5\beta_0^2 - 1)/(2\gamma_0^2)``.
 """
 function velocity_expansion(ref::RefParticle)
     g2 = ref.gamma^2; b2 = ref.beta^2
@@ -109,25 +109,24 @@ function velocity_expansion(ref::RefParticle)
     return c1, c2, c3
 end
 
-"""
+@doc raw"""
     path_expansion(M, ref, C) -> NamedTuple
 
 Momentum compaction and phase slip to second order, read from the one-turn map.
 
 # Algorithm
-On the dispersion orbit, l(δ) = l1 δ + l2 δ² with
-l1 = R_{5,1:4}·D1 + R56 and l2 = R_{5,1:4}·D2 + q5(w). Since Δl = −ΔC + C0(v/v0 − 1),
-the coefficients are:
+On the dispersion orbit, ``l(\delta) = l_1\delta + l_2\delta^2`` with
+``l_1 = R_{5,1:4}\cdot D_1 + R_{56}`` and ``l_2 = R_{5,1:4}\cdot D_2 + q_5(w)``. Since
+``\Delta l = -\Delta C + C_0(v/v_0 - 1)``:
 
-- α0 = −l1/C + c1, α1 = −l2/C + c2 (c_i from [`velocity_expansion`](@ref));
-- slip factor η0 = −l1/C, η1 = −l2/C + (l1/C)c1.
+- ``\alpha_0 = -l_1/C + c_1``, ``\alpha_1 = -l_2/C + c_2`` (``c_i`` from [`velocity_expansion`](@ref));
+- ``\eta_0 = -l_1/C``, ``\eta_1 = -l_2/C + (l_1/C)c_1``.
 
-The definitions are C(δ)/C0 = 1 + α0 δ + α1 δ² and
-ΔT/T0 = η0 δ + η1 δ².
+Definitions: ``C(\delta)/C_0 = 1 + \alpha_0\delta + \alpha_1\delta^2``, ``\Delta T/T_0 = \eta_0\delta + \eta_1\delta^2``.
 
 # Returns
-`(l1, l2, alpha0, alpha1, eta0, eta1, eta1_formula, gamma_t, c1, c2, c3)`.
-`eta1_formula` is the same η1 from α0, α1, a consistency check.
+`(l1, l2, alpha0, alpha1, eta0, eta1, eta1_formula, gamma_t, c1, c2, c3)`;
+`eta1_formula` is the same ``\eta_1`` from ``\alpha_0, \alpha_1`` (consistency check).
 """
 function path_expansion(M, ref::RefParticle, C::Real)
     d = dispersion_orders(M)
@@ -144,17 +143,19 @@ function path_expansion(M, ref::RefParticle, C::Real)
             eta1_formula = eta1_formula, gamma_t = 1 / sqrt(abs(alpha0)), c1 = c1, c2 = c2, c3 = c3)
 end
 
-"""
+@doc raw"""
     chromaticity_orders(M; dd = 1e-4) -> (x = (Q0, ξ1, ξ2), y = (Q0, ξ1, ξ2))
 
-Fractional tune and first and second chromaticity per plane. Uses central
-differences of [`tunes_at_delta`](@ref) at δ = 0, ±dd:
+Fractional tune and first and second chromaticity per plane, measured on the
+polynomial map (not from an integral formula). For ``\delta \in \{-dd, 0, +dd\}``:
+closed orbit by Newton ([`closed_orbit`](@ref)), Jacobian of ``M`` on that orbit, tune
+from its 2×2 blocks ([`tunes_at_delta`](@ref)). Then
 
-- ξ1 = dQ/dδ;
-- ξ2 = d²Q/dδ², so Q(δ) ≈ Q0 + ξ1 δ + ξ2 δ²/2.
+- ``\xi_1 = \dfrac{Q(+dd) - Q(-dd)}{2\,dd}``;
+- ``\xi_2 = \dfrac{Q(+dd) - 2Q(0) + Q(-dd)}{dd^2}``, so ``Q(\delta) \approx Q_0 + \xi_1\delta + \xi_2\delta^2/2``.
 
 The tunes are computed on the off-momentum closed orbit, so sextupole feed-down
-is included. ξ1 is exact for the order-3 map; ξ2 includes all terms present in it.
+is included. ``\xi_1`` is exact for the order-3 map; ``\xi_2`` includes all terms present in it.
 """
 function chromaticity_orders(M; dd = 1e-4)
     q0 = tunes_at_delta(M, 0.0); qp = tunes_at_delta(M, dd); qm = tunes_at_delta(M, -dd)

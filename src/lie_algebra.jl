@@ -185,17 +185,17 @@ function poisson(f::TaylorN, g::TaylorN)
     return s
 end
 
-"""
+@doc raw"""
     lie_exp(f, g; nmax = 400, tol = 1e-18) -> TaylorN
 
-Lie transformation exp(:f:) g = g + [f, g] + [f, [f, g]]/2! + … .
+Lie transformation ``e^{{:}f{:}}g = g + [f, g] + \tfrac{1}{2!}[f, [f, g]] + \dots``
 
 # Algorithm
-Terms are generated recursively, `term_n = [f, term_{n−1}]/n`, and summed until
-`maxabs(term) ≤ tol·max(1, maxabs(result))`; a warning is issued after `nmax`
+Terms are generated recursively, ``t_n = [f, t_{n-1}]/n``, and summed until
+``\max|t_n| \le \text{tol}\cdot\max(1, \max|\text{result}|)``; a warning is issued after `nmax`
 terms. Since the space is truncated at JET_ORDER, the series terminates
-exactly when f has degree ≥ 3; for quadratic f (linear part) it converges
-like the exponential series.
+exactly when ``f`` has degree ``\ge 3``; for quadratic ``f`` it converges like the
+exponential series.
 """
 function lie_exp(f::TaylorN, g::TaylorN; nmax::Int = 400, tol = 1e-18)
     result, term = g, g
@@ -208,12 +208,12 @@ function lie_exp(f::TaylorN, g::TaylorN; nmax::Int = 400, tol = 1e-18)
     return result
 end
 
-"""
+@doc raw"""
     lie_map(H, L) -> Vector{TaylorN}
 
 Transfer map of an element with s-independent Hamiltonian `H` over length `L` [m]:
-z ↦ exp(−L :H:) z (component-wise), truncated to [`MAP_ORDER`](@ref).
-Since dz/ds = [z, H] = −:H: z, this is the exact flow of H to that order.
+``z \mapsto e^{-L{:}H{:}}z`` (component-wise), truncated to [`MAP_ORDER`](@ref).
+Since ``dz/ds = [z, H] = -{:}H{:}\,z``, this is the exact flow of ``H`` to that order.
 """
 lie_map(H::TaylorN, L::Real) = [truncate_to(lie_exp(-L * H, Z[i]), MAP_ORDER) for i in 1:6]
 
@@ -330,23 +330,22 @@ function rotation_matrix_6(mu)
     return R
 end
 
-"""
+@doc raw"""
     concatenate(Fa, Fb; name) -> LieFactor
 
 Factor of the product "Fa first, then Fb", correct to degree 4.
 
 # Algorithm
-The second generators are pulled through Ra (g3 = f3b ∘ Ra, g4 = f4b ∘ Ra), then
-combined by Baker-Campbell-Hausdorff:
+The second generators are pulled through ``R_a`` (``g_3 = f_{3b}\circ R_a``,
+``g_4 = f_{4b}\circ R_a``), then combined by Baker–Campbell–Hausdorff:
 
-- R  = Rb · Ra
-- f3 = f3a + g3
-- f4 = f4a + g4 − ½ [g3, f3a]
+```math
+R = R_bR_a,\qquad f_3 = f_{3a} + g_3,\qquad f_4 = f_{4a} + g_4 - \tfrac12[g_3, f_{3a}].
+```
 
-The sign follows from the order of application (f3a first). Nested brackets are
-of degree ≥ 5 and are dropped. The result is again an exactly symplectic map.
-This is how the one-turn factor of the ring is built ([`product_factors`](@ref)),
-instead of composing truncated polynomials.
+Nested brackets are of degree ``\ge 5`` and are dropped. The result is again an
+exactly symplectic map. This is how the one-turn factor of the ring is built
+([`product_factors`](@ref)), instead of composing truncated polynomials.
 """
 function concatenate(Fa::LieFactor, Fb::LieFactor; name = Fa.name * "+" * Fb.name)
     g3 = pull_generator(Fb.f3, Fa.R)

@@ -111,20 +111,21 @@ abstract type FringeMethod end
 "No fringe field: the edge is the identity."
 struct NoEdge <: EdgeModel end
 
-"""
+@doc raw"""
     HardEdge(; order = 2, gap = nothing, fint = nothing)
 
-Thin hard-edge model at the magnet ends.
+Thin hard-edge model at the magnet ends; the map is ``e^{-{:}K{:}}z`` (symplectic).
 
 # Fields
-- `order::Int` – 1: linear dipole-edge kick px += h tan(e) x, py −= h tan(ψ) y with
-  ψ = e − h g FINT (1 + sin²e)/cos e; 2 or 3: nonlinear edge. The vertical kick then
-  uses the effective angle e ± x' (exact x' = px/ps), generated as the Lie map
-  exp(:−K:), so it is symplectic. The generator K is kept to degree 3 (order 2) or 4 (order 3).
+- `order::Int` – 1: linear dipole-edge kick, ``K = -\tfrac{h\tan\varepsilon}{2}x^2 + \tfrac{h\tan\psi}{2}y^2``
+  (``p_x \mathrel{+}= h\tan\varepsilon\,x``, ``p_y \mathrel{-}= h\tan\psi\,y``) with
+  ``\psi = \varepsilon - hg\,\mathrm{FINT}(1+\sin^2\varepsilon)/\cos\varepsilon``;
+  2 or 3: nonlinear edge, the vertical term uses ``\tan(\psi \pm x')`` with the exact
+  ``x' = p_x/p_s``; ``K`` is kept to degree 3 (order 2) or 4 (order 3).
 - `gap`, `fint` – override the magnet's full gap [m] and FINT (`nothing` = use the magnet's).
 
-For a `Quadrupole` (order ≥ 2) the standard cubic hard-edge generator
-±k1/(12(1+δ))·(x³px + 3xy²px − 3x²y py − y³py) is used; order 1 is the identity.
+For a `Quadrupole` (order ≥ 2) the cubic hard-edge generator
+``K = \pm\frac{k_1}{12(1+\delta)}(x^3p_x + 3xy^2p_x - 3x^2yp_y - y^3p_y)`` is used; order 1 is the identity.
 Other element types raise an error.
 """
 struct HardEdge <: EdgeModel
@@ -138,11 +139,11 @@ HardEdge(; order::Int = 2, gap = nothing, fint = nothing) =
 "Default Enge coefficients of a dipole edge (z in units of the full gap)."
 const ENGE_DEFAULT = [0.478959, 1.911289, -1.185953, 1.630554, -1.082657, 0.318111]
 
-"""
+@doc raw"""
     Enge(coeffs = ENGE_DEFAULT; gap = 0.05)
 
-Enge profile F(z) = 1/(1 + exp(P(−z/g))), P(t) = Σ c_k t^k, `g` = full gap [m].
-`coeffs::Vector{Float64}` are the Enge coefficients (dimensionless, z in units of the gap).
+Enge profile ``F(z) = 1/\big(1 + \exp P(-z/g)\big)``, ``P(t) = \sum_{k\ge 1} c_k t^{k-1}``, ``g`` = full gap [m].
+`coeffs::Vector{Float64}` are the Enge coefficients (dimensionless, ``z`` in units of the gap).
 """
 struct Enge <: FringeProfile
     coeffs::Vector{Float64}
@@ -150,10 +151,10 @@ struct Enge <: FringeProfile
 end
 Enge(coeffs::AbstractVector = ENGE_DEFAULT; gap = 0.05) = Enge(collect(Float64, coeffs), Float64(gap))
 
-"""
+@doc raw"""
     Tanh(lambda)
 
-Profile F(z) = (1 + tanh(z/λ))/2; `lambda` [m] is the fall-off length.
+Profile ``F(z) = \tfrac12\big(1 + \tanh(z/\lambda)\big)``; `lambda` [m] is the fall-off length.
 """
 struct Tanh <: FringeProfile
     lambda::Float64
@@ -185,15 +186,15 @@ struct Splitting <: FringeMethod
 end
 Splitting(; n::Int = 20, order::Int = 4) = Splitting(n, order)
 
-"""
+@doc raw"""
     Magnus(; n = 10, order = 4)
 
-Soft-edge integration by the Magnus expansion on `n` sub-intervals of length Δs.
-- Order 2: Ω = Δs H(mid).
-- Order 4: two Gauss nodes H1, H2 at mid ∓ Δs√3/6, with
-  Ω = Δs(H1 + H2)/2 − (√3/12) Δs² [H1, H2].
+Soft-edge integration by the Magnus expansion on `n` sub-intervals of length ``\Delta s``.
+- Order 2: ``\Omega = \Delta s\,H(s_m)``.
+- Order 4: two Gauss nodes ``H_{1,2} = H(s_m \mp \Delta s\sqrt3/6)``,
+  ``\Omega = \Delta s(H_1 + H_2)/2 - (\sqrt3/12)\Delta s^2[H_1, H_2]``.
 
-Each interval map is exp(−:Ω:).
+Each interval map is ``e^{-{:}\Omega{:}}``.
 """
 struct Magnus <: FringeMethod
     n::Int

@@ -61,14 +61,15 @@ const W0 = 1 - 2W1
 _vel(d, ref) = velocity_ratio(d, ref)                       # v/v0
 _dvel(d, ref) = (a2 = 1 / ref.betagamma^2; a2 / ((1 + d)^2 + a2)^1.5 / ref.beta)   # d(v/v0)/ddelta
 
-"""
+@doc raw"""
     cavity_parameters(cav::Cavity, ref, C) -> (ω, A, v0)
 
-Constants of the finite-cavity Hamiltonian:
+Constants of the finite-cavity Hamiltonian, recomputed from the current `ref`
+at every call (so they follow the energy ramp):
 
-- ω = h · 2π v0/C [rad/s];
-- A = (Z V/p0c) · c/(ω L) [1];
-- v0 = β0 c [m/s].
+- ``\omega = h\,2\pi v_0/C`` [rad/s];
+- ``A = \dfrac{ZV}{p_0c}\,\dfrac{c}{\omega L}`` [1];
+- ``v_0 = \beta_0 c`` [m/s].
 """
 function cavity_parameters(cav::Cavity, ref::RefParticle, C::Real)
     v0 = ref.beta * C_LIGHT
@@ -77,22 +78,26 @@ function cavity_parameters(cav::Cavity, ref::RefParticle, C::Real)
     return omega, A, v0
 end
 
-"""
+@doc raw"""
     transit_factor(cav, ref, C) -> T
 
-Transit-time factor of a finite cavity: T = sin(θ/2)/(θ/2), θ = 2π h L/C = ω L/v0.
-The energy gain per passage is Z V T sin(φs + φ).
+Transit-time factor of a finite cavity: ``T = \dfrac{\sin(\theta/2)}{\theta/2}``,
+``\theta = 2\pi hL/C = \omega L/v_0``. The energy gain per passage is ``ZVT\sin(\varphi_s + \varphi)``.
 """
 transit_factor(cav::Cavity, ref::RefParticle, C::Real) =
     (th = 2pi * cav.harmonic * cav.L / C; sin(th / 2) / (th / 2))
 
 # vector field dz/ds = S grad H for magnetic elements
-"""
+@doc raw"""
     _field_mag(z, ref, h, k1, k2)
 
-Exact vector field dz/ds = S ∇H of the magnetic Hamiltonian
-H = e(δ) − (1+hx)ps + hx + h²x²/2 + k1(x² − y²)/2 + k2(x³ − 3xy²)/6
-(no expansion in px, py, δ).
+Exact vector field ``dz/ds = S\nabla H`` of the magnetic Hamiltonian
+``H = e(\delta) - (1+hx)p_s + hx + h^2x^2/2 + k_1(x^2 - y^2)/2 + k_2(x^3 - 3xy^2)/6``
+(no expansion in ``p_x, p_y, \delta``):
+
+``x' = (1+hx)p_x/p_s``, ``p_x' = hp_s - h - h^2x - k_1x - \tfrac{k_2}{2}(x^2-y^2)``,
+``y' = (1+hx)p_y/p_s``, ``p_y' = k_1y + k_2xy``,
+``l' = v/v_0 - (1+hx)(1+\delta)/p_s``, ``\delta' = 0``.
 """
 function _field_mag(z, ref, h, k1, k2)
     x, px, y, py, l, d = z
@@ -103,11 +108,15 @@ function _field_mag(z, ref, h, k1, k2)
     return [hx1 * px / ps, -Hx, hx1 * py / ps, -Hy, _vel(d, ref) - hx1 * (1 + d) / ps, zero(x)]
 end
 
-"""
+@doc raw"""
     _field_cav(z, s, ref, L, ω, A, v0, φs)
 
 Exact s-dependent vector field of the cavity Hamiltonian
-H = e(δ) − ps + A cos Φ, Φ = ω(s − L/2)/v0 − ω l/v(δ) − φs.
+``H = e(\delta) - p_s + A\cos\Phi``, ``\Phi = \omega(s - L/2)/v_0 - \omega l/v(\delta) - \varphi_s``:
+
+``x' = p_x/p_s``, ``y' = p_y/p_s``, ``p_x' = p_y' = 0``,
+``l' = v/v_0 - (1+\delta)/p_s - A\sin\Phi\,\partial_\delta\Phi``,
+``\delta' = -A\,(\omega/v)\sin\Phi``.
 """
 function _field_cav(z, s, ref, L, omega, A, v0, phis)
     x, px, y, py, l, d = z
@@ -165,19 +174,18 @@ _params(e::Quadrupole) = (0.0, e.k1, 0.0)
 _params(e::Sextupole) = (0.0, 0.0, e.k2)
 _params(e::SBend) = (curvature(e), e.k1, 0.0)
 
-"""
+@doc raw"""
     exact_track_element(z, e, ref, C; ds = 0.1) -> Vector
 
 Track a canonical point through one element with the exact (non-expanded)
-Hamiltonian.
+Hamiltonian; nothing is truncated, longitudinal motion included.
 
 # Algorithm
 - `Marker`: identity.
-- `Cavity`: the field of the RF Hamiltonian is integrated with n = max(4, ⌈L/0.02⌉)
-  Yoshida-4 steps (RF is time-dependent, which the Lie maps do not cover).
-- Magnets: the exact magnetic field of the element ((h, k1, k2) from its type)
-  with n = ⌈L/ds⌉ steps (one for a drift; the drift flow is then exact up to the
-  midpoint solve).
+- `Cavity`: the field [`_field_cav`](@ref Bell.ExactIntegrator._field_cav) of the RF
+  Hamiltonian, ``n = \max(4, \lceil L/0.02\,\text{m}\rceil)`` Yoshida-4 steps.
+- Magnets: [`_field_mag`](@ref Bell.ExactIntegrator._field_mag) with ``(h, k_1, k_2)``
+  from the element type, ``n = \lceil L/ds\rceil`` steps (one for a drift).
 - A thin `RFCavity` raises an error: use `rf_kick` for it.
 
 # Properties
@@ -212,21 +220,22 @@ function exact_track_turn(z, lat::Lattice, ref::RefParticle = lat.ref, C::Real =
     return w
 end
 
-"""
+@doc raw"""
     renormalize(zs, ref, isync) -> (zs', ref')
 
 Make particle `isync` the new reference, i.e. ramp the reference energy after
 a cavity.
 
 # Algorithm
-With δs the momentum deviation of the synchronous particle:
-- p0' = p0(1 + δs), and `ref'` is rebuilt from the new kinetic energy;
-- δ' = (1+δ)/(1+δs) − 1;
-- px' = px/(1+δs) and py' likewise, which is where adiabatic damping appears;
-- x and y are shifted by the synchronous particle's offset;
-- dt' = dt − dt_s and l' = −v dt'.
+With ``(x_s, p_{xs}, y_s, p_{ys}, l_s, \delta_s)`` the coordinates of the synchronous particle:
+- ``p_0' = p_0(1 + \delta_s)``, and `ref'` is rebuilt from the new kinetic energy
+  ``\sqrt{p_0'^2 + m^2} - m`` (new ``\gamma_0, \beta_0, B\rho``);
+- ``\delta' = (1+\delta)/(1+\delta_s) - 1``;
+- ``p_x' = (p_x - p_{xs})/(1+\delta_s)``, ``p_y'`` likewise: this is the adiabatic damping;
+- ``x' = x - x_s``, ``y' = y - y_s``;
+- ``\Delta t' = \Delta t - \Delta t_s`` with ``\Delta t = -l/v(\delta)``, and ``l' = -v(\delta)\,\Delta t'``.
 
-The magnet fields are assumed to ramp with p0, so normalised strengths stay fixed.
+The magnet fields are assumed to ramp with ``p_0``, so normalised strengths stay fixed.
 """
 function renormalize(zs::Vector{<:AbstractVector}, ref::RefParticle, isync::Int)
     zsy = zs[isync]

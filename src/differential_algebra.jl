@@ -1,5 +1,5 @@
 # =============================================================================
-# TaylorMap.jl - truncated Taylor map of the ring (COSY-style analogue)
+# TaylorMap.jl - truncated Taylor map of the ring (differential-algebra route)
 # =============================================================================
 #
 #

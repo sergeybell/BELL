@@ -20,12 +20,12 @@ using ..Coordinates
 export longitudinal_hamiltonian_text, synchrotron_tune,
        LongitudinalParams, long_H, fixed_points, separatrix, bucket_height
 
-"""
+@doc raw"""
     synchrotron_tune(ref, eta0, V_MV, h, phi_s; T = 1.0) -> Q_s
 
-Small-amplitude synchrotron tune (oscillations per turn):
-Q_s = √(h η0 Z V T cos φs / (2π β0² E)), where E = γ0 m c² [MeV], V [MV],
-T is the transit factor. Returns NaN if η0 cos φs ≤ 0 (unstable).
+Small-amplitude synchrotron tune of the smooth model (analysis only):
+``Q_s = \sqrt{\dfrac{h\,\eta_0\,ZVT\cos\varphi_s}{2\pi\beta_0^2E}}``, ``E = \gamma_0mc^2`` [MeV], V [MV],
+``T`` the transit factor. Returns NaN if ``\eta_0\cos\varphi_s \le 0`` (unstable).
 """
 function synchrotron_tune(ref::RefParticle, eta0, V_MV, h, phi_s; T = 1.0)
     E = ref.gamma * ref.mass_MeV
@@ -49,22 +49,27 @@ longitudinal_hamiltonian_text() = """
       stable iff eta0*cos(phi_s) > 0.  eta1 adds a second fixed point at
       delta ~ -eta0/eta1 (alpha-bucket) and makes the bucket asymmetric."""
 
-"""
+@doc raw"""
     LongitudinalParams(h, eta0, eta1, A, phi_s)
     LongitudinalParams(ref, alpha0, alpha1, V_MV, h, phi_s; T = 1)
 
-Parameters of the averaged longitudinal motion in (φ, δ), with n = turn:
+Parameters of the averaged (smooth) longitudinal model in ``(\varphi, \delta)``, ``n`` = turn.
+This model is an analysis object, truncated at ``\delta^2``; no tracking routine uses it.
 
-dφ/dn = −2π h (η0 δ + η1 δ²),  dδ/dn = A (sin(φs + φ) − sin φs).
+```math
+\frac{d\varphi}{dn} = -2\pi h(\eta_0\delta + \eta_1\delta^2),\qquad
+\frac{d\delta}{dn} = A\big(\sin(\varphi_s+\varphi) - \sin\varphi_s\big).
+```
 
 # Fields
 - `h::Int` – harmonic number.
-- `eta0`, `eta1` – slip factors η0 = α0 − 1/γ², η1 = α1 − α0/γ² + 3β²/(2γ²) + 1/γ⁴.
-- `A` – per-turn δ-kick amplitude Z V T/(β² E) [1].
+- `eta0`, `eta1` – ``\eta_0 = \alpha_0 - 1/\gamma^2``,
+  ``\eta_1 = \alpha_1 - \alpha_0/\gamma^2 + 3\beta^2/(2\gamma^2) + 1/\gamma^4``.
+- `A` – per-turn ``\delta``-kick amplitude ``ZVT/(\beta^2E)`` [1].
 - `phi_s` – synchronous phase [rad].
 
-The second constructor computes η0, η1, A from momentum compaction α0, α1 at the
-energy of `ref`.
+The second constructor computes ``\eta_0, \eta_1, A`` from the momentum compaction
+``\alpha_0, \alpha_1`` at the energy of `ref`.
 """
 struct LongitudinalParams
     h::Int; eta0::Float64; eta1::Float64; A::Float64; phi_s::Float64
@@ -77,11 +82,11 @@ function LongitudinalParams(ref::RefParticle, alpha0, alpha1, V_MV, h, phi_s; T 
     return LongitudinalParams(h, eta0, eta1, A, phi_s)
 end
 
-"""
+@doc raw"""
     long_H(p, φ, δ) -> Float64
 
 Longitudinal Hamiltonian (invariant of the smooth motion):
-H = −2π h (η0 δ²/2 + η1 δ³/3) + A (cos(φs + φ) + φ sin φs).
+``H = -2\pi h\big(\eta_0\delta^2/2 + \eta_1\delta^3/3\big) + A\big(\cos(\varphi_s+\varphi) + \varphi\sin\varphi_s\big)``.
 """
 long_H(p::LongitudinalParams, phi, d) =
     -2pi * p.h * (p.eta0 * d^2 / 2 + p.eta1 * d^3 / 3) + p.A * (cos(p.phi_s + phi) + phi * sin(p.phi_s))

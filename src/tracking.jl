@@ -138,20 +138,22 @@ the truncated polynomial `factor_to_map(F)`.
 """
 apply_factor(F::LieFactor, z) = (w = apply_nonlinear(F, z); [sum(F.R[i, j] * w[j] for j in 1:6) for i in 1:6])
 
-"""
+@doc raw"""
     rf_kick(z, cav::RFCavity, ref, C) -> Vector
 
-Thin RF cavity acting on a canonical point.
+Thin RF cavity acting on a canonical point (exact formulas, no expansion).
 
 # Algorithm
-1. Arrival-time offset dt = −l/v(δ), RF phase φ = −h ω0 dt with ω0 = 2π v0/C.
-2. Energy kick E → E + Z V sin(φs + φ) [MeV].
-3. New δ from the new energy: δ' = √(E'² − m²)/p0 − 1.
-4. Keep the arrival time: l' = −v(δ') dt.
+1. Arrival-time offset ``\Delta t = -l/v(\delta)``, RF phase ``\varphi = -h\omega_0\Delta t``,
+   ``\omega_0 = 2\pi v_0/C``.
+2. Energy kick ``E' = E + ZV\sin(\varphi_s + \varphi)`` [MeV], ``E = \sqrt{p_0^2(1+\delta)^2 + m^2}``.
+3. New momentum ``\delta' = \sqrt{E'^2 - m^2}/p_0 - 1``.
+4. Same arrival time: ``l' = -v(\delta')\,\Delta t``.
 
-An energy kick at fixed arrival time is canonical in (t, −E), and the change of
-variables to (l, δ) is canonical too, so the kick is symplectic. x, px, y, py are
-unchanged (no transverse RF field). Works on numbers and `TaylorN`.
+An energy kick at fixed arrival time is canonical in ``(t, -E)``, and the change of
+variables to ``(l, \delta)`` is canonical too, so the kick is symplectic. ``x, p_x, y, p_y`` are
+unchanged (no transverse RF field). The reference momentum is not changed. Works on
+numbers and `TaylorN`.
 """
 function rf_kick(z, cav::RFCavity, ref::RefParticle, C::Real)
     x, px, y, py, l, d = z

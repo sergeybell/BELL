@@ -1,5 +1,5 @@
 # =============================================================================
-# Hamiltonians.jl - the s-Hamiltonian of every element, expanded to order 3
+# Hamiltonians.jl - the s-Hamiltonian of every element, expanded to degree 4
 # =============================================================================
 #
 #
@@ -7,8 +7,8 @@
 #
 # WHAT
 #   hamiltonian(element, ref) returns H(z) as a TaylorN polynomial in the
-#   canonical variables z = (x, px, y, py, l, delta), expanded to total order
-#   3 (constant dropped).  It is computed by TaylorSeries arithmetic directly
+#   canonical variables z = (x, px, y, py, l, delta), expanded to total degree
+#   JET_ORDER = 4 (constant dropped).  It is computed by TaylorSeries arithmetic directly
 #   from the EXACT expressions below, so no hand expansion can go wrong.
 #
 #   With ps = sqrt((1+delta)^2 - px^2 - py^2) and the energy term
@@ -60,32 +60,34 @@ function _parts(ref)
     return x, y, d, ps, energy_term(d, ref)
 end
 
-"""
+@doc raw"""
     hamiltonian(e::AbstractElement, ref::RefParticle) -> TaylorN
 
-s-Hamiltonian of element `e` in canonical variables z = (x, px, y, py, l, δ), as a
-polynomial of degree [`JET_ORDER`](@ref) (constant term dropped).
+s-Hamiltonian of element `e` in canonical variables ``z = (x, p_x, y, p_y, l, \delta)``, as a
+polynomial of degree [`JET_ORDER`](@ref) = 4 (constant term dropped).
 
-With ps = √((1+δ)² − px² − py²) and e(δ) = [`energy_term`](@ref)(δ, ref):
+With ``p_s = \sqrt{(1+\delta)^2 - p_x^2 - p_y^2}`` and ``e(\delta)`` = [`energy_term`](@ref):
 
-| element | H |
+| element | ``H`` |
 |:--|:--|
-| `Drift`, `Cavity` (RF off) | e(δ) − ps |
-| `Quadrupole` | e(δ) − ps + k1(x² − y²)/2 |
-| `Sextupole` | e(δ) − ps + k2(x³ − 3xy²)/6 |
-| `SBend` | e(δ) − (1+hx) ps + hx + h²x²/2 + k1(x² − y²)/2 |
-| `Marker`, thin `RFCavity` | 0 |
+| `Drift`, `Cavity` (RF off) | ``e(\delta) - p_s`` |
+| `Quadrupole` | ``e(\delta) - p_s + \tfrac{k_1}{2}(x^2 - y^2)`` |
+| `Sextupole` | ``e(\delta) - p_s + \tfrac{k_2}{6}(x^3 - 3xy^2)`` |
+| `SBend` | ``e(\delta) - (1+hx)p_s + hx + \tfrac{h^2x^2}{2} + \tfrac{k_1}{2}(x^2 - y^2)`` |
+| `Marker` | ``0`` (thin `RFCavity`: error, it is a kick) |
 
 # Algorithm
 The exact expressions are evaluated in `TaylorN` arithmetic, so the expansion
-(square root included) is done by the polynomial engine, not by hand. Then the
-constant is removed, and the result is checked to have no linear terms. Linear
-terms would mean the reference orbit is not a solution, and a warning is issued.
+(square roots included) is done by the polynomial engine, not by hand. Then the
+constant is removed, and the result is checked to have no linear terms (a warning
+is issued otherwise: the reference orbit would not be a solution).
 
 The bend terms come from the curved-frame vector potential
-−(1+hx)a_s = hx + h²x²/2 (uniform field h·Bρ). ∂H/∂x = 0 at z = 0.
+``-(1+hx)a_s = hx + h^2x^2/2`` (uniform field ``h\,B\rho``); ``\partial H/\partial x = 0`` at ``z = 0``.
 This is the only place in Bell where element physics is defined: linear
-matrices, Lie maps, DA maps and the exact integrator all derive from these H.
+matrices, Lie maps, DA maps and the exact integrator all derive from these ``H``.
+The explicit expansions and maps are listed in the Programmer Manual, page
+"Elements: explicit maps".
 """
 hamiltonian(e::Drift, ref::RefParticle) = (p = _parts(ref); _clean(p[5] - p[4], e))
 
