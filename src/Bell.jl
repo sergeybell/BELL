@@ -23,6 +23,12 @@ Manual for the module map.
 """
 module Bell
 
+# pure-mathematics submodules (no accelerator concepts); not re-exported into Bell
+# because their names (compose, integrate, ...) are generic: `using Bell.DiffAlgebra`,
+# `using Bell.Integrators`.
+include("da/DiffAlgebra.jl")
+include("integrators/Integrators.jl")
+
 include("coordinates.jl")
 include("elements.jl")
 include("structure.jl")

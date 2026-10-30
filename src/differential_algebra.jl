@@ -1,5 +1,8 @@
 # =============================================================================
-# TaylorMap.jl - truncated Taylor map of the ring (differential-algebra route)
+# differential_algebra.jl - TaylorN truncated-series cross-check of the Lie maps
+#   (module name DifferentialAlgebra kept for compatibility; this is NOT the general
+#    DA engine - that is Bell.DiffAlgebra in src/da/DiffAlgebra.jl, with ODE
+#    integrators in Bell.Integrators, src/integrators/Integrators.jl)
 # =============================================================================
 #
 #
@@ -29,6 +32,15 @@
 # WHAT YOU SEE
 #   Nothing printed here; scripts/02 prints the comparisons.
 # =============================================================================
+@doc raw"""
+    DifferentialAlgebra
+
+Truncated-series (TaylorSeries.jl `TaylorN`) cross-check route for the Lie maps:
+element maps by RK4 in truncated polynomial arithmetic, composed into the ring map
+and compared with the Lie product.  Scope is limited to that cross-check; the
+general differential algebra `{}_nD_v` (arbitrary `n`, `v` at run time) is
+Bell.DiffAlgebra, and generic ODE integrators are Bell.Integrators.
+"""
 module DifferentialAlgebra
 
 using TaylorSeries, LinearAlgebra

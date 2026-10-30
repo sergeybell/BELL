@@ -23,6 +23,8 @@ const PAGES = [
         "RF & longitudinal" => "dev/rf.md",
         "Normal form" => "dev/normal_form.md",
         "Fringe fields" => "dev/fringe.md",
+        "Differential algebra" => "dev/da.md",
+        "ODE integrators" => "dev/integrators.md",
         "Extending Bell" => "dev/extending.md",
     ],
     "API Reference" => [
@@ -32,6 +34,7 @@ const PAGES = [
         "Tracking, RF, acceleration" => "api/tracking.md",
         "Normal form" => "api/normal_form.md",
         "Fringe" => "api/fringe.md",
+        "DA & integrators" => "api/da.md",
         "Plotting & optimisation" => "api/utilities.md",
         "Index" => "api/index.md",
     ],
@@ -42,7 +45,7 @@ const MODULES = [Bell, Bell.Coordinates, Bell.Elements, Bell.Structure, Bell.Lie
                  Bell.Hamiltonians, Bell.OptimConverter, Bell.Linear, Bell.Symplectic,
                  Bell.Tracking, Bell.HigherOrder, Bell.DifferentialAlgebra, Bell.Longitudinal,
                  Bell.ExactIntegrator, Bell.Acceleration, Bell.NormalForm, Bell.Fringe,
-                 Bell.Plotting, Bell.Optimizers]
+                 Bell.Plotting, Bell.Optimizers, Bell.DiffAlgebra, Bell.Integrators]
 
 makedocs(sitename = "Bell",
          modules = MODULES,
