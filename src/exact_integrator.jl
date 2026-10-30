@@ -50,13 +50,26 @@ using ..Coordinates, ..Elements, ..Structure
 
 export exact_track_element, exact_track_turn, renormalize, cavity_parameters, transit_factor
 
+"""
+Yoshida triple-jump weights: W1 = 1/(2 − 2^(1/3)), W0 = 1 − 2 W1. Composing
+the 2nd-order implicit midpoint step as (W1 h, W0 h, W1 h) gives a 4th-order
+symplectic method.
+"""
 const W1 = 1 / (2 - 2^(1 / 3))
 const W0 = 1 - 2W1
 
 _vel(d, ref) = velocity_ratio(d, ref)                       # v/v0
 _dvel(d, ref) = (a2 = 1 / ref.betagamma^2; a2 / ((1 + d)^2 + a2)^1.5 / ref.beta)   # d(v/v0)/ddelta
 
-"Cavity constants: omega [rad/s], A [1], v0 [m/s]."
+"""
+    cavity_parameters(cav::Cavity, ref, C) -> (ω, A, v0)
+
+Constants of the finite-cavity Hamiltonian:
+
+- ω = h · 2π v0/C [rad/s];
+- A = (Z V/p0c) · c/(ω L) [1];
+- v0 = β0 c [m/s].
+"""
 function cavity_parameters(cav::Cavity, ref::RefParticle, C::Real)
     v0 = ref.beta * C_LIGHT
     omega = cav.harmonic * 2pi * v0 / C
@@ -64,10 +77,23 @@ function cavity_parameters(cav::Cavity, ref::RefParticle, C::Real)
     return omega, A, v0
 end
 
+"""
+    transit_factor(cav, ref, C) -> T
+
+Transit-time factor of a finite cavity: T = sin(θ/2)/(θ/2), θ = 2π h L/C = ω L/v0.
+The energy gain per passage is Z V T sin(φs + φ).
+"""
 transit_factor(cav::Cavity, ref::RefParticle, C::Real) =
     (th = 2pi * cav.harmonic * cav.L / C; sin(th / 2) / (th / 2))
 
 # vector field dz/ds = S grad H for magnetic elements
+"""
+    _field_mag(z, ref, h, k1, k2)
+
+Exact vector field dz/ds = S ∇H of the magnetic Hamiltonian
+H = e(δ) − (1+hx)ps + hx + h²x²/2 + k1(x² − y²)/2 + k2(x³ − 3xy²)/6
+(no expansion in px, py, δ).
+"""
 function _field_mag(z, ref, h, k1, k2)
     x, px, y, py, l, d = z
     ps = sqrt((1 + d)^2 - px^2 - py^2)
@@ -77,6 +103,12 @@ function _field_mag(z, ref, h, k1, k2)
     return [hx1 * px / ps, -Hx, hx1 * py / ps, -Hy, _vel(d, ref) - hx1 * (1 + d) / ps, zero(x)]
 end
 
+"""
+    _field_cav(z, s, ref, L, ω, A, v0, φs)
+
+Exact s-dependent vector field of the cavity Hamiltonian
+H = e(δ) − ps + A cos Φ, Φ = ω(s − L/2)/v0 − ω l/v(δ) − φs.
+"""
 function _field_cav(z, s, ref, L, omega, A, v0, phis)
     x, px, y, py, l, d = z
     ps = sqrt((1 + d)^2 - px^2 - py^2)
@@ -89,6 +121,13 @@ function _field_cav(z, s, ref, L, omega, A, v0, phis)
     return [px / ps, zero(x), py / ps, zero(x), Hd, -Hl]
 end
 
+"""
+    _midpoint(F, z, s, hs)
+
+One implicit midpoint step z' = z + hs F((z + z')/2, s + hs/2). Fixed-point
+iterations (≤ 40) stop at |Δ| ≤ 1e-16 for numbers. Symplectic for any, even
+s-dependent, Hamiltonian; order 2.
+"""
 function _midpoint(F, z, s, hs)
     zn = z .+ hs .* F(z, s + hs / 2)
     for _ in 1:40
@@ -104,6 +143,13 @@ function _midpoint(F, z, s, hs)
     return zn
 end
 
+"""
+    _integrate(F, z, L, n)
+
+n steps of the 4th-order Yoshida composition of [`_midpoint`](@ref Bell.ExactIntegrator._midpoint)
+over length L (substeps W1 h, W0 h, W1 h; h = L/n), with the s value advanced
+correctly for s-dependent fields.
+"""
 function _integrate(F, z, L, n)
     hs = L / n; s = 0.0; w = collect(z)
     for _ in 1:n
@@ -119,7 +165,25 @@ _params(e::Quadrupole) = (0.0, e.k1, 0.0)
 _params(e::Sextupole) = (0.0, 0.0, e.k2)
 _params(e::SBend) = (curvature(e), e.k1, 0.0)
 
-"Integrate one element with the exact H (step <= ds)."
+"""
+    exact_track_element(z, e, ref, C; ds = 0.1) -> Vector
+
+Track a canonical point through one element with the exact (non-expanded)
+Hamiltonian.
+
+# Algorithm
+- `Marker`: identity.
+- `Cavity`: the field of the RF Hamiltonian is integrated with n = max(4, ⌈L/0.02⌉)
+  Yoshida-4 steps (RF is time-dependent, which the Lie maps do not cover).
+- Magnets: the exact magnetic field of the element ((h, k1, k2) from its type)
+  with n = ⌈L/ds⌉ steps (one for a drift; the drift flow is then exact up to the
+  midpoint solve).
+- A thin `RFCavity` raises an error: use `rf_kick` for it.
+
+# Properties
+4th order in the step and symplectic. Generic: works on Float64 and `TaylorN`,
+so `jacobian_of_function` gives exact Jacobians for symplecticity checks.
+"""
 function exact_track_element(z, e::AbstractElement, ref::RefParticle, C::Real; ds = 0.1)
     e isa Marker && return collect(z)
     if e isa Cavity
@@ -133,6 +197,13 @@ function exact_track_element(z, e::AbstractElement, ref::RefParticle, C::Real; d
     return _integrate((w, s) -> _field_mag(w, ref, h, k1, k2), z, e.L, n)
 end
 
+"""
+    exact_track_turn(z, lat, ref = lat.ref, C = circumference(lat); ds = 0.1) -> Vector
+
+One turn of [`exact_track_element`](@ref) through all elements. Being exact in
+the Hamiltonian, it is the reference against which the truncated maps are checked,
+and it can track at any energy without rebuilding maps.
+"""
 function exact_track_turn(z, lat::Lattice, ref::RefParticle = lat.ref, C::Real = circumference(lat); ds = 0.1)
     w = collect(z)
     for e in lat.elements
@@ -142,8 +213,20 @@ function exact_track_turn(z, lat::Lattice, ref::RefParticle = lat.ref, C::Real =
 end
 
 """
-renormalize(zs, ref, isync) -> (zs', ref')
-Make particle isync the new reference (all coordinates canonical).
+    renormalize(zs, ref, isync) -> (zs', ref')
+
+Make particle `isync` the new reference, i.e. ramp the reference energy after
+a cavity.
+
+# Algorithm
+With δs the momentum deviation of the synchronous particle:
+- p0' = p0(1 + δs), and `ref'` is rebuilt from the new kinetic energy;
+- δ' = (1+δ)/(1+δs) − 1;
+- px' = px/(1+δs) and py' likewise, which is where adiabatic damping appears;
+- x and y are shifted by the synchronous particle's offset;
+- dt' = dt − dt_s and l' = −v dt'.
+
+The magnet fields are assumed to ramp with p0, so normalised strengths stay fixed.
 """
 function renormalize(zs::Vector{<:AbstractVector}, ref::RefParticle, isync::Int)
     zsy = zs[isync]

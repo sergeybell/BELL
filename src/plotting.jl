@@ -33,6 +33,14 @@ function _box(s0, s1, y0, y1)
     Shape([s0, s1, s1, s0], [y0, y0, y1, y1])
 end
 
+"""
+    plot_twiss(opt, path; title = "") -> path
+
+PNG with three panels sharing s: β_x, β_y [m]; D_x [m]; and a magnet layout strip.
+In the strip, bends are grey, focusing quads are red above the axis, defocusing quads
+are blue below, and sextupoles are green. `opt` is the result of [`optics_along`](@ref).
+Uses Plots/GR headless.
+"""
 function plot_twiss(opt, path::AbstractString; title = "")
     d = opt.data
     gr()
@@ -61,6 +69,12 @@ function plot_twiss(opt, path::AbstractString; title = "")
 end
 
 
+"""
+    plot_dispersion2(alongs, labels, sext_s, path) -> path
+
+Two panels with D_x(s) and D2(s) for several [`dispersion_along`](@ref) tables, with
+sextupole positions `sext_s` marked.
+"""
 function plot_dispersion2(alongs, labels, sext_s, path)
     gr()
     p1 = plot(ylabel = "D_x [m]", legend = :topright, title = "first- and second-order dispersion")
@@ -74,6 +88,13 @@ function plot_dispersion2(alongs, labels, sext_s, path)
     savefig(p, path); return path
 end
 
+"""
+    plot_chromatic(fits, path) -> path
+
+Fractional tunes against δ. Each fit is a NamedTuple `(title, d, qx_track, qy_track,
+qx_poly, qy_poly)`. Tracked tunes are drawn as points and map polynomials
+Q0 + ξ1δ + ξ2δ²/2 as lines.
+"""
 function plot_chromatic(fits, path)
     gr()
     ps = []
@@ -91,7 +112,12 @@ function plot_chromatic(fits, path)
 end
 
 # ---- longitudinal phase space helpers (phase 3) -----------------------------
-"Draw the analytic separatrix H(phi,delta) = H(phi_u, 0) and the fixed points."
+"""
+    separatrix!(p, lp::LongitudinalParams; phimin, phimax, dmax, label, color) -> p
+
+Add to plot `p` the contour H(φ, δ) = H_sep of [`long_H`](@ref) and the stable and
+unstable fixed points.
+"""
 function separatrix!(p, lp; phimin = -2pi, phimax = pi, dmax = 0.01, label = true, color = :black)
     phis = range(phimin, phimax, length = 500); ds = range(-dmax, dmax, length = 500)
     Hs, _ = separatrix(lp)
@@ -107,6 +133,18 @@ end
 const PHI_LABEL = "phi = -h w0 dt  [rad]   (phi > 0: early)"
 const DELTA_LABEL = "delta = dp/p0"
 
+"""
+    plot_acceleration(rec, info, path) -> path
+
+2×2 summary of an `accelerate` run:
+
+- E_kin(turn);
+- end-of-ramp phase space with the separatrix;
+- betatron amplitudes against the adiabatic-damping prediction A0√(p_inj/p0);
+- Q_s from the formulas against tracking.
+
+`info` carries the derived series.
+"""
 function plot_acceleration(rec, info, path)
     gr()
     t = rec.turn
@@ -130,7 +168,12 @@ function plot_acceleration(rec, info, path)
     savefig(p, path); return path
 end
 
-"GIF (a): ensemble turn by turn with the separatrix of the current energy and phi_s."
+"""
+    gif_ramp(rec, frames, lps, path; ens, philim, dlim, fps = 15) -> path
+
+Animated GIF of the ensemble in (φ, δ) turn by turn, with the separatrix of the
+current energy. A second panel shows δ scaled by the bucket height.
+"""
 function gif_ramp(rec, frames, lps, path; ens = 5:length(rec.u), philim = (-2pi, pi), dlim = 0.01, fps = 15)
     gr()
     anim = @animate for (k, n) in enumerate(frames)

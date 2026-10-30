@@ -84,14 +84,49 @@ export EdgeModel, NoEdge, HardEdge, SoftEdge,
        profile_function, fringe_integral, fringe_observables, fringe_hamiltonian
 
 # ----------------------------------------------------------------------------- models
+"""
+    EdgeModel
+
+Supertype of edge (fringe-field) models: [`NoEdge`](@ref), [`HardEdge`](@ref),
+[`SoftEdge`](@ref). A model is chosen per magnet family in a [`FringeModel`](@ref)
+when the ring is built; elements themselves carry no fringe flag.
+"""
 abstract type EdgeModel end
+"""
+    FringeProfile
+
+Supertype of longitudinal field profiles F(z) (0 outside, 1 inside the magnet):
+[`Enge`](@ref), [`Tanh`](@ref), [`LinearRamp`](@ref), [`Tabulated`](@ref).
+They are normalised and centred on the effective field boundary by [`profile_function`](@ref).
+"""
 abstract type FringeProfile end
+"""
+    FringeMethod
+
+Supertype of integrators for the s-dependent soft-edge Hamiltonian:
+[`Splitting`](@ref), [`Magnus`](@ref), [`TaylorIntegrate`](@ref).
+"""
 abstract type FringeMethod end
 
 "No fringe field: the edge is the identity."
 struct NoEdge <: EdgeModel end
 
-"Hard edge. `gap`, `fint` override the values of the magnet (nothing = use magnet)."
+"""
+    HardEdge(; order = 2, gap = nothing, fint = nothing)
+
+Thin hard-edge model at the magnet ends.
+
+# Fields
+- `order::Int` – 1: linear dipole-edge kick px += h tan(e) x, py −= h tan(ψ) y with
+  ψ = e − h g FINT (1 + sin²e)/cos e; 2 or 3: nonlinear edge. The vertical kick then
+  uses the effective angle e ± x' (exact x' = px/ps), generated as the Lie map
+  exp(:−K:), so it is symplectic. The generator K is kept to degree 3 (order 2) or 4 (order 3).
+- `gap`, `fint` – override the magnet's full gap [m] and FINT (`nothing` = use the magnet's).
+
+For a `Quadrupole` (order ≥ 2) the standard cubic hard-edge generator
+±k1/(12(1+δ))·(x³px + 3xy²px − 3x²y py − y³py) is used; order 1 is the identity.
+Other element types raise an error.
+"""
 struct HardEdge <: EdgeModel
     order::Int
     gap::Union{Nothing,Float64}
@@ -103,12 +138,23 @@ HardEdge(; order::Int = 2, gap = nothing, fint = nothing) =
 "Default Enge coefficients of a dipole edge (z in units of the full gap)."
 const ENGE_DEFAULT = [0.478959, 1.911289, -1.185953, 1.630554, -1.082657, 0.318111]
 
+"""
+    Enge(coeffs = ENGE_DEFAULT; gap = 0.05)
+
+Enge profile F(z) = 1/(1 + exp(P(−z/g))), P(t) = Σ c_k t^k, `g` = full gap [m].
+`coeffs::Vector{Float64}` are the Enge coefficients (dimensionless, z in units of the gap).
+"""
 struct Enge <: FringeProfile
     coeffs::Vector{Float64}
     gap::Float64
 end
 Enge(coeffs::AbstractVector = ENGE_DEFAULT; gap = 0.05) = Enge(collect(Float64, coeffs), Float64(gap))
 
+"""
+    Tanh(lambda)
+
+Profile F(z) = (1 + tanh(z/λ))/2; `lambda` [m] is the fall-off length.
+"""
 struct Tanh <: FringeProfile
     lambda::Float64
 end
@@ -124,31 +170,87 @@ struct Tabulated <: FringeProfile
     B::Vector{Float64}
 end
 
+"""
+    Splitting(; n = 20, order = 4)
+
+Soft-edge integration by operator splitting. The region [−W, W] is cut into `n`
+slices with piecewise-constant field (slice averages of F', F''). Each slice is
+the exact Lie map exp(−Δs :H_k:). With `order = 4` every slice is a Yoshida
+triple jump (weights W1, W0, W1). A product of Lie maps, so symplectic to the
+truncation order.
+"""
 struct Splitting <: FringeMethod
     n::Int
     order::Int
 end
 Splitting(; n::Int = 20, order::Int = 4) = Splitting(n, order)
 
+"""
+    Magnus(; n = 10, order = 4)
+
+Soft-edge integration by the Magnus expansion on `n` sub-intervals of length Δs.
+- Order 2: Ω = Δs H(mid).
+- Order 4: two Gauss nodes H1, H2 at mid ∓ Δs√3/6, with
+  Ω = Δs(H1 + H2)/2 − (√3/12) Δs² [H1, H2].
+
+Each interval map is exp(−:Ω:).
+"""
 struct Magnus <: FringeMethod
     n::Int
     order::Int
 end
 Magnus(; n::Int = 10, order::Int = 4) = Magnus(n, order)
 
+"""
+    TaylorIntegrate(; tol = 1e-10, nmax = 512)
+
+Soft-edge integration of the polynomial vector field with RK4 in TaylorN. Starts
+with 16 steps and halves the step until the map changes by less than `tol`
+(max coefficient) or `nmax` steps are reached. Not symplectic by construction;
+it is the reference for the other methods.
+"""
 struct TaylorIntegrate <: FringeMethod
     tol::Float64
     nmax::Int
 end
 TaylorIntegrate(; tol = 1e-10, nmax::Int = 512) = TaylorIntegrate(Float64(tol), nmax)
 
+"""
+    SoftEdge(; profile = Enge(), method = Splitting())
+
+Soft-edge dipole model: the field b(s) = h0 F(s) is integrated through [−W, W]
+around the effective field boundary (EFB) using `profile::FringeProfile`, with
+`method::FringeMethod`.
+
+# Layout
+The soft region replaces "drift W, then body W" of the hard-edge layout, so the
+lattice length is unchanged:
+- EdgeIn = Body(−W) ∘ Soft ∘ Drift(−W);
+- EdgeOut = Drift(−W) ∘ Soft_out ∘ Body(−W).
+
+A pole-face angle adds a linear wedge at the EFB. The magnet must satisfy 2W < L.
+Implemented for `SBend` only.
+"""
 struct SoftEdge <: EdgeModel
     profile::FringeProfile
     method::FringeMethod
 end
 SoftEdge(; profile::FringeProfile = Enge(), method::FringeMethod = Splitting()) = SoftEdge(profile, method)
 
-"Choice of edge model per magnet family, with per-name overrides."
+"""
+    FringeModel(; dipole = NoEdge(), quad = NoEdge(), sext = NoEdge(), override = Dict())
+
+Choice of [`EdgeModel`](@ref) per magnet family, with per-name overrides
+(`override::Dict{String,EdgeModel}`, keys are element names).
+`FringeModel()` reproduces the plain ring exactly.
+
+```julia
+model = FringeModel(dipole = SoftEdge(profile = Enge(gap = 0.05)),
+                    quad = HardEdge(order = 2),
+                    override = Dict("BM3" => HardEdge()))
+F = ring_lie_factor(lat, model)
+```
+"""
 struct FringeModel
     dipole::EdgeModel
     quad::EdgeModel
@@ -159,6 +261,13 @@ FringeModel(; dipole::EdgeModel = NoEdge(), quad::EdgeModel = NoEdge(), sext::Ed
             override = Dict{String,EdgeModel}()) =
     FringeModel(dipole, quad, sext, Dict{String,EdgeModel}(String(k) => v for (k, v) in override))
 
+"""
+    edge_model(m::FringeModel, e) -> EdgeModel
+
+Model that applies to element `e`: the override for `e.name` if present, else the
+family entry (`dipole` for SBend, `quad` for Quadrupole, `sext` for Sextupole),
+else `NoEdge()`.
+"""
 function edge_model(m::FringeModel, e::AbstractElement)
     haskey(m.override, e.name) && return m.override[e.name]
     e isa SBend && return m.dipole
@@ -439,7 +548,13 @@ _soft_edge(e::AbstractElement, side, m::SoftEdge, ref) =
 
 const _ECACHE = Dict{Any,Any}()
 
-"Polynomial (order MAP_ORDER) map of a thin edge."
+"""
+    edge_map(E::EdgeMap, ref) -> Vector{TaylorN}
+
+Polynomial map (order MAP_ORDER) of a thin edge item: identity for `NoEdge`, the
+hard-edge Lie map for `HardEdge`, or the composed soft-edge map for `SoftEdge`.
+Cached per (parent magnet, side, model, p0).
+"""
 edge_map(E::EdgeMap, ref::RefParticle) =
     get!(_ECACHE, (E.parent, E.side, repr(E.model), ref.p0_MeV)) do
         E.model isa NoEdge && return collect(Z)

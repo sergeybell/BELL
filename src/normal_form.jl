@@ -24,6 +24,14 @@ export linear_normalizing_matrix, rotation_residual, nonlinear_normal_form,
 
 # ----- phase-1 linear (transverse only) --------------------------------------
 
+"""
+    linear_normalizing_matrix(po) -> Matrix{Float64} (6×6)
+
+Transverse Courant-Snyder normalising matrix built from `periodic_optics` output
+`po`. Each of the x and y blocks is [√β 0; −α/√β 1/√β]; the longitudinal
+block is the identity. A⁻¹ R A is then a rotation in x and y for an uncoupled
+ring without dispersion.
+"""
 function linear_normalizing_matrix(po)
     A = Matrix{Float64}(I, 6, 6)
     for (k, p) in ((1, po.x), (3, po.y))
@@ -33,6 +41,12 @@ function linear_normalizing_matrix(po)
     return A
 end
 
+"""
+    rotation_residual(R, po) -> Float64
+
+max |(A⁻¹ R A)_block − rotation(μ)| over the x and y blocks, where A =
+[`linear_normalizing_matrix`](@ref)(po). It checks the linear normalisation.
+"""
 function rotation_residual(R, po)
     A = linear_normalizing_matrix(po)
     N = A \ R * A
@@ -44,14 +58,20 @@ function rotation_residual(R, po)
     return res
 end
 
-"Evaluate a TaylorN map at a numeric point."
+"""
+    evaluate_map(M, z) -> Vector{Float64}
+
+Value of the polynomial map `M` at the numeric point `z`.
+"""
 evaluate_map(M, z) = [Float64(evaluate(M[i], z)) for i in 1:6]
 
 # ----- RF one-turn Taylor map ------------------------------------------------
 
 """
-Thin RF kick as a TaylorN map in canonical variables, truncated to MAP_ORDER.
-Matches Tracking.rf_kick to the jet order.
+    rf_kick_taylor(cav::RFCavity, ref, C) -> Vector{TaylorN}
+
+The thin RF kick of [`rf_kick`](@ref) as a polynomial map in canonical
+variables (same formulas evaluated on `Z`), truncated to MAP_ORDER.
 """
 function rf_kick_taylor(cav::RFCavity, ref::RefParticle, C::Real)
     x, px, y, py, l, d = Z
@@ -69,14 +89,24 @@ function rf_kick_taylor(cav::RFCavity, ref::RefParticle, C::Real)
             truncate_to(l2, MAP_ORDER), truncate_to(d2, MAP_ORDER)]
 end
 
-"One-turn map = magnetic ring Taylor map composed with thin RF kick."
+"""
+    one_turn_map_rf(lat_mag, cav, ref, C; ds = 0.01) -> Vector{TaylorN}
+
+Polynomial one-turn map with RF: the magnetic ring map (`ring_taylor_map`)
+followed by [`rf_kick_taylor`](@ref) (`compose_maps(Mrf, Mm)`).
+"""
 function one_turn_map_rf(lat_mag::Lattice, cav::RFCavity, ref::RefParticle, C::Real; ds = 0.01)
     Mm = ring_taylor_map(Lattice(lat_mag.name, lat_mag.elements, ref, lat_mag.harmonic); ds = ds)
     Mrf = rf_kick_taylor(cav, ref, C)
     return compose_maps(Mrf, Mm)   # magnetic first, then RF
 end
 
-"6D fixed point of a polynomial map by Newton (default guess 0)."
+"""
+    fixed_point_6d(M; z0 = zeros(6), iters = 40, tol = 1e-14) -> Vector{Float64}
+
+6D fixed point M(z*) = z* by Newton's method with the exact polynomial Jacobian.
+With RF the map has a non-zero fixed point (synchronous-particle offset).
+"""
 function fixed_point_6d(M; z0 = zeros(6), iters = 40, tol = 1e-14)
     z = Float64.(z0)
     Id = Matrix{Float64}(I, 6, 6)
@@ -90,7 +120,12 @@ function fixed_point_6d(M; z0 = zeros(6), iters = 40, tol = 1e-14)
     return z
 end
 
-"Shift map origin to z*: M_c(w) = M(z*+w) - z*."
+"""
+    center_map_at(M, z*) -> Vector{TaylorN}
+
+Map about its fixed point: M_c(w) = M(z* + w) − z*, truncated to MAP_ORDER.
+M_c has no constant term, so it can be Dragt-Finn factorised.
+"""
 function center_map_at(M, zstar)
     zs = [Z[i] + zstar[i] for i in 1:6]
     Mc = [truncate_to(evaluate(M[i], zs) - zstar[i], MAP_ORDER) for i in 1:6]
@@ -100,9 +135,11 @@ end
 # ----- linear 6D normalisation (3 planes) ------------------------------------
 
 """
-Build a linear symplectic A that (approximately) puts R into three rotations.
-Uses Courant-Snyder for x,y from `po` and a synchrotron Twiss from (eta0, Qs, h, C).
-Dispersion is removed by a shear: x <- x - D delta, etc., using po.D4.
+    linear_A_6d(po, pe, Qs, h, C, ref) -> (A, β_s)
+
+Approximate 6D linear normalisation: a dispersion shear (x, px, y, py) += D4 δ,
+Courant-Snyder blocks in x and y, and a synchrotron "Twiss" for (l, δ) with
+β_s = Q_s/(h|η0|), mapping l to φ = 2π h l/C. Used by [`normal_form_rf`](@ref).
 """
 function linear_A_6d(po, pe, Qs, h, C, ref)
     A = Matrix{Float64}(I, 6, 6)
@@ -163,10 +200,13 @@ end
 # ----- delta_eq by angle averaging of the normalising map --------------------
 
 """
-Solve ⟨Δφ⟩ = 0 on a synchrotron (+ optional betatron) torus of the one-turn
-map `M` (lab frame, about the origin of `M` which should already be centered
-or absolute).  Returns delta_eq.  This is the map form of the note's
-time-of-flight condition (ch.1).
+    delta_eq_phase_condition(M, A, z*, ref, C, h, β_s; Jx = 0, Jy = 0,
+                             delta_m = 1e-3, ntheta = 12, niter = 10) -> δ_eq
+
+Equilibrium momentum offset from the condition ⟨Δφ⟩ = 0 per turn, averaged over
+a torus (12³ angle grid) with betatron actions Jx, Jy and synchrotron amplitude
+`delta_m`. The offset δ_eq of the torus centre is found by a secant/Newton
+iteration on the mean phase slip.
 """
 function delta_eq_phase_condition(M, A, zstar, ref, C, h, beta_s;
                                   Jx = 0.0, Jy = 0.0, delta_m = 1e-3,
@@ -209,6 +249,22 @@ delta_on_torus(A, F3, zstar, Jx, Jy, Js; ntheta = 12) =
 
 # ----- public result type ----------------------------------------------------
 
+"""
+    NormalFormRF
+
+Result of [`normal_form_rf`](@ref) (approximate, map-based route).
+
+# Fields
+- `zstar` – 6D fixed point; `beta_s` – synchrotron β; `A`, `R` – normalising and
+  normalised linear matrices.
+- `f3`, `f4` – generators of the normalised map; `F3` – removing generator;
+  `h3`, `h4` – kept (resonant) parts.
+- `pe` – [`path_expansion`](@ref) of the RF-off map; `xi` – [`chromaticity_orders`](@ref);
+  `Qs0` – smooth synchrotron tune; `C` [m]; `h_rf`.
+- `c0, c_x, c_y, c_s` – fitted δ_eq = c0 + c_x Jx + c_y Jy + c_s Js.
+- `c_s_note, c_x_note, c_y_note` – analytic counterparts
+  (−η1/(η0 β_s), (2π/C) ξ_x/η0, (2π/C) ξ_y/η0).
+"""
 struct NormalFormRF
     zstar::Vector{Float64}
     beta_s::Float64
@@ -236,10 +292,19 @@ struct NormalFormRF
 end
 
 """
-Full 6D normal form of the one-turn map with thin RF.
+    normal_form_rf(lat_mag, ref, C, h, V_MV, phi_s; T = 1.0, ds = 0.01) -> NormalFormRF
 
-`lat_mag` = magnetic lattice (no cavity). RF is added as a thin kick with
-voltage `V_MV` (use V*T to match a finite cavity's effective kick).
+6D normal-form analysis of the one-turn map with a thin RF kick of voltage V·T.
+
+# Algorithm
+1. M = [`one_turn_map_rf`](@ref); z* = [`fixed_point_6d`](@ref); M_c = map about z*.
+2. Compute slip and chromaticity from the RF-off Taylor map; take periodic optics
+   from the ring matrix and Q_s from `synchrotron_tune`.
+3. Use A = [`linear_A_6d`](@ref) to normalise M_c, then Dragt-Finn factorise it.
+4. Fit δ_eq on 7 tori (different Jx, Jy, δ_m) with
+   [`delta_eq_phase_condition`](@ref) and compare it with the analytic coefficients.
+
+For the full Dragt-Finn normal form use [`dragt_finn_nf6d`](@ref).
 """
 function normal_form_rf(lat_mag::Lattice, ref::RefParticle, C::Real, h::Int,
                         V_MV::Real, phi_s::Real; T = 1.0, ds = 0.01)
@@ -301,8 +366,10 @@ function normal_form_rf(lat_mag::Lattice, ref::RefParticle, C::Real, h::Int,
 end
 
 """
-delta_eq from normal form at actions (Jx,Jy,Js) or equivalently at
-(Jx, Jy, delta_m) with Js = beta_s * delta_m^2 / 2.
+    delta_eq_nf(nf::NormalFormRF; Jx = 0, Jy = 0, Js = nothing, delta_m = nothing) -> δ_eq
+
+Fitted δ_eq = c0 + c_x Jx + c_y Jy + c_s Js; give either `Js` or the synchrotron
+amplitude `delta_m` (Js = β_s δ_m²/2).
 """
 function delta_eq_nf(nf::NormalFormRF; Jx = 0.0, Jy = 0.0, Js = nothing,
                      delta_m = nothing)
@@ -313,7 +380,12 @@ function delta_eq_nf(nf::NormalFormRF; Jx = 0.0, Jy = 0.0, Js = nothing,
     return nf.c0 + nf.c_x * Jx + nf.c_y * Jy + nf.c_s * Js
 end
 
-"Amplitude-dependent tunes from h4 / linear R (leading order)."
+"""
+    tunes_nf(nf::NormalFormRF; Jx = 0, Jy = 0, Js = 0) -> (Qx, Qy, Qs, Qs_smooth)
+
+Linear fractional tunes from the normalised matrix `nf.R` and the smooth Q_s.
+Amplitude dependence is not included here; see [`nf6d_tunes`](@ref).
+"""
 function tunes_nf(nf::NormalFormRF; Jx = 0.0, Jy = 0.0, Js = 0.0)
     # Linear tunes from R in normalised coords (should be near rotations)
     R = nf.R
@@ -330,6 +402,11 @@ function tunes_nf(nf::NormalFormRF; Jx = 0.0, Jy = 0.0, Js = 0.0)
 end
 
 # Keep old stub name as alias
+"""
+    nonlinear_normal_form(args...; kw...)
+
+Alias of [`normal_form_rf`](@ref) (kept for older scripts).
+"""
 nonlinear_normal_form(args...; kwargs...) = normal_form_rf(args...; kwargs...)
 
 
@@ -354,7 +431,20 @@ _mono(e) = prod(Z[i]^e[i] for i in 1:6)
 _hp_basis(k) = [_mono(e) for e in exponents_of_order(k)]
 _hcoeffs(p::TaylorN, k) = [Float64(getcoeff(p, e)) for e in exponents_of_order(k)]
 
-"Symplectic eigen-normalisation of a stable 6x6 matrix. Returns (A, mu[3]) with plane order x, y, s."
+"""
+    symplectic_eigen_A(R) -> (A, μ)
+
+Symplectic eigen-normalisation of a stable 6×6 one-turn matrix: A⁻¹ R A =
+[`rotation_matrix_6`](@ref)(μ), and Aᵀ S A = S.
+
+# Algorithm
+For each eigenvalue with Im λ > 0 and eigenvector v = a + ib, normalise so that
+a·S b = 1 (flip b and μ if negative). Assign the planes as follows: s is the pair
+with the largest δ-component weight, and x is the pair (of the other two) with
+the larger weight in (x, px). The columns of A are (a, b) per plane, and μ = arg λ.
+Throws if the matrix is not stable (fewer than 3 elliptic pairs). Coupling is
+handled naturally.
+"""
 function symplectic_eigen_A(R)
     S = SYMPLECTIC_S
     ev = eigen(R)
@@ -381,6 +471,23 @@ function symplectic_eigen_A(R)
     return A, mu
 end
 
+"""
+    NF6D
+
+Dragt-Finn 6D normal form of a one-turn map ([`dragt_finn_nf6d`](@ref)).
+
+# Fields
+- `zstar::Vector{Float64}` – fixed point.
+- `A::Matrix{Float64}` – symplectic normalising matrix; `mu::Vector{Float64}` – phase advances (x, y, s) [rad].
+- `Rn_residual`, `symp_residual` – |A⁻¹RA − r(μ)|, |AᵀSA − S|.
+- `F3`, `F4::TaylorN` – generators removing the non-resonant cubic and quartic terms.
+- `f3_before`, `f3_after`, `f4_nonres_after` – max coefficients before/after (quality check).
+- `c::Matrix{Float64}` – detuning: h4 = Σ_{i≤j} c[i,j] J_i J_j.
+- `d::Vector{Float64}` – δ_eq(J) = z*₆ + d·J; `d_grid` – same from a numerical torus average.
+- `T`, `Tinv` – normal-form transformation w ↦ u and its inverse (polynomial maps);
+  `U6` – δ-component of A·T(w).
+- `sigma_delta_s`, `sigma_l_s` – δ and l amplitudes per √(2Js).
+"""
 struct NF6D
     zstar::Vector{Float64}
     A::Matrix{Float64}
@@ -406,10 +513,11 @@ _lie_map_of(F) = [truncate_to(lie_exp(F, Z[i]), MAP_ORDER) for i in 1:6]
 _conj(Mx, F) = compose_maps(_lie_map_of(-F), compose_maps(Mx, _lie_map_of(F)))
 
 """
-Magnetic ring as a product of Lie factors, then the thin RF kick as one
-more factor.  The kick is a single canonical transformation: its generators
-are read from the polynomial of that kick, not from a composition of
-magnetic maps.
+    one_turn_factor_rf(lat_mag, cav::RFCavity, ref, C) -> LieFactor
+
+One-turn Lie factor with RF: [`ring_lie_factor`](@ref) of the magnetic ring,
+concatenated with the Dragt-Finn factor of [`rf_kick_taylor`](@ref)
+(read from the polynomial of the kick itself).
 """
 function one_turn_factor_rf(lat_mag::Lattice, cav::RFCavity, ref::RefParticle, C::Real)
     Fmag = ring_lie_factor(lat_mag)
@@ -419,11 +527,12 @@ function one_turn_factor_rf(lat_mag::Lattice, cav::RFCavity, ref::RefParticle, C
 end
 
 """
-Linear operator on homogeneous polynomials of degree `k`:
-    L F = F − F ∘ r(μ)
-with r the block rotation of phase advances μ.  Eigenvalues are
-1 − exp(−i (j−n)·μ) in the complex monomial basis; the real monomial
-matrix is that divisor.
+    homological_operator(k, μ) -> (L, basis, Rrot)
+
+Matrix of the linear operator L F = F − F ∘ r(μ) on homogeneous polynomials of
+degree k in the monomial basis [`exponents_of_order`](@ref)(k). Its eigenvalues
+in the complex basis are 1 − exp(−i(j − n)·μ). Non-resonant terms are invertible;
+resonant ones (zero divisors) stay in the normal form.
 """
 function homological_operator(k::Int, mu)
     basis = _hp_basis(k)
@@ -432,6 +541,18 @@ function homological_operator(k::Int, mu)
     return L, basis, Rrot
 end
 
+"""
+    _nf6d_from_factor(F::LieFactor, z*) -> NF6D
+
+Core of the normal-form algorithm.
+
+1. (A, μ) = [`symplectic_eigen_A`](@ref)(F.R); generators in normal coordinates f_n = f ∘ A.
+2. Order 3: solve L₃ F3 = −f3 (least squares; no cubic resonances for generic tunes).
+3. Order 4: f4' = f4 + ½[f3, F3]; solve [L₄  −B] (F4, c) = −f4' with B the basis of
+   J_iJ_j products (pseudo-inverse). The resonant part h4 = Σ c_ij J_i J_j is the detuning.
+4. T = exp(:F3:) ∘ exp(:F4:); U6 = (A T)₆; d_k = ½(∂²U6/∂w²_{2k−1} + ∂²U6/∂w²_{2k}) gives δ_eq(J);
+   it is checked against a numerical torus average.
+"""
 function _nf6d_from_factor(F::LieFactor, zstar)
     R = F.R
     A, mu = symplectic_eigen_A(R)
@@ -487,6 +608,15 @@ solved on the generators: F − F ∘ r(μ) = −f_nonres.
 """
 dragt_finn_nf6d(F::LieFactor) = _nf6d_from_factor(F, zeros(6))
 
+"""
+    dragt_finn_nf6d(F::LieFactor) -> NF6D
+    dragt_finn_nf6d(M::AbstractVector) -> NF6D
+
+Dragt-Finn 6D normal form. The primary input is a one-turn factor (e.g.
+[`one_turn_factor_rf`](@ref)); a polynomial map is first centred on its fixed
+point and factorised. The homological equation F − F ∘ r(μ) = −f_nonres is solved
+on the generators. See [`_nf6d_from_factor`](@ref Bell.NormalForm._nf6d_from_factor).
+"""
 function dragt_finn_nf6d(M::AbstractVector)
     zstar = fixed_point_6d(M)
     Mc = center_map_at(M, zstar)
@@ -505,17 +635,30 @@ function _torus_mean(P, J; nth = 8)
     return acc / n
 end
 
-"delta_eq(J) = z*_6 + d . J  (J = (Jx, Jy, Js), normal-form actions)."
+"""
+    nf6d_delta_eq(nf, J) -> δ_eq
+
+Equilibrium momentum offset δ_eq(J) = z*₆ + d·J for actions J = (Jx, Jy, Js).
+"""
 nf6d_delta_eq(nf::NF6D, J) = nf.zstar[6] + dot(nf.d, J)
 
-"Nonlinear normal-form actions (Jx, Jy, Js) of a lab-frame canonical point z."
+"""
+    nf6d_actions(nf, z; linear = false) -> [Jx, Jy, Js]
+
+Normal-form actions of a lab-frame canonical point:
+u = A⁻¹(z − z*), w = T⁻¹(u) (skipped if `linear`), J_k = (w²_{2k−1} + w²_{2k})/2.
+"""
 function nf6d_actions(nf::NF6D, z; linear = false)
     u = nf.A \ (collect(z) .- nf.zstar)
     w = linear ? u : [Float64(evaluate(nf.Tinv[i], u)) for i in 1:6]
     return [(w[2k-1]^2 + w[2k]^2) / 2 for k in 1:3]
 end
 
-"Amplitude-dependent phase advances mu_k(J) = mu_k - dh4/dJ_k and tunes |mu|/2pi."
+"""
+    nf6d_tunes(nf, J) -> (mu, Q, dmu)
+
+Amplitude-dependent phase advances μ_k(J) = μ_k − ∂h4/∂J_k and tunes μ/2π mod 1.
+"""
 function nf6d_tunes(nf::NF6D, J)
     c = nf.c
     g = [2c[k, k] * J[k] + sum(c[min(k, j), max(k, j)] * J[j] for j in 1:3 if j != k) for k in 1:3]

@@ -26,7 +26,20 @@ export Lattice, circumference, total_bend_angle, unique_elements,
        set_family_strengths, insert_cavity, set_cavity_phase, with_reference,
        load_structure, write_structure, StructureFile
 
-"A ring: ordered elements, reference particle, harmonic number used for phi."
+"""
+    Lattice(name, elements, ref, harmonic)
+
+A ring: ordered list of elements, reference particle and RF harmonic number.
+
+# Fields
+- `name::String` – lattice name (file base name for `load_structure`).
+- `elements::Vector{AbstractElement}` – the full ring in tracking order (sequences already expanded; repeated cells are the same element values).
+- `ref::RefParticle` – reference particle (energy at which all maps are built).
+- `harmonic::Int` – h used to define the RF phase φ = −h ω0 Δt in user coordinates.
+
+Lattices are immutable; editing helpers ([`insert_cavity`](@ref),
+[`set_family_strengths`](@ref), [`with_reference`](@ref), ...) return a new Lattice.
+"""
 struct Lattice
     name::String
     elements::Vector{AbstractElement}
@@ -34,10 +47,26 @@ struct Lattice
     harmonic::Int
 end
 
+"""
+    circumference(lat) -> C [m]
+
+Sum of element lengths (= length of the reference orbit).
+"""
 circumference(lat::Lattice) = sum(elem_length, lat.elements)
+"""
+    total_bend_angle(lat) -> Float64 [rad]
+
+Sum of the bending angles of all [`SBend`](@ref)s; 2π for a closed ring.
+Used as a consistency check after loading/converting a lattice.
+"""
 total_bend_angle(lat::Lattice) = sum(e -> e isa SBend ? e.angle : 0.0, lat.elements)
 
-"Distinct elements (by value) in order of first appearance."
+"""
+    unique_elements(lat) -> Vector{AbstractElement}
+
+Distinct elements (compared by value) in order of first appearance. Used to
+print element tables and to build each map only once.
+"""
 function unique_elements(lat::Lattice)
     seen = AbstractElement[]
     for e in lat.elements
@@ -46,11 +75,21 @@ function unique_elements(lat::Lattice)
     return seen
 end
 
+"""
+    SEXT_FAMILIES = ["SXD", "SXB", "SYB"]
+
+Names of the three optional sextupole families placed by
+[`place_sextupole_families`](@ref): SXD at D_x maxima, SXB at β_x maxima,
+SYB at β_y maxima.
+"""
 const SEXT_FAMILIES = ["SXD", "SXB", "SYB"]
 
 """
-find_optics_maxima(opt; frac = 0.8, dmin = 0.5)
-Local maxima of D_x, beta_x, beta_y in the optics table `opt.data`.
+    find_optics_maxima(opt; frac = 0.8, dmin = 0.5) -> NamedTuple
+
+Local maxima of D_x, β_x, β_y in the optics table `opt.data` returned by
+`optics_along`. A maximum counts if it exceeds `frac` × global maximum;
+maxima closer than `dmin` [m] are merged.
 """
 function find_optics_maxima(opt; frac = 0.8, dmin = 0.5)
     d = opt.data
@@ -70,9 +109,16 @@ function find_optics_maxima(opt; frac = 0.8, dmin = 0.5)
 end
 
 """
-place_sextupole_families(lat, opt) -> (new_lattice, fam_idx, rows, notes)
-Puts a sextupole of family SXD / SXB / SYB (strength 0) into the nearest
-short slot of each D_x / beta_x / beta_y maximum.
+    place_sextupole_families(lat, opt; kw...) -> (lattice, fam_idx, rows, notes)
+
+Insert a zero-strength sextupole of family SXD / SXB / SYB into the nearest
+short drift slot of every D_x / β_x / β_y maximum ([`find_optics_maxima`](@ref)).
+The drift is split drift–sextupole–drift so the circumference is unchanged.
+
+# Returns
+- `lattice::Lattice` – new lattice;
+- `fam_idx::Dict{String,Vector{Int}}` – element indices of each family;
+- `rows` – table of placements (s, optics values); `notes` – text remarks.
 """
 function place_sextupole_families(lat::Lattice, opt; kw...)
     maxima = find_optics_maxima(opt; kw...)
@@ -115,7 +161,12 @@ function place_sextupole_families(lat::Lattice, opt; kw...)
     return Lattice(lat.name * "+sext", elems, lat.ref, lat.harmonic), fam_idx, rows, notes
 end
 
-"New lattice with sextupole strengths k2[family] (families not given -> 0)."
+"""
+    set_family_strengths(lat, fam_idx, k2::Dict{String,Float64}) -> Lattice
+
+New lattice in which every sextupole of family `f` (indices `fam_idx[f]`)
+has strength `k2[f]` [1/m³]; families not in `k2` get 0.
+"""
 function set_family_strengths(lat::Lattice, fam_idx, k2::Dict)
     elems = copy(lat.elements)
     for (f, idx) in fam_idx, i in idx
@@ -124,7 +175,13 @@ function set_family_strengths(lat::Lattice, fam_idx, k2::Dict)
     return Lattice(lat.name, elems, lat.ref, lat.harmonic)
 end
 
-"Split drift `in_element` (first occurrence) as drift - cavity - drift."
+"""
+    insert_cavity(lat, cav::Cavity; in_element = "OBM") -> Lattice
+
+Split the first drift named `in_element` into drift(L1) – `cav` – drift(L1)
+with L1 = (L_drift − L_cav)/2, keeping the circumference. Errors if the drift
+is shorter than the cavity.
+"""
 function insert_cavity(lat::Lattice, cav::Cavity; in_element = "OBM")
     i = findfirst(e -> e.name == in_element, lat.elements)
     e = lat.elements[i]
@@ -133,18 +190,34 @@ function insert_cavity(lat::Lattice, cav::Cavity; in_element = "OBM")
     return Lattice(lat.name * "+RF", elems, lat.ref, cav.harmonic), i + 1
 end
 
-"Same lattice with every finite cavity set to synchronous phase phi_s."
+"""
+    set_cavity_phase(lat, phi_s) -> Lattice
+
+Same lattice with every finite [`Cavity`](@ref) set to synchronous phase `phi_s` [rad]
+(used by `accelerate` to switch to a flat top).
+"""
 set_cavity_phase(lat::Lattice, phi_s) =
     Lattice(lat.name, [e isa Cavity ? Cavity(e.name, e.L, e.voltage_MV, e.harmonic, phi_s) : e for e in lat.elements],
             lat.ref, lat.harmonic)
 
-"Same elements with a different reference particle."
+"""
+    with_reference(lat, ref) -> Lattice
+
+Same elements (same normalised strengths) with another reference particle,
+i.e. the magnets scaled with p0. Maps are rebuilt automatically (caches are keyed by energy).
+"""
 with_reference(lat::Lattice, ref::RefParticle) = Lattice(lat.name, lat.elements, ref, lat.harmonic)
 
 # =============================================================================
 # Structure-file parser
 # =============================================================================
 
+"""
+    StructureFile(path, parameters, lattice)
+
+Container for a parsed structure file: `path::String`, `parameters::Dict{String,Float64}`
+(evaluated parameter section), `lattice::Lattice`.
+"""
 struct StructureFile
     path::String
     parameters::Dict{String,Float64}
@@ -338,7 +411,45 @@ end
 """
     load_structure(path) -> Lattice
 
-Read a Bell structure file.
+Read a Bell structure file (`.bell`).
+
+# File format
+Line-oriented; `#` starts a comment; keywords are case-insensitive.
+```
+reference
+  particle     deuteron        # deuteron | proton | electron
+  kinetic_MeV  270             # expression allowed
+  harmonic     1               # optional (default 1); mass_MeV optional
+parameters
+  LB = 5.33
+  ANG = 360/16 deg             # trailing 'deg' converts to rad
+elements
+  OBM drift      L = 2.0
+  BM  sbend      L = LB  angle = ANG  k1 = 0  e1 = 0  e2 = 0  gap = 0  fint = 0
+  QF  quadrupole L = 0.21 k1 = 0.5
+  SD  sextupole  L = 0.1  k2 = 0
+  RF  rfcavity   V = 0.01 h = 1 phi_s = 0
+  CV  cavity     L = 0.5 V = 0.01 h = 1 phi_s = 0
+  M1  marker
+sequence cell                   # named sequence
+  OBM BM QF ...
+sequence                        # unnamed sequence = the ring
+  8 * cell
+```
+
+# Algorithm
+1. Each line is assigned to the current section.
+2. Parameter lines `NAME = EXPR` are evaluated in order. Expressions allow
+   `+ - * /`, parentheses, numbers and previously defined parameters.
+3. Element cards are `NAME KIND key = expr ...`; keys are lower-cased, and
+   missing keys default to 0. Kind aliases: `bend`, `quad`, `sext`, `rf`.
+4. Sequences are expanded recursively: `N * name` repeats an element or a
+   sequence, and cyclic references raise an error.
+5. Build the `RefParticle` from particle/kinetic_MeV/mass_MeV and return a
+   [`Lattice`](@ref) named after the file.
+
+Errors are thrown (not warnings) for unknown kinds, unknown names, missing
+reference data, or lines outside sections.
 """
 function load_structure(path::AbstractString)
     lines = readlines(path)
@@ -452,10 +563,12 @@ function _card_line(e::AbstractElement)
 end
 
 """
-    write_structure(path, lat; parameters, sequences)
+    write_structure(path, lat; parameters = Dict(), extra_header = "") -> path
 
-Write a Lattice as a structure file.  Sequence is the flat list of element
-names unless `sequences` provides named blocks.
+Write `lat` in the format read by [`load_structure`](@ref): reference block,
+optional `parameters`, one element card per distinct element (numbers with
+`%.16g`, so a round trip is exact), and the ring sequence. `extra_header` is
+copied as comment lines on top.
 """
 function write_structure(path::AbstractString, lat::Lattice;
                          parameters::Dict{String,Float64} = Dict{String,Float64}(),

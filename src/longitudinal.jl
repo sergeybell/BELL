@@ -20,13 +20,25 @@ using ..Coordinates
 export longitudinal_hamiltonian_text, synchrotron_tune,
        LongitudinalParams, long_H, fixed_points, separatrix, bucket_height
 
-"Linear synchrotron tune; returns NaN if unstable (eta0 cos(phi_s) <= 0)."
+"""
+    synchrotron_tune(ref, eta0, V_MV, h, phi_s; T = 1.0) -> Q_s
+
+Small-amplitude synchrotron tune (oscillations per turn):
+Q_s = √(h η0 Z V T cos φs / (2π β0² E)), where E = γ0 m c² [MeV], V [MV],
+T is the transit factor. Returns NaN if η0 cos φs ≤ 0 (unstable).
+"""
 function synchrotron_tune(ref::RefParticle, eta0, V_MV, h, phi_s; T = 1.0)
     E = ref.gamma * ref.mass_MeV
     a = h * eta0 * ref.particle.charge * V_MV * T * cos(phi_s) / (2pi * ref.beta^2 * E)
     return a > 0 ? sqrt(a) : NaN
 end
 
+"""
+    longitudinal_hamiltonian_text() -> String
+
+Plain-text statement of the smooth turn-by-turn longitudinal model (equations,
+H(φ, δ), Q_s, stability condition) for printing in examples.
+"""
 longitudinal_hamiltonian_text() = """
     turn-by-turn longitudinal motion (n = turn number, phi = -h w0 dt, delta = dp/p):
       dphi/dn   = -2 pi h (eta0 delta + eta1 delta^2)
@@ -38,9 +50,21 @@ longitudinal_hamiltonian_text() = """
       delta ~ -eta0/eta1 (alpha-bucket) and makes the bucket asymmetric."""
 
 """
-LongitudinalParams(ref, alpha0, alpha1, V_MV, h, phi_s; T = 1)
-eta0 = alpha0 - 1/g^2, eta1 = alpha1 - alpha0/g^2 + 1.5 b^2/g^2 + 1/g^4 at the
-energy of `ref`; A = Z V T/(beta^2 E) is the per-turn delta-kick amplitude.
+    LongitudinalParams(h, eta0, eta1, A, phi_s)
+    LongitudinalParams(ref, alpha0, alpha1, V_MV, h, phi_s; T = 1)
+
+Parameters of the averaged longitudinal motion in (φ, δ), with n = turn:
+
+dφ/dn = −2π h (η0 δ + η1 δ²),  dδ/dn = A (sin(φs + φ) − sin φs).
+
+# Fields
+- `h::Int` – harmonic number.
+- `eta0`, `eta1` – slip factors η0 = α0 − 1/γ², η1 = α1 − α0/γ² + 3β²/(2γ²) + 1/γ⁴.
+- `A` – per-turn δ-kick amplitude Z V T/(β² E) [1].
+- `phi_s` – synchronous phase [rad].
+
+The second constructor computes η0, η1, A from momentum compaction α0, α1 at the
+energy of `ref`.
 """
 struct LongitudinalParams
     h::Int; eta0::Float64; eta1::Float64; A::Float64; phi_s::Float64
@@ -53,16 +77,32 @@ function LongitudinalParams(ref::RefParticle, alpha0, alpha1, V_MV, h, phi_s; T 
     return LongitudinalParams(h, eta0, eta1, A, phi_s)
 end
 
-"H(phi, delta) = -2 pi h (eta0 d^2/2 + eta1 d^3/3) + A (cos(phi_s + phi) + phi sin(phi_s))."
+"""
+    long_H(p, φ, δ) -> Float64
+
+Longitudinal Hamiltonian (invariant of the smooth motion):
+H = −2π h (η0 δ²/2 + η1 δ³/3) + A (cos(φs + φ) + φ sin φs).
+"""
 long_H(p::LongitudinalParams, phi, d) =
     -2pi * p.h * (p.eta0 * d^2 / 2 + p.eta1 * d^3 / 3) + p.A * (cos(p.phi_s + phi) + phi * sin(p.phi_s))
 
+"""
+    fixed_points(p) -> (stable, unstable, delta2)
+
+Fixed points of [`long_H`](@ref): stable at φ = 0, unstable at φ_u = π − 2φs
+(both at δ = 0), and the second (α-bucket) momentum δ₂ = −η0/η1.
+"""
 function fixed_points(p::LongitudinalParams)
     phu = pi - 2p.phi_s
     return (stable = 0.0, unstable = phu, delta2 = -p.eta0 / p.eta1)
 end
 
-"Separatrix level H_sep = H(phi_u, 0) and a function inside(phi, d) for the bucket."
+"""
+    separatrix(p) -> (H_sep, inside)
+
+Separatrix level H_sep = H(φ_u, 0) and a predicate `inside(φ, δ)` that is true
+when the point lies on the same side of H_sep as the stable fixed point.
+"""
 function separatrix(p::LongitudinalParams)
     Hs = long_H(p, fixed_points(p).unstable, 0.0)
     H0 = long_H(p, 0.0, 0.0)
@@ -70,7 +110,13 @@ function separatrix(p::LongitudinalParams)
     return Hs, inside
 end
 
-"Bucket half-height in delta at phi = 0 (root of H(0, d) = H_sep, d > 0 and d < 0)."
+"""
+    bucket_height(p) -> (δ_plus, δ_minus)
+
+Bucket half-heights at φ = 0: the roots of H(0, δ) = H_sep for δ > 0 and δ < 0,
+found by bisection (200 steps) in |δ| < |η0/η1|/2, so the α-bucket is excluded.
+η1 makes the bucket asymmetric.
+"""
 function bucket_height(p::LongitudinalParams)
     Hs, _ = separatrix(p)
     f(d) = long_H(p, 0.0, d) - Hs

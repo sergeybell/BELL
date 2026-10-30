@@ -40,7 +40,20 @@ export taylor_map_element, element_maps, ring_taylor_map, user_map,
 _V(H) = (g = [differentiate(H, j) for j in 1:6]; [sum(SYMPLECTIC_S[i, j] * g[j] for j in 1:6) for i in 1:6])
 _ev(V, z) = [evaluate(V[i], z) for i in 1:6]
 
-"Order-2 Taylor map of one element by RK4 in TaylorN arithmetic (step <= ds)."
+"""
+    taylor_map_element(e, ref; ds = 0.01) -> Vector{TaylorN}
+
+Taylor map of one element obtained by integrating Hamilton's equations
+dz/ds = S ∇H in polynomial (differential-algebra) arithmetic.
+
+# Algorithm
+Start from the identity map z = Z. Do n = max(4, ⌈L/ds⌉) classical RK4 steps of
+length h = L/n with the polynomial vector field S ∇H. Truncate to JET_ORDER after
+every step and to MAP_ORDER at the end.
+
+RK4 is of order 4 in h and not symplectic. This map is an independent check of the
+Lie maps, not the production route. Markers give the identity; thin RF raises an error.
+"""
 function taylor_map_element(e::AbstractElement, ref::RefParticle; ds = 0.01)
     e isa Marker && return collect(Z)
     e isa RFCavity && error("RF not included in the phase-1 Taylor map")
@@ -60,11 +73,20 @@ end
 
 const _TMCACHE = Dict{Any,Any}()
 
-"Taylor maps of all elements in order (cached per distinct element value and energy)."
+"""
+    element_maps(lat; ds = 0.01) -> Vector
+
+[`taylor_map_element`](@ref) for every element of `lat`, cached per (element, p0, ds).
+"""
 element_maps(lat::Lattice; ds = 0.01) =
     [get!(() -> taylor_map_element(e, lat.ref; ds = ds), _TMCACHE, (e, lat.ref.p0_MeV, ds)) for e in lat.elements]
 
-"Ring map by composing the element Taylor maps M_ring = M_n o ... o M_1."
+"""
+    ring_taylor_map(lat; ds = 0.01) -> Vector{TaylorN}
+
+One-turn Taylor map M_n ∘ ⋯ ∘ M_1 by [`compose_maps`](@ref) of the RK4 element maps.
+Used as a cross-check of the Lie product, and in `one_turn_map_rf`.
+"""
 function ring_taylor_map(lat::Lattice; ds = 0.01)
     M = collect(Z)
     for Me in element_maps(lat; ds = ds)
@@ -72,20 +94,33 @@ function ring_taylor_map(lat::Lattice; ds = 0.01)
     end
     return M
 end
-"Map in user coordinates: U = T o M o T^-1, T = canonical_to_user."
+"""
+    user_map(M, ref, C, h) -> Vector{TaylorN}
+
+The map `M` written in user coordinates (x, x', y, y', φ, δ):
+U = T ∘ M ∘ T⁻¹, where T = [`canonical_to_user`](@ref) (evaluated as polynomials).
+"""
 function user_map(M, ref::RefParticle, C::Real, h::Real)
     Tinv = [truncate_to(c, MAP_ORDER) for c in user_to_canonical(collect(Z), ref, C, h)]
     T    = [truncate_to(c, MAP_ORDER) for c in canonical_to_user(collect(Z), ref, C, h)]
     return compose_maps(T, compose_maps(M, Tinv))
 end
 
-"xi = dQ/ddelta from chromaticity_orders of the given polynomial."
+"""
+    chromaticity(M; dd = 1e-5)
+
+Linear chromaticities ξ = dQ/dδ from [`chromaticity_orders`](@ref) of the polynomial `M`.
+"""
 function chromaticity(M; dd = 1e-5)
     ch = chromaticity_orders(M; dd = dd)
     return (ch.x[2], ch.y[2])
 end
 
-"alpha0, alpha1 from path_expansion of the given polynomial."
+"""
+    momentum_compaction(M, ref, C; dd = 1e-4)
+
+α0, α1 from [`path_expansion`](@ref) of the polynomial `M`.
+"""
 function momentum_compaction(M, ref::RefParticle, C::Real; dd = 1e-4)
     p = path_expansion(M, ref, C)
     return (p.alpha0, p.alpha1)

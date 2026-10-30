@@ -60,6 +60,33 @@ function _parts(ref)
     return x, y, d, ps, energy_term(d, ref)
 end
 
+"""
+    hamiltonian(e::AbstractElement, ref::RefParticle) -> TaylorN
+
+s-Hamiltonian of element `e` in canonical variables z = (x, px, y, py, l, δ), as a
+polynomial of degree [`JET_ORDER`](@ref) (constant term dropped).
+
+With ps = √((1+δ)² − px² − py²) and e(δ) = [`energy_term`](@ref)(δ, ref):
+
+| element | H |
+|:--|:--|
+| `Drift`, `Cavity` (RF off) | e(δ) − ps |
+| `Quadrupole` | e(δ) − ps + k1(x² − y²)/2 |
+| `Sextupole` | e(δ) − ps + k2(x³ − 3xy²)/6 |
+| `SBend` | e(δ) − (1+hx) ps + hx + h²x²/2 + k1(x² − y²)/2 |
+| `Marker`, thin `RFCavity` | 0 |
+
+# Algorithm
+The exact expressions are evaluated in `TaylorN` arithmetic, so the expansion
+(square root included) is done by the polynomial engine, not by hand. Then the
+constant is removed, and the result is checked to have no linear terms. Linear
+terms would mean the reference orbit is not a solution, and a warning is issued.
+
+The bend terms come from the curved-frame vector potential
+−(1+hx)a_s = hx + h²x²/2 (uniform field h·Bρ). ∂H/∂x = 0 at z = 0.
+This is the only place in Bell where element physics is defined: linear
+matrices, Lie maps, DA maps and the exact integrator all derive from these H.
+"""
 hamiltonian(e::Drift, ref::RefParticle) = (p = _parts(ref); _clean(p[5] - p[4], e))
 
 function hamiltonian(e::Quadrupole, ref::RefParticle)
@@ -85,6 +112,11 @@ hamiltonian(e::Cavity, ref::RefParticle) = hamiltonian(Drift(e.name, e.L), ref)
 hamiltonian(e::RFCavity, ref::RefParticle) =
     error("RFCavity is a thin kick (see Tracking.rf_kick); it has no s-Hamiltonian in phase 1")
 
+"""
+    hamiltonian_formula(e) -> String
+
+The formula of [`hamiltonian`](@ref) for the type of `e` as plain text (for printing).
+"""
 hamiltonian_formula(::Drift) = "H = e(delta) - ps"
 hamiltonian_formula(::Quadrupole) = "H = e(delta) - ps + k1/2 (x^2 - y^2)"
 hamiltonian_formula(::Sextupole) = "H = e(delta) - ps + k2/6 (x^3 - 3 x y^2)"

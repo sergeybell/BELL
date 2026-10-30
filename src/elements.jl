@@ -31,14 +31,55 @@ module Elements
 export AbstractElement, Drift, SBend, Quadrupole, Sextupole, RFCavity, Cavity, Marker,
        curvature, elem_length, kind_string
 
+"""
+    AbstractElement
+
+Supertype of all beam-line elements. Element types are plain immutable
+data (no physics). Every subtype has a `name::String`; elements with a
+length have a field `L` [m] (see [`elem_length`](@ref)).
+
+Physics lives elsewhere: `hamiltonian(e, ref)` (Hamiltonians),
+`linear_matrix(e, ref)` (Linear), `element_lie_map(e, ref)` (Tracking),
+`exact_track_element` (ExactIntegrator), `edge_map` (Fringe).
+Because elements are immutable values, equal elements share cache entries
+(maps are computed once per distinct element and energy).
+
+Subtypes: [`Drift`](@ref), [`SBend`](@ref), [`Quadrupole`](@ref),
+[`Sextupole`](@ref), [`RFCavity`](@ref), [`Cavity`](@ref), [`Marker`](@ref).
+"""
 abstract type AbstractElement end
 
+"""
+    Drift(name, L)
+
+Field-free straight section. `L` [m]. Hamiltonian H = e(δ) − ps.
+Structure-file card: `NAME drift L = 0.5`.
+"""
 struct Drift <: AbstractElement
     name::String
     L::Float64
 end
 
-"Sector bend: reference orbit is an arc of radius rho = L/angle; edges are data for fringe.jl."
+"""
+    SBend(name, L, angle, k1 = 0, e1 = 0, e2 = 0, gap = 0, fint = 0)
+
+Sector dipole: the reference orbit is an arc of radius ρ = L/angle.
+
+# Fields
+- `L::Float64` – arc length [m].
+- `angle::Float64` – bending angle [rad]; curvature h = angle/L [1/m] ([`curvature`](@ref)).
+- `k1::Float64` – normalised gradient (∂B_y/∂x)/(Bρ) [1/m²] (combined-function bend).
+- `e1::Float64`, `e2::Float64` – entrance / exit pole-face rotation angles [rad].
+- `gap::Float64` – full magnet gap [m].
+- `fint::Float64` – fringe-field integral FINT [1].
+
+The body Hamiltonian uses only `L`, `angle`, `k1`:
+H = e(δ) − (1+hx)ps + hx + h²x²/2 + k1(x² − y²)/2.
+`e1, e2, gap, fint` are read only by the edge maps of the Fringe module.
+Constructors with 3 and 4 arguments set the remaining fields to 0.
+
+Structure-file card: `BM sbend L = 5.33 angle = 22.5 deg k1 = 0 e1 = 0 gap = 0.05 fint = 0.5`.
+"""
 struct SBend <: AbstractElement
     name::String
     L::Float64
@@ -52,12 +93,26 @@ end
 SBend(name, L, angle) = SBend(name, L, angle, 0.0)
 SBend(name, L, angle, k1) = SBend(name, L, angle, k1, 0.0, 0.0, 0.0, 0.0)
 
+"""
+    Quadrupole(name, L, k1)
+
+Straight quadrupole. `L` [m], `k1 = (∂B_y/∂x)/(Bρ)` [1/m²], k1 > 0 focuses in x.
+Hamiltonian H = e(δ) − ps + k1(x² − y²)/2.
+Card: `QF quadrupole L = 0.21 k1 = 0.52`.
+"""
 struct Quadrupole <: AbstractElement
     name::String
     L::Float64
     k1::Float64
 end
 
+"""
+    Sextupole(name, L, k2)
+
+Straight sextupole. `L` [m], `k2 = (∂²B_y/∂x²)/(Bρ)` [1/m³].
+Hamiltonian H = e(δ) − ps + k2(x³ − 3xy²)/6.
+Card: `SD sextupole L = 0.12 k2 = -3.1`.
+"""
 struct Sextupole <: AbstractElement
     name::String
     L::Float64
@@ -65,9 +120,17 @@ struct Sextupole <: AbstractElement
 end
 
 """
-Thin RF cavity.  Energy gain per passage
-    dE = Z * e * V * sin(phi_s + phi)    [MeV for V in MV]
-implemented as a kick in tracking.jl.
+    RFCavity(name, voltage_MV, harmonic, phi_s)
+
+Thin (zero-length) RF cavity: a single energy kick per passage.
+
+# Fields
+- `voltage_MV::Float64` – peak voltage V [MV] (use V·T to mimic a finite cavity).
+- `harmonic::Int` – RF harmonic number h (f_RF = h f0).
+- `phi_s::Float64` – synchronous phase φs [rad]; ΔE = Z V sin(φs + φ) [MeV].
+
+Tracked by `rf_kick` (numbers) and `rf_kick_taylor` (polynomial map).
+Card: `RF rfcavity V = 0.01 h = 1 phi_s = 0`.
 """
 struct RFCavity <: AbstractElement
     name::String
@@ -77,9 +140,19 @@ struct RFCavity <: AbstractElement
 end
 
 """
-Finite-length RF cavity, longitudinal on-axis field only:
-    E_s(s,t) = -(V/L) sin(Phi),  Phi = omega (s - L/2)/v0 - omega l/v - phi_s.
-For maps / linear optics (RF off) it behaves as a drift of length L.
+    Cavity(name, L, voltage_MV, harmonic, phi_s)
+
+Finite-length RF cavity with purely longitudinal on-axis field
+E_s(s, t) = −(V/L) sin Φ, Φ = ω(s − L/2)/v0 − ω l/v − φs, ω = h·2π f0.
+
+# Fields
+- `L::Float64` – length [m]; `voltage_MV::Float64` – V [MV];
+  `harmonic::Int` – h; `phi_s::Float64` – φs [rad].
+
+For maps and linear optics (RF off) it is a drift of length L. Integrated with
+the exact Hamiltonian by `exact_track_element`; energy gain per passage is
+Z V T sin(φs + φ) with transit factor T (`transit_factor`).
+Transverse RF fields are neglected. Card: `CAV cavity L = 0.5 V = 0.01 h = 1 phi_s = 0.3`.
 """
 struct Cavity <: AbstractElement
     name::String
@@ -89,14 +162,37 @@ struct Cavity <: AbstractElement
     phi_s::Float64
 end
 
+"""
+    Marker(name)
+
+Zero-length marker; identity map. Card: `M1 marker`.
+"""
 struct Marker <: AbstractElement
     name::String
 end
 
+"""
+    elem_length(e) -> Float64
+
+Length of an element [m]: the field `L` if it exists, otherwise 0
+(markers, thin `RFCavity`). Used by `circumference`, slicing and maps.
+"""
 elem_length(e::AbstractElement) = hasproperty(e, :L) ? e.L : 0.0
+"""
+    curvature(e) -> h [1/m]
+
+Curvature of the reference orbit in the element: h = angle/L for an
+[`SBend`](@ref), 0 for every other element.
+"""
 curvature(b::SBend) = b.angle / b.L
 curvature(::AbstractElement) = 0.0
 
+"""
+    kind_string(e) -> String
+
+Short type name used in printing and error messages
+("Drift", "SBend", "Quadrupole", "Sextupole", "RFCavity", "Cavity", "Marker").
+"""
 kind_string(::Drift) = "Drift"
 kind_string(::SBend) = "SBend"
 kind_string(::Quadrupole) = "Quadrupole"

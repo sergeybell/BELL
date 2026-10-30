@@ -20,6 +20,32 @@ using ..Coordinates, ..Elements, ..Structure
 
 export OptiMFile, convert_optim
 
+"""
+    OptiMFile
+
+Result of converting an OptiM `.opt` file ([`convert_optim`](@ref)).
+
+# Fields
+- `path::String` – the source `.opt` file; `structure_path::String` – written `.bell` file.
+- `variables::Dict{String,Float64}` – OptiM variables (dollar-prefixed names) after evaluation.
+- `energy_MeV::Float64`, `mass_MeV::Float64` – kinetic energy and mass from the header.
+- `initial::Dict{String,Float64}` – initial Twiss values given in the file.
+- `nperiods_file::Int` – number of periods declared; `nrepeat_used::Int` – repetitions written to the ring.
+- `sequence::Vector{String}` – element names of one period.
+- `definitions::Dict{String,Dict{String,Float64}}` – raw element parameters (OptiM units).
+- `warnings::Vector{String}` – everything that was ignored or guessed.
+
+# Conversion rules
+The first letter of an element name selects the kind: O = drift, B = sector bend,
+Q = quadrupole, S = sextupole (other letters are reported in `warnings`).
+Units: L [cm] → m (/100); bend field B [kG] → T (/10), angle = L·B/(Bρ);
+gradient G [kG/cm] → T/m (×10), k1 = G/(Bρ); sextupole S [kG/cm²] → T/m² (×1000),
+k2 = S/(Bρ). A B-element with B = G = 0 becomes a drift; `Tilt` is ignored (warning).
+Bρ is computed from the header energy and the CODATA mass of `particle`
+(the header `Mass` is recorded but not used). Periods: if the listed sequence
+already bends by 360° it is used once, else it is repeated `Number of periods`
+times when that closes the ring (otherwise used once with a warning).
+"""
 struct OptiMFile
     path::String
     structure_path::String
@@ -157,8 +183,10 @@ end
 """
     convert_optim(opt_path, structure_path; particle = DEUTERON) -> OptiMFile
 
-Read OptiM `.opt`, write a Bell structure file, return conversion metadata.
-The Lattice is obtained afterwards with `load_structure(structure_path)`.
+Read an OptiM lattice file, write an equivalent Bell structure file to
+`structure_path`, and return conversion metadata ([`OptiMFile`](@ref)).
+The `Lattice` is obtained afterwards with `load_structure(structure_path)`;
+Bell itself never reads OptiM files at run time.
 """
 function convert_optim(opt_path::AbstractString, structure_path::AbstractString;
                        particle::Particle = DEUTERON)

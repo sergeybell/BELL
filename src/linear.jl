@@ -41,6 +41,12 @@ using ..Coordinates, ..Elements, ..Structure, ..Hamiltonians, ..LieAlgebra
 
 export hessian, linear_matrix, ring_matrix, periodic_optics, optics_along
 
+"""
+    hessian(H) -> Matrix{Float64} (6×6)
+
+Hessian A = ∂²H/∂z_i∂z_j at z = 0, so that the quadratic part of H is
+H₂ = zᵀ A z / 2.
+"""
 hessian(H::TaylorN) = [constant_term(differentiate(differentiate(H, i), j)) for i in 1:6, j in 1:6]
 
 const _HCACHE = Dict{Any,Matrix{Float64}}()
@@ -50,12 +56,28 @@ function _SA(e::AbstractElement, ref::RefParticle)
     end
 end
 
-"Exact linear map of element e (or of a piece of it of length L)."
+"""
+    linear_matrix(e, ref, L = elem_length(e)) -> Matrix{Float64} (6×6)
+
+Exact linear transfer matrix of element `e` (or of a slice of length `L`).
+
+# Algorithm
+R = exp(L · S · A), where A = [`hessian`](@ref)(hamiltonian(e, ref)) and S =
+[`SYMPLECTIC_S`](@ref). S·A is a Hamiltonian matrix, so R is symplectic up to
+round-off. No textbook element formulas are used; the matrix follows from
+the same H as the nonlinear maps. S·A is cached per (element value, p0).
+Markers, thin RF and zero-length slices give the identity.
+"""
 function linear_matrix(e::AbstractElement, ref::RefParticle, L::Real = elem_length(e))
     (e isa Marker || e isa RFCavity || L == 0) && return Matrix{Float64}(I, 6, 6)
     return exp(L * _SA(e, ref))
 end
 
+"""
+    ring_matrix(lat) -> Matrix{Float64} (6×6)
+
+One-turn matrix R = R_n ⋯ R_1 (product of [`linear_matrix`](@ref) in element order).
+"""
 ring_matrix(lat::Lattice) = foldl((M, e) -> linear_matrix(e, lat.ref) * M, lat.elements; init = Matrix{Float64}(I, 6, 6))
 
 function _plane(m)
@@ -67,7 +89,22 @@ function _plane(m)
     return (stable = true, cosmu = c, beta = m[1, 2] / s, alpha = (m[1, 1] - m[2, 2]) / (2s), mu = mu)
 end
 
-"Periodic optics of a one-turn 6x6 matrix R."
+"""
+    periodic_optics(R, ref, C) -> NamedTuple
+
+Periodic (closed) linear optics of the one-turn matrix `R` of a ring of
+circumference `C` [m].
+
+# Returns
+- `x`, `y` – per plane: `(stable, cosmu, beta [m], alpha, mu [rad])` from the
+  2×2 diagonal blocks: cos μ = tr/2, sin μ = sign(R12)√(1 − cos²μ),
+  β = R12/sin μ, α = (R11 − R22)/(2 sin μ).
+- `D4` – periodic dispersion (D_x, D_x', D_y, D_y') = (I − R₄)⁻¹ R_{1:4,6}.
+- `l_delta_closed` – (l|δ) on the dispersion orbit = R56 + R_{5,1:4}·D4 [m].
+- `alpha_c` – momentum compaction 1/γ0² − (l|δ)_closed/C.
+- `eta_slip` – α_c − 1/γ0²; `gamma_t` – 1/√α_c (NaN if α_c ≤ 0).
+- `coupling` – max |x–y block| of R (0 for an uncoupled ring); `R`.
+"""
 function periodic_optics(R::AbstractMatrix, ref::RefParticle, C::Real)
     px = _plane(R[1:2, 1:2]); py = _plane(R[3:4, 3:4])
     coupling = maximum(abs, vcat(vec(R[1:2, 3:4]), vec(R[3:4, 1:2])))
@@ -87,9 +124,28 @@ end
 _dmu(m, b, a) = atan(m[1, 2], m[1, 1] * b - m[1, 2] * a)
 
 """
-Propagate the periodic Twiss/dispersion along the ring in slices of <= ds.
-Returns a NamedTuple of vectors (s, betx, alfx, bety, alfy, D, Dp, mux, muy),
-the element boundaries, total tunes and the closure errors.
+    optics_along(lat, po; ds = 0.02) -> NamedTuple
+
+Propagate the periodic Twiss functions and dispersion along the ring.
+
+# Arguments
+- `po` – result of [`periodic_optics`](@ref) (start values at s = 0).
+- `ds` – maximum slice length [m].
+
+# Algorithm
+Each element is cut into ⌈L/ds⌉ slices with matrices `linear_matrix(e, ref, L/n)`.
+β, α are transported with the standard 2×2 Twiss transformation. The phase
+advance is accumulated slice by slice, and the dispersion vector (D4, 0, 1) is
+multiplied by the slice matrix.
+
+# Returns
+`(data, bounds, Qx, Qy, closure, C)`:
+- `data` – vectors `s, betx, alfx, bety, alfy, D, Dp, mux, muy`;
+- `bounds` – (s_start, s_end, element) for each element;
+- `Qx`, `Qy` – total tunes, integer part included;
+- `closure` – differences between the values after one turn and the start values
+  (they should be at round-off level);
+- `C` – total length.
 """
 function optics_along(lat::Lattice, po; ds = 0.02)
     ref = lat.ref

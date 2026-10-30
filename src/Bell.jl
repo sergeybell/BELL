@@ -9,6 +9,18 @@
 #   A script only needs `using Bell`.
 #
 # =============================================================================
+"""
+    Bell
+
+Beam-dynamics package for a storage ring. The package works in 6D canonical
+coordinates (x, px, y, py, l, δ) with Lie-algebraic transfer maps of
+order 3, exact symplectic integration, RF/longitudinal motion, normal forms
+and fringe-field models.
+
+`Bell` only includes the submodules in dependency order and re-exports every
+exported name, so `using Bell` is all a script needs. See the Programmer
+Manual for the module map.
+"""
 module Bell
 
 include("coordinates.jl")

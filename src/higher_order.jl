@@ -31,7 +31,14 @@ export closed_orbit, tunes_at_delta, dispersion_orders, path_expansion,
 _evalpt(M, z) = [evaluate(M[i], z) for i in 1:6]
 _jac(M, z) = [evaluate(differentiate(M[i], j), z) for i in 1:6, j in 1:6]
 
-"4D closed orbit (x,px,y,py) at fixed delta; l is irrelevant (no RF)."
+"""
+    closed_orbit(M, δ; iters = 30) -> Vector{Float64} (4)
+
+Transverse closed orbit u = (x, px, y, py) of the one-turn map `M` at fixed
+momentum deviation δ: solves M_{1:4}(u, 0, δ) = u by Newton iteration with the
+exact Jacobian of the polynomial (stops at |Δu| < 1e-16). l is irrelevant
+without RF.
+"""
 function closed_orbit(M, d::Real; iters = 30)
     u = zeros(4)
     for _ in 1:iters
@@ -51,7 +58,12 @@ function _frac_tune(m)
     return mod(atan(s, c), 2pi) / 2pi
 end
 
-"Fractional tunes of the Jacobian on the closed orbit at momentum deviation delta."
+"""
+    tunes_at_delta(M, δ) -> (Qx_frac, Qy_frac, u)
+
+Fractional tunes from the 2×2 blocks of the Jacobian of `M` on the closed orbit
+`u` at momentum δ (cos 2πQ = tr/2, sign of the sine from the (1,2) element).
+"""
 function tunes_at_delta(M, d::Real)
     u = closed_orbit(M, d)
     J = _jac(M, [u; 0.0; d])
@@ -61,6 +73,19 @@ end
 "delta^k coefficient helper: quadratic part of M_i evaluated at vector w."
 _q(M, i, w) = evaluate(TaylorN(M[i][2], JET_ORDER), w)
 
+"""
+    dispersion_orders(M) -> (D1, D2, w, R)
+
+First- and second-order periodic dispersion at the start of the map.
+The closed orbit is expanded as u(δ) = D1 δ + D2 δ² + O(δ³).
+
+# Algorithm
+- D1 = (I − R₄)⁻¹ R_{1:4,6};
+- D2 = (I − R₄)⁻¹ q(w), with q the quadratic part of M_{1:4} evaluated at
+  w = (D1, 0, 1).
+
+Returns 4-vectors `D1`, `D2` (x, px, y, py) [m, 1], plus `w` and the linear part `R`.
+"""
 function dispersion_orders(M)
     R = map_linear_part(M)
     A = I - R[1:4, 1:4]
@@ -70,7 +95,12 @@ function dispersion_orders(M)
     return (D1 = D1, D2 = D2, w = w, R = R)
 end
 
-"v/v0 - 1 = c1 d + c2 d^2 + c3 d^3 (exact Taylor of velocity_ratio)."
+"""
+    velocity_expansion(ref) -> (c1, c2, c3)
+
+Exact Taylor coefficients v/v0 − 1 = c1 δ + c2 δ² + c3 δ³:
+c1 = 1/γ0², c2 = −3β0²/(2γ0²), c3 = β0²(5β0² − 1)/(2γ0²).
+"""
 function velocity_expansion(ref::RefParticle)
     g2 = ref.gamma^2; b2 = ref.beta^2
     c1 = 1 / g2
@@ -80,9 +110,24 @@ function velocity_expansion(ref::RefParticle)
 end
 
 """
-path_expansion to order 2 (alpha0, alpha1) from the truncated map.
-alpha_i defined by C(delta)/C0 = 1 + alpha0 d + alpha1 d^2 + alpha2 d^3
-with Delta l = -C(d) + C0 (v/v0) on the closed orbit.
+    path_expansion(M, ref, C) -> NamedTuple
+
+Momentum compaction and phase slip to second order, read from the one-turn map.
+
+# Algorithm
+On the dispersion orbit, l(δ) = l1 δ + l2 δ² with
+l1 = R_{5,1:4}·D1 + R56 and l2 = R_{5,1:4}·D2 + q5(w). Since Δl = −ΔC + C0(v/v0 − 1),
+the coefficients are:
+
+- α0 = −l1/C + c1, α1 = −l2/C + c2 (c_i from [`velocity_expansion`](@ref));
+- slip factor η0 = −l1/C, η1 = −l2/C + (l1/C)c1.
+
+The definitions are C(δ)/C0 = 1 + α0 δ + α1 δ² and
+ΔT/T0 = η0 δ + η1 δ².
+
+# Returns
+`(l1, l2, alpha0, alpha1, eta0, eta1, eta1_formula, gamma_t, c1, c2, c3)`.
+`eta1_formula` is the same η1 from α0, α1, a consistency check.
 """
 function path_expansion(M, ref::RefParticle, C::Real)
     d = dispersion_orders(M)
@@ -99,13 +144,31 @@ function path_expansion(M, ref::RefParticle, C::Real)
             eta1_formula = eta1_formula, gamma_t = 1 / sqrt(abs(alpha0)), c1 = c1, c2 = c2, c3 = c3)
 end
 
+"""
+    chromaticity_orders(M; dd = 1e-4) -> (x = (Q0, ξ1, ξ2), y = (Q0, ξ1, ξ2))
+
+Fractional tune and first and second chromaticity per plane. Uses central
+differences of [`tunes_at_delta`](@ref) at δ = 0, ±dd:
+
+- ξ1 = dQ/dδ;
+- ξ2 = d²Q/dδ², so Q(δ) ≈ Q0 + ξ1 δ + ξ2 δ²/2.
+
+The tunes are computed on the off-momentum closed orbit, so sextupole feed-down
+is included. ξ1 is exact for the order-3 map; ξ2 includes all terms present in it.
+"""
 function chromaticity_orders(M; dd = 1e-4)
     q0 = tunes_at_delta(M, 0.0); qp = tunes_at_delta(M, dd); qm = tunes_at_delta(M, -dd)
     f(k) = (q0[k], (qp[k] - qm[k]) / (2dd), (qp[k] - 2 * q0[k] + qm[k]) / dd^2)
     return (x = f(1), y = f(2))     # (Q0_frac, xi1, xi2 = d2Q/ddelta2)
 end
 
-"D, D', D2, D2' at each element exit; orbit pushed by Lie element polynomials."
+"""
+    dispersion_along(lat, D1, D2) -> NamedTuple (s, D, Dp, D2, D2p)
+
+D, D', D2, D2' at each element exit. The orbit u = D1 δ + D2 δ² (as a polynomial
+in δ) is pushed through the Lie polynomials of the elements
+([`element_lie_map`](@ref)), and the δ and δ² coefficients of x and px are read.
+"""
 function dispersion_along(lat::Lattice, D1, D2)
     d = Z[6]
     u = [D1[i] * d + D2[i] * d^2 for i in 1:4]

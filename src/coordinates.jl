@@ -60,15 +60,55 @@ export C_LIGHT, Particle, DEUTERON, RefParticle, reference_from_kinetic,
        energy_term, velocity_ratio, canonical_to_user, user_to_canonical,
        revolution_frequency, describe_reference
 
-"Speed of light in vacuum [m/s] (exact)."
+"""
+    C_LIGHT :: Float64
+
+Speed of light in vacuum, 299 792 458 m/s (exact SI value).
+Used for v0 = β0·c, revolution frequency and magnetic rigidity Bρ = p0/(Z e c).
+"""
 const C_LIGHT = 299_792_458.0
 
 # indices of the canonical (and user) coordinates in a 6-vector
 const IX, IPX, IY, IPY, IL, IDELTA = 1, 2, 3, 4, 5, 6
 const VAR_NAMES  = ["x", "px", "y", "py", "l", "delta"]
 const USER_NAMES = ["x", "x'", "y", "y'", "phi", "delta"]
+@doc """
+    IX, IPX, IY, IPY, IL, IDELTA :: Int  (= 1, 2, 3, 4, 5, 6)
 
-"A particle species: rest energy [MeV], charge number Z, anomalous magnetic moment G."
+Indices of the coordinates in every 6-vector of Bell (canonical `z` and user `u`):
+`z[IX] = x`, `z[IPX] = px`, `z[IY] = y`, `z[IPY] = py`, `z[IL] = l`, `z[IDELTA] = δ`.
+The same order is used for the rows/columns of all 6×6 matrices and for
+the variables `Z[1..6]` of the polynomial space.
+""" IX
+@doc "Index of px in a 6-vector (= 2). See [`IX`](@ref)." IPX
+@doc "Index of y in a 6-vector (= 3). See [`IX`](@ref)." IY
+@doc "Index of py in a 6-vector (= 4). See [`IX`](@ref)." IPY
+@doc "Index of l (path-length / time-of-flight variable) in a 6-vector (= 5). See [`IX`](@ref)." IL
+@doc "Index of δ = Δp/p0 in a 6-vector (= 6). See [`IX`](@ref)." IDELTA
+@doc """
+    VAR_NAMES :: Vector{String} = ["x", "px", "y", "py", "l", "delta"]
+
+Printable names of the canonical coordinates (used by `poly_string`, `map_string`).
+""" VAR_NAMES
+@doc """
+    USER_NAMES :: Vector{String} = ["x", "x'", "y", "y'", "phi", "delta"]
+
+Printable names of the user coordinates returned by [`canonical_to_user`](@ref).
+""" USER_NAMES
+
+"""
+    Particle(name, mass_MeV, charge, G)
+
+Particle species (immutable data).
+
+# Fields
+- `name::String` – species name, e.g. `"deuteron"` (used in structure files).
+- `mass_MeV::Float64` – rest energy m c² [MeV].
+- `charge::Float64` – charge number Z (charge in units of e).
+- `G::Float64` – anomalous magnetic moment (reserved for spin work).
+
+Predefined: [`DEUTERON`](@ref); `proton` and `electron` exist in the structure-file parser.
+"""
 struct Particle
     name::String
     mass_MeV::Float64
@@ -76,10 +116,32 @@ struct Particle
     G::Float64
 end
 
-"Deuteron (CODATA 2018 rest energy; G = -0.142987 for later spin work)."
+"""
+    DEUTERON :: Particle
+
+Deuteron: rest energy 1875.61294257 MeV (CODATA 2018), Z = 1, G = −0.142987272.
+Default particle of `convert_optim` and of structure files with `particle deuteron`.
+"""
 const DEUTERON = Particle("deuteron", 1875.61294257, 1.0, -0.142987272)
 
-"Reference particle: all quantities derived from the design momentum p0."
+"""
+    RefParticle
+
+Reference (design) particle. All normalised quantities of Bell (k1, k2, h,
+px = Px/p0, δ = Δp/p0) refer to its momentum p0. Build it with
+[`reference_from_kinetic`](@ref); do not fill the fields by hand.
+
+# Fields
+- `particle::Particle` – species.
+- `mass_MeV::Float64` – rest energy actually used [MeV] (normally `particle.mass_MeV`).
+- `Ekin_MeV::Float64` – kinetic energy of the whole ion [MeV].
+- `gamma::Float64`, `beta::Float64`, `betagamma::Float64` – γ0, β0, β0γ0.
+- `p0_MeV::Float64` – p0·c [MeV].
+- `brho_Tm::Float64` – magnetic rigidity Bρ [T·m] = p0/(Z e).
+
+`RefParticle` values are used as cache keys (via `p0_MeV`) by the map builders,
+so a lattice at another energy gets new maps automatically.
+"""
 struct RefParticle
     particle::Particle
     mass_MeV::Float64     # rest energy actually used (may differ from particle.mass_MeV, e.g. OptiM 2*938.272)
@@ -91,7 +153,21 @@ struct RefParticle
     brho_Tm::Float64      # magnetic rigidity [T m]
 end
 
-"Build the reference particle from its kinetic energy [MeV] (optionally overriding the mass)."
+"""
+    reference_from_kinetic(p::Particle, Ekin_MeV; mass_MeV = p.mass_MeV) -> RefParticle
+
+Reference particle of species `p` with kinetic energy `Ekin_MeV` [MeV].
+
+# Algorithm
+γ0 = 1 + Ekin/m, β0γ0 = √(γ0² − 1), β0 = β0γ0/γ0, p0c = m·β0γ0 [MeV],
+Bρ = p0c·10⁶/c/Z [T·m].
+
+# Example
+```julia
+ref = reference_from_kinetic(DEUTERON, 270.0)
+ref.brho_Tm      # ≈ 2.4 T·m
+```
+"""
 function reference_from_kinetic(p::Particle, Ekin_MeV::Real; mass_MeV::Real = p.mass_MeV)
     gamma = 1 + Ekin_MeV / mass_MeV
     bg    = sqrt(gamma^2 - 1)
@@ -102,25 +178,47 @@ function reference_from_kinetic(p::Particle, Ekin_MeV::Real; mass_MeV::Real = p.
 end
 
 """
-    energy_term(delta, ref)
+    energy_term(δ, ref) -> same type as δ
 
-e(delta) = E(delta)/(p0 v0) - E0/(p0 v0)
-         = sqrt((1+delta)^2 + 1/(beta0 gamma0)^2)/beta0 - 1/beta0^2.
-Its expansion is  delta + delta^2/(2 gamma0^2) - delta^3/(2 beta0^2 gamma0^2) + ...
-Works for numbers and TaylorN polynomials.
+Energy term of the s-Hamiltonian in the canonical pair (l, δ):
+
+e(δ) = √((1+δ)² + 1/(β0γ0)²)/β0 − 1/β0²  (constant chosen so that e(0) = 0).
+
+Expansion: e(δ) = δ + δ²/(2γ0²) − δ³/(2β0²γ0²) + … . Generic: `δ` may be a
+number or a `TaylorN` polynomial (this is how every element Hamiltonian gets it).
 """
 energy_term(d, ref::RefParticle) = sqrt((1 + d)^2 + 1 / ref.betagamma^2) / ref.beta - 1 / ref.beta^2
 
-"v(delta)/v0 for a particle of relative momentum deviation delta."
+"""
+    velocity_ratio(δ, ref) -> v(δ)/v0
+
+Velocity of a particle with momentum deviation δ relative to the reference
+velocity: (1+δ)/√((1+δ)² + 1/(β0γ0)²)/β0. Numbers or `TaylorN`.
+Used to convert l ↔ time of flight (l = −v·Δt) and RF phase.
+"""
 velocity_ratio(d, ref::RefParticle) = (1 + d) / sqrt((1 + d)^2 + 1 / ref.betagamma^2) / ref.beta
 
-"Revolution frequency f0 = beta0 c / C [Hz]."
+"""
+    revolution_frequency(ref, C) -> f0 [Hz]
+
+Revolution frequency f0 = β0 c / C of the reference particle on a ring of
+circumference `C` [m].
+"""
 revolution_frequency(ref::RefParticle, C::Real) = ref.beta * C_LIGHT / C
 
 """
-    canonical_to_user(z, ref, C, h) -> (x, x', y, y', phi, delta)
+    canonical_to_user(z, ref, C, h) -> u = [x, x', y, y', φ, δ]
 
-Exact transformation (works on numbers and on TaylorN polynomials).
+Exact transformation from canonical z = (x, px, y, py, l, δ) to user
+coordinates.
+
+# Arguments
+- `z` – 6-vector (numbers or `TaylorN`).
+- `ref::RefParticle`, `C` – circumference [m], `h` – RF harmonic number.
+
+# Formulas
+ps = √((1+δ)² − px² − py²); x' = px/ps, y' = py/ps;
+φ = 2π h l / (C · v(δ)/v0) [rad] (φ > 0: particle early).
 """
 function canonical_to_user(z, ref::RefParticle, C::Real, h::Real)
     x, px, y, py, l, d = z
@@ -130,10 +228,11 @@ function canonical_to_user(z, ref::RefParticle, C::Real, h::Real)
 end
 
 """
-    user_to_canonical(u, ref, C, h) -> (x, px, y, py, l, delta)
+    user_to_canonical(u, ref, C, h) -> z = [x, px, y, py, l, δ]
 
-Inverse of canonical_to_user:  px = x'(1+delta)/sqrt(1+x'^2+y'^2),
-l = phi * C * (v/v0) / (2 pi h).
+Inverse of [`canonical_to_user`](@ref):
+px = x'(1+δ)/√(1+x'²+y'²), py likewise, l = φ C (v/v0)/(2π h).
+Used to start tracking from user-specified particles.
 """
 function user_to_canonical(u, ref::RefParticle, C::Real, h::Real)
     x, xp, y, yp, phi, d = u
@@ -141,7 +240,12 @@ function user_to_canonical(u, ref::RefParticle, C::Real, h::Real)
     return [x, xp * (1 + d) / n, y, yp * (1 + d) / n, phi * C * velocity_ratio(d, ref) / (2pi * h), d]
 end
 
-"Multi-line human readable description of the reference particle."
+"""
+    describe_reference(ref) -> String
+
+Multi-line human-readable summary of a [`RefParticle`](@ref)
+(species, mass, E_kin, γ0, β0, p0c, Bρ, 1/γ0²) for printing in examples.
+"""
 function describe_reference(ref::RefParticle)
     return """
       particle            : $(ref.particle.name) (Z = $(ref.particle.charge))

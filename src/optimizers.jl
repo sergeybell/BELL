@@ -25,6 +25,18 @@ using LinearAlgebra, TaylorSeries
 using ..Coordinates, ..Elements, ..Structure, ..LieAlgebra, ..HigherOrder
 
 export ring_metrics, response, solve_A, solve_B
+"""
+    ring_metrics(lat) -> NamedTuple
+
+Ring quantities used by the optional sextupole optimisation, all read from the
+order-3 one-turn map of `observables(lat)`:
+
+- `Qx`, `Qy` – fractional tunes; `xi1x`, `xi1y`, `xi2x`, `xi2y` – chromaticities;
+- `D1_0`, `D2_0`, `D2p_0` – dispersion at s = 0;
+- `D2max`, `D2rms` – max and rms of D2(s);
+- `alpha0`, `alpha1`, `eta0`, `eta1` – compaction and slip;
+- `along` – `dispersion_along` table; `M` – the map.
+"""
 function ring_metrics(lat::Lattice)
     obs = observables(lat)
     M = obs.M
@@ -41,7 +53,13 @@ end
 
 const _LINEAR_KEYS = (:xi1x, :xi1y, :alpha1, :eta1, :D2_0)
 
-"Response of metrics to k2 of each family; also returns D2(s) response vectors."
+"""
+    response(lat, fam_idx; dk = 1.0) -> (base, cols)
+
+Response of the metrics that are linear in k2 (ξ1x, ξ1y, α1, η1, D2(0)), and of
+D2(s), to the strength of each sextupole family. Uses central differences ±dk
+[1/m³] with all other families at 0. `base` = metrics at k2 = 0.
+"""
 function response(lat, fam_idx; dk = 1.0)
     base = ring_metrics(set_family_strengths(lat, fam_idx, Dict{String,Float64}()))
     cols = Dict{String,Any}()
@@ -55,7 +73,12 @@ function response(lat, fam_idx; dk = 1.0)
     return base, cols
 end
 
-"A: xi1x = xi1y = alpha1 = 0."
+"""
+    solve_A(base, cols) -> Dict(family => k2)
+
+Example target A (illustrative, not a physics requirement): ξ1x = ξ1y = α1 = 0,
+solved as a linear system in the family strengths.
+"""
 function solve_A(base, cols)
     fs = [f for f in SEXT_FAMILIES if haskey(cols, f)]
     A = [cols[f][1][k] for k in (:xi1x, :xi1y, :alpha1), f in fs]
@@ -63,7 +86,12 @@ function solve_A(base, cols)
     return Dict(zip(fs, A \ b))
 end
 
-"B: xi1x = xi1y = 0, minimise sum D2(s)^2 (KKT system)."
+"""
+    solve_B(base, cols) -> Dict(family => k2)
+
+Example target B: ξ1x = ξ1y = 0 while minimising Σ D2(s)², solved as an
+equality-constrained least-squares (KKT) system.
+"""
 function solve_B(base, cols)
     fs = [f for f in SEXT_FAMILIES if haskey(cols, f)]
     G = hcat([cols[f][2] for f in fs]...)            # D2(s) = d0 + G k

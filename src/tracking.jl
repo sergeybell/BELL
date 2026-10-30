@@ -35,19 +35,37 @@ export build_factors, apply_factor, track, rf_kick, element_lie_map, ring_lie_fa
 
 const _MCACHE = Dict{Any,Any}()
 
-"Lie map exp(-L:H:) z of an element, truncated to MAP_ORDER (cached)."
+"""
+    element_lie_map(e, ref) -> Vector{TaylorN}
+
+Map exp(−L :H:) z of one element ([`lie_map`](@ref) of its [`hamiltonian`](@ref)),
+truncated to MAP_ORDER; identity for markers. Cached per (element, p0).
+"""
 element_lie_map(e::AbstractElement, ref::RefParticle) =
     get!(_MCACHE, (e, ref.p0_MeV)) do
         (e isa Marker) ? collect(Z) : lie_map(hamiltonian(e, ref), elem_length(e))
     end
 
-"Product of magnetic Dragt-Finn factors (thin RF is concatenated separately)."
+"""
+    ring_lie_factor(lat; name = lat.name) -> LieFactor
+
+One-turn Dragt-Finn factor of the magnetic ring: [`product_factors`](@ref) of
+[`build_factors`](@ref)(lat), with thin RF cavities skipped. The RF factor is
+concatenated separately (`one_turn_factor_rf`). This is the primary one-turn
+object of Bell; `observables` reads all ring quantities from it.
+"""
 function ring_lie_factor(lat::Lattice; name = lat.name)
     fs = LieFactor[F for F in build_factors(lat) if F isa LieFactor]
     return product_factors(fs; name)
 end
 
-"One LieFactor per element (RFCavity entries are kept as the cavity itself)."
+"""
+    build_factors(lat) -> Vector{Any}
+
+One [`LieFactor`](@ref) per element: `dragt_finn_factor(element_lie_map(e, ref))`,
+computed once per distinct element value. A thin [`RFCavity`](@ref) is kept
+as the cavity object itself, so that [`track`](@ref) applies [`rf_kick`](@ref) there.
+"""
 function build_factors(lat::Lattice)
     cache = Dict{Any,LieFactor}()
     out = Any[]
@@ -61,7 +79,27 @@ function build_factors(lat::Lattice)
     return out
 end
 
-"exp(:f:) z by implicit midpoint on dz/dt = field(z), t in [0,1]."
+"""
+    _flow(field, z; nsteps = 2, iters = 12)
+
+Time-1 flow of the polynomial vector field `field` (that of a generator f, i.e.
+exp(:f:) z) by the implicit midpoint rule.
+
+# Algorithm
+`nsteps` steps of h = 1/nsteps:
+w_{n+1} = w_n + h F((w_n + w_{n+1})/2).
+The implicit equation is solved by fixed-point iteration from an explicit Euler
+guess. With numbers it stops at |Δ| ≤ 1e-17 or after `iters` iterations; with
+`TaylorN` all `iters` iterations are done.
+
+# Properties
+- The implicit midpoint rule is symplectic for any Hamiltonian vector field and
+  of order 2.
+- Because f3 and f4 are small (non-linear) generators, two steps reproduce the
+  Lie series to well below the truncation error, while staying exactly
+  symplectic.
+- Generic: works on Float64 and on TaylorN (exact Jacobians).
+"""
 function _flow(fieldvec, z::AbstractVector; nsteps = 2, iters = 12)
     h = 1 / nsteps
     w = collect(z)
@@ -83,11 +121,38 @@ function _flow(fieldvec, z::AbstractVector; nsteps = 2, iters = 12)
     return w
 end
 
-"N3 o P4 applied to z: first the f4 flow, then the f3 flow (each symplectic)."
+"""
+    apply_nonlinear(F, z) -> Vector
+
+Apply the non-linear part of a factor, N3 ∘ P4: first the f4 flow (skipped if
+f4 = 0), then the f3 flow, each by [`_flow`](@ref Bell.Tracking._flow).
+"""
 apply_nonlinear(F::LieFactor, z::AbstractVector) =
     _flow(F.field, iszero(F.f4) ? collect(z) : _flow(F.field4, z))
+"""
+    apply_factor(F::LieFactor, z) -> Vector
+
+Track one point (numbers or `TaylorN`) through a factor: w = N3(P4(z)), then R·w.
+Each step is symplectic, so the composition is symplectic to round-off. It is not
+the truncated polynomial `factor_to_map(F)`.
+"""
 apply_factor(F::LieFactor, z) = (w = apply_nonlinear(F, z); [sum(F.R[i, j] * w[j] for j in 1:6) for i in 1:6])
 
+"""
+    rf_kick(z, cav::RFCavity, ref, C) -> Vector
+
+Thin RF cavity acting on a canonical point.
+
+# Algorithm
+1. Arrival-time offset dt = −l/v(δ), RF phase φ = −h ω0 dt with ω0 = 2π v0/C.
+2. Energy kick E → E + Z V sin(φs + φ) [MeV].
+3. New δ from the new energy: δ' = √(E'² − m²)/p0 − 1.
+4. Keep the arrival time: l' = −v(δ') dt.
+
+An energy kick at fixed arrival time is canonical in (t, −E), and the change of
+variables to (l, δ) is canonical too, so the kick is symplectic. x, px, y, py are
+unchanged (no transverse RF field). Works on numbers and `TaylorN`.
+"""
 function rf_kick(z, cav::RFCavity, ref::RefParticle, C::Real)
     x, px, y, py, l, d = z
     v0 = ref.beta * C_LIGHT
@@ -101,7 +166,13 @@ function rf_kick(z, cav::RFCavity, ref::RefParticle, C::Real)
     return [x, px, y, py, l2, d2]
 end
 
-"Track z (canonical) through the factor list for `turns` turns; optional RF."
+"""
+    track(factors, z; turns = 1, ref = nothing, C = 0.0) -> Vector
+
+Track a canonical point `z` for `turns` turns through the list from
+[`build_factors`](@ref). Entries that are `LieFactor`s use [`apply_factor`](@ref);
+`RFCavity` entries use [`rf_kick`](@ref) and then need `ref` and `C`.
+"""
 function track(factors, z; turns::Int = 1, ref = nothing, C = 0.0)
     w = collect(z)
     for _ in 1:turns, F in factors

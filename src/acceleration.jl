@@ -34,6 +34,32 @@ using ..Coordinates, ..Elements, ..Structure, ..ExactIntegrator
 
 export accelerate, measure_tune, turn_snapshots
 
+"""
+    accelerate(lat, ref0, users; Ekin_target = 270.0, max_turns = 10_000,
+               flat_turns = 1000, phi_flat = π, ds = 0.2) -> (rec, flat_start)
+
+Turn-by-turn acceleration with a finite [`Cavity`](@ref) in `lat`.
+
+# Arguments
+- `lat` – lattice containing a `Cavity` (see [`insert_cavity`](@ref)).
+- `ref0` – injection reference particle.
+- `users` – initial particles in user coordinates (x, x', y, y', φ, δ).
+  Particle 1 must be the synchronous particle and should start at 0.
+- `Ekin_target` [MeV] – when the reference reaches it, the cavity phase is set to
+  `phi_flat` (default π: stationary bucket) for `flat_turns` more turns.
+- `ds` – integrator step [m].
+
+# Algorithm
+Every element is tracked by `exact_track_element`. Directly after the cavity,
+[`renormalize`](@ref) makes particle 1 the new reference, which is how the energy
+ramps. Assumptions: magnets ramp with p0, the RF frequency follows h f0(p0), and
+there is no transverse RF field.
+
+# Returns
+- `rec` – NamedTuple of per-turn vectors `turn, Ekin, gamma, beta, p0` and
+  `u[k]` = user coordinates of particle k per turn.
+- `flat_start` – turn at which the flat top started (0 if never).
+"""
 function accelerate(lat::Lattice, ref0::RefParticle, users::Vector{<:AbstractVector};
                     Ekin_target = 270.0, max_turns = 10_000, flat_turns = 1000, phi_flat = pi, ds = 0.2)
     C = circumference(lat)
@@ -70,9 +96,11 @@ function accelerate(lat::Lattice, ref0::RefParticle, users::Vector{<:AbstractVec
 end
 
 """
-Tune of turn-by-turn data x_n of linear motion about a fixed point e:
-x_{n+1} + x_{n-1} = 2 cos(2 pi Q) x_n + b,  b = (2 - 2cos) e  (least squares in
-(cos, b), so an imperfectly known fixed point does not bias Q). Q in [0, 0.5].
+    measure_tune(x) -> Q ∈ [0, 0.5]
+
+Tune of turn-by-turn data of linear motion about an unknown fixed point.
+Fits x_{n+1} + x_{n−1} = 2cos(2πQ) x_n + b by least squares in (cos 2πQ, b),
+so an offset of the fixed point does not bias Q.
 """
 function measure_tune(x::AbstractVector)
     n = length(x)
@@ -82,9 +110,12 @@ function measure_tune(x::AbstractVector)
     return acos(clamp(c, -1, 1)) / 2pi
 end
 """
-turn_snapshots(lat, ref, zs) -> (snaps, names, s, zs_end, ref_end)
-One turn, element by element: user coordinates of all particles after
-every element (renormalisation right after the cavity, as in accelerate).
+    turn_snapshots(lat, ref, zs; ds = 0.2) -> (snaps, names, s, zs_end, ref_end)
+
+One turn element by element. `snaps[k]` holds the user coordinates of all particles
+after element k−1 (`snaps[1]` = start), with the same renormalisation after the
+cavity as in [`accelerate`](@ref). `names` and `s` give element names and exit
+positions [m].
 """
 function turn_snapshots(lat::Lattice, ref::RefParticle, zs; ds = 0.2)
     C = circumference(lat); h = lat.harmonic
