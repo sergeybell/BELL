@@ -1,25 +1,23 @@
-__pycache__/
-*.py[cod]
-*.pyd
-.Python
-build/
-dist/
-*.egg-info/
-.eggs/
-.pytest_cache/
-.mypy_cache/
-.ruff_cache/
-.venv/
-venv/
-ENV/
-.env
-.env.*
+# Julia: environments are resolved locally
+Manifest.toml
+
+# Generated example outputs (each example writes to its own output/)
+examples/*/output/
+*.gif
+
+# Documenter HTML build
+docs/build/
+
+# LaTeX build junk (PDF and TEX are kept)
+*.aux
+*.log
+*.out
+*.toc
+*.synctex.gz
+
+# Jupyter
+.ipynb_checkpoints/
 
 # IDE
 .vscode/
 .idea/
-
-# LieRing HTML manuals (open in a browser, like BLonD)
-!Julia/ring/docs/build/
-!Julia/ring/docs/build/**
-
