@@ -160,3 +160,19 @@ end
         println("  chromaticity_series ring8: Q = ", (c7.x[1], c7.y[1]), " xi_x = ", c7.xi_x[1:3], " xi_y = ", c7.xi_y[1:3])
     end
 end
+
+@testset "convert_optim close_ring" begin
+    opt = tempname() * ".opt"
+    write(opt, "OptiM\nEnergy[MeV]=270   Mass[MeV]=1875.612945\nbegin lattice. Number of periods=1\n" *
+               join(fill("O1 BM", 16), " ") * "\nend lattice\nbegin list\nO1 L[cm]=10\n" *
+               "BM L[cm]=532.94148 B[kG]=2.56106599 G[kG/cm]=0\nend list\n")
+    for (cr, tol) in ((true, 1e-15), (false, Inf))
+        bell = tempname() * ".bell"
+        m = convert_optim(opt, bell; close_ring = cr)
+        lat = load_structure(bell)
+        tot = sum(e -> e isa SBend ? e.angle : 0.0, lat.elements)
+        cr ? (@test abs(tot - 2pi) < 1e-13 && abs(lat.elements[2].angle - pi / 8) < 1e-15) :
+             (@test 1e-9 < abs(tot - 2pi) < 1e-6)
+        @test any(w -> occursin("close_ring", w), m.warnings) == cr
+    end
+end

@@ -78,7 +78,7 @@ end
 
 strip_comment(l) = (i = findfirst('#', l); i === nothing ? l : l[1:prevind(l, i)])
 
-function _parse_optim_raw(path::AbstractString; particle::Particle = DEUTERON)
+function _parse_optim_raw(path::AbstractString; particle::Particle = DEUTERON, close_ring::Bool = true)
     lines = readlines(path)
     warnings = String[]
     vars = Dict{String,Float64}()
@@ -169,6 +169,16 @@ function _parse_optim_raw(path::AbstractString; particle::Particle = DEUTERON)
         push!(warnings, "total bend angle $(rad2deg(ang)) deg (x$nper periods) is not 360 deg; using sequence once")
         nrep = 1
     end
+    # close the ring exactly: OptiM gives B with ~9 digits, so sum(L*B/Brho) misses 2 pi by ~1e-8
+    tot = ang * nrep
+    if close_ring && tot != 2pi && abs(tot - 2pi) < 1e-6 * 2pi
+        f = 2pi / tot
+        for (nm, e) in collect(cache)
+            e isa SBend && (cache[nm] = SBend(e.name, e.L, e.angle * f, e.k1, e.e1, e.e2, e.gap, e.fint))
+        end
+        once = [cache[nm] for nm in seq]
+        push!(warnings, "close_ring: bend angles scaled by 1 + $(f - 1) so that the total is exactly 2 pi")
+    end
     elems = AbstractElement[]
     for _ in 1:nrep
         append!(elems, once)
@@ -181,16 +191,21 @@ function _parse_optim_raw(path::AbstractString; particle::Particle = DEUTERON)
 end
 
 """
-    convert_optim(opt_path, structure_path; particle = DEUTERON) -> OptiMFile
+    convert_optim(opt_path, structure_path; particle = DEUTERON, close_ring = true) -> OptiMFile
 
 Read an OptiM lattice file, write an equivalent Bell structure file to
 `structure_path`, and return conversion metadata ([`OptiMFile`](@ref)).
 The `Lattice` is obtained afterwards with `load_structure(structure_path)`;
 Bell itself never reads OptiM files at run time.
+
+`close_ring = true`: if the total bend angle of the ring differs from 2 pi by less than 1e-6
+relative (OptiM stores the bend field with ~9 digits, so sum(L B / B rho) misses 2 pi by ~1e-8), all
+bend angles are scaled by one common factor so that the total is exactly 2 pi (e.g. 16 bends of
+exactly pi/8); a warning records the factor. `close_ring = false` keeps L B / B rho.
 """
 function convert_optim(opt_path::AbstractString, structure_path::AbstractString;
-                       particle::Particle = DEUTERON)
-    meta = _parse_optim_raw(opt_path; particle)
+                       particle::Particle = DEUTERON, close_ring::Bool = true)
+    meta = _parse_optim_raw(opt_path; particle, close_ring)
     extra = "# converted from $(meta.path)\n# OptiM header Mass = $(meta.mass_MeV) MeV (not used; CODATA particle mass)"
     write_structure(structure_path, meta.lattice; extra_header = extra)
     return OptiMFile(meta.path, String(structure_path), meta.variables, meta.energy_MeV, meta.mass_MeV,
