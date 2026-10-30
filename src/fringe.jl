@@ -24,7 +24,7 @@
 #
 #   Edge models
 #     NoEdge()                      identity
-#     HardEdge(order = 1)           linear edge kick, MAD-X DIPEDGE form:
+#     HardEdge(order = 1)           linear thin edge kick (standard dipole-edge form):
 #                                   dpx = h tan(e) x, dpy = -h tan(psi) y,
 #                                   psi = e - h g FINT (1 + sin^2 e)/cos e
 #     HardEdge(order = 2 | 3)       nonlinear hard edge: the vertical kick uses
