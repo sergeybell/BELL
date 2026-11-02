@@ -1,21 +1,22 @@
 # =============================================================================
-# NormalForm.jl - 6D Lie normal form of the one-turn map (with RF)
+# research/normal_form.jl - 6D Lie normal form (research layer)
 # =============================================================================
-#
 #
 # Author: Kolokolchikov Sergey Dmitrievich <sergey.bell13@gmail.com>
 #
-# One-turn Lie factor (magnetic product plus thin RF) and its Dragt-Finn
-# normal form.  The homological equation is solved on the generators.
+# Homological equation on the generators of a one-turn Lie factor with thin RF.
 # delta_eq is the average of laboratory delta over the torus of actions.
+# This module is not re-exported by `using Bell`. Load it with
+# `using Bell.NormalForm`. Results are not a check of the core until the
+# meaning of delta_eq is reviewed.
 #
 # =============================================================================
 module NormalForm
 
 using LinearAlgebra
 using TaylorSeries
-using ..LieAlgebra, ..Coordinates, ..Elements, ..Structure, ..DifferentialAlgebra, ..Tracking,
-      ..HigherOrder, ..Longitudinal, ..Linear
+using ..LieAlgebra, ..Coordinates, ..Elements, ..Structure, ..Tracking,
+      ..MapReadings, ..Smooth, ..Linear
 
 export linear_normalizing_matrix, rotation_residual, nonlinear_normal_form,
        evaluate_map, rf_kick_taylor, one_turn_map_rf, fixed_point_6d, center_map_at,
@@ -68,18 +69,18 @@ evaluate_map(M, z) = [Float64(evaluate(M[i], z)) for i in 1:6]
 # ----- RF one-turn Taylor map ------------------------------------------------
 
 """
-    rf_kick_taylor(cav::RFCavity, ref, C) -> Vector{TaylorN}
+    rf_kick_taylor(cav::RFCavity, ref, path_length) -> Vector{TaylorN}
 
 The thin RF kick of [`rf_kick`](@ref) as a polynomial map in canonical
 variables (same formulas evaluated on `Z`), truncated to MAP_ORDER.
 """
-function rf_kick_taylor(cav::RFCavity, ref::RefParticle, C::Real)
+function rf_kick_taylor(cav::RFCavity, ref::RefParticle, path_length::Real)
     x, px, y, py, l, d = Z
-    v0 = ref.beta * C_LIGHT
+    v0 = ref.beta * c_light
     vr = velocity_ratio(d, ref)          # TaylorN
     v = vr * v0
     dt = -l / v
-    phi = -cav.harmonic * 2pi * v0 / C * dt
+    phi = -cav.harmonic * 2pi * v0 / path_length * dt
     E = sqrt((ref.p0_MeV * (1 + d))^2 + ref.mass_MeV^2)
     E2 = E + ref.particle.charge * cav.voltage_MV * sin(cav.phi_s + phi)
     d2 = sqrt(E2^2 - ref.mass_MeV^2) / ref.p0_MeV - 1
@@ -90,14 +91,14 @@ function rf_kick_taylor(cav::RFCavity, ref::RefParticle, C::Real)
 end
 
 """
-    one_turn_map_rf(lat_mag, cav, ref, C; ds = 0.01) -> Vector{TaylorN}
+    one_turn_map_rf(lattice, cav, ref, path_length; ds = 0.01) -> Vector{TaylorN}
 
 Polynomial one-turn map with RF: the magnetic ring map (`ring_taylor_map`)
 followed by [`rf_kick_taylor`](@ref) (`compose_maps(Mrf, Mm)`).
 """
-function one_turn_map_rf(lat_mag::Lattice, cav::RFCavity, ref::RefParticle, C::Real; ds = 0.01)
-    Mm = ring_taylor_map(Lattice(lat_mag.name, lat_mag.elements, ref, lat_mag.harmonic); ds = ds)
-    Mrf = rf_kick_taylor(cav, ref, C)
+function one_turn_map_rf(lattice::Lattice, cav::RFCavity, ref::RefParticle, path_length::Real; ds = 0.01)
+    Mm = ring_taylor_map(Lattice(lattice.name, lattice.elements, ref, lattice.harmonic); ds = ds)
+    Mrf = rf_kick_taylor(cav, ref, path_length)
     return compose_maps(Mrf, Mm)   # magnetic first, then RF
 end
 
@@ -135,13 +136,13 @@ end
 # ----- linear 6D normalisation (3 planes) ------------------------------------
 
 """
-    linear_A_6d(po, pe, Qs, h, C, ref) -> (A, β_s)
+    linear_A_6d(po, pe, Qs, h, path_length, ref) -> (A, β_s)
 
 Approximate 6D linear normalisation: a dispersion shear (x, px, y, py) += D4 δ,
 Courant-Snyder blocks in x and y, and a synchrotron "Twiss" for (l, δ) with
-β_s = Q_s/(h|η0|), mapping l to φ = 2π h l/C. Used by [`normal_form_rf`](@ref).
+β_s = Q_s/(h|η0|), mapping l to φ = 2π h l/path_length. Used by [`normal_form_rf`](@ref).
 """
-function linear_A_6d(po, pe, Qs, h, C, ref)
+function linear_A_6d(po, pe, Qs, h, path_length, ref)
     A = Matrix{Float64}(I, 6, 6)
     # dispersion shear: (x,px,y,py) <- (x,px,y,py) - D4 * delta
     D = po.D4
@@ -156,7 +157,7 @@ function linear_A_6d(po, pe, Qs, h, C, ref)
         # also transform the dispersion column
         A[k:k+1, 6] = Acs * A[k:k+1, 6]
     end
-    # synchrotron: phi = 2pi h l / C at delta=0; oscillator in (phi, delta)
+    # synchrotron: phi = 2pi h l / path_length at delta=0; oscillator in (phi, delta)
     # H2 ~ 2pi Qs * (1/2)(delta^2 / beta_d + beta_d * phi^2) with
     # beta_d chosen so that d phi / d n = -2pi h eta0 delta  =>
     # at small amp: Qs^2 = h |eta0| * A_rf / (2pi) ... already in Qs.
@@ -165,13 +166,13 @@ function linear_A_6d(po, pe, Qs, h, C, ref)
     #   phi = sqrt(2 Js / beta_s) cos theta,  delta = -sqrt(2 Js * beta_s) sin theta
     # with beta_s = 2pi Qs / (2pi h |eta0|) = Qs / (h |eta0|)
     beta_s = Qs / (h * abs(pe.eta0))          # = |delta|/|phi| amplitude ratio
-    # Map (l, delta) -> (phi, delta): phi = (2pi h / C) l
+    # Map (l, delta) -> (phi, delta): phi = (2pi h / path_length) l
     # Then CS-like: phi = sqrt(beta_s) u_phi, delta = (1/sqrt(beta_s)) u_delta
     # so A_l_delta such that [l;delta] = A_ld * [u5; u6]
-    # l = (C/(2pi h)) phi = (C/(2pi h)) sqrt(beta_s) u5
+    # l = (path_length/(2pi h)) phi = (path_length/(2pi h)) sqrt(beta_s) u5
     # delta = u6 / sqrt(beta_s)
     sbs = sqrt(beta_s)
-    A[5, 5] = (C / (2pi * h)) * sbs
+    A[5, 5] = (path_length / (2pi * h)) * sbs
     A[5, 6] = 0.0
     A[6, 5] = 0.0
     A[6, 6] = 1 / sbs
@@ -200,7 +201,7 @@ end
 # ----- delta_eq by angle averaging of the normalising map --------------------
 
 """
-    delta_eq_phase_condition(M, A, z*, ref, C, h, β_s; Jx = 0, Jy = 0,
+    delta_eq_phase_condition(M, A, z*, ref, path_length, h, β_s; Jx = 0, Jy = 0,
                              delta_m = 1e-3, ntheta = 12, niter = 10) -> δ_eq
 
 Equilibrium momentum offset from the condition ⟨Δφ⟩ = 0 per turn, averaged over
@@ -208,7 +209,7 @@ a torus (12³ angle grid) with betatron actions Jx, Jy and synchrotron amplitude
 `delta_m`. The offset δ_eq of the torus centre is found by a secant/Newton
 iteration on the mean phase slip.
 """
-function delta_eq_phase_condition(M, A, zstar, ref, C, h, beta_s;
+function delta_eq_phase_condition(M, A, zstar, ref, path_length, h, beta_s;
                                   Jx = 0.0, Jy = 0.0, delta_m = 1e-3,
                                   ntheta = 12, niter = 10)
     sJx, sJy = sqrt(2 * max(Jx, 0.0)), sqrt(2 * max(Jy, 0.0))
@@ -224,8 +225,8 @@ function delta_eq_phase_condition(M, A, zstar, ref, C, h, beta_s;
                  sJs * cos(ts), -sJs * sin(ts) + deq * sb]
             z = A * u .+ zstar
             z2 = [Float64(evaluate(M[i], z)) for i in 1:6]
-            u1 = canonical_to_user(z, ref, C, h)
-            u2 = canonical_to_user(z2, ref, C, h)
+            u1 = canonical_to_laboratory(z, ref, path_length, h)
+            u2 = canonical_to_laboratory(z2, ref, path_length, h)
             acc += u2[5] - u1[5]
             n += 1
         end
@@ -260,7 +261,7 @@ Result of [`normal_form_rf`](@ref) (approximate, map-based route).
 - `f3`, `f4` – generators of the normalised map; `F3` – removing generator;
   `h3`, `h4` – kept (resonant) parts.
 - `pe` – [`path_expansion`](@ref) of the RF-off map; `xi` – [`chromaticity_orders`](@ref);
-  `Qs0` – smooth synchrotron tune; `C` [m]; `h_rf`.
+  `Qs0` – smooth synchrotron tune; `path_length` [m]; `h_rf`.
 - `c0, c_x, c_y, c_s` – fitted δ_eq = c0 + c_x Jx + c_y Jy + c_s Js.
 - `c_s_note, c_x_note, c_y_note` – analytic counterparts
   (−η1/(η0 β_s), (2π/C) ξ_x/η0, (2π/C) ξ_y/η0).
@@ -278,7 +279,7 @@ struct NormalFormRF
     pe::NamedTuple
     xi::NamedTuple
     Qs0::Float64
-    C::Float64
+    path_length::Float64
     h_rf::Int
     # fitted delta_eq = c0 + c_x Jx + c_y Jy + c_s Js  (c0 ≈ zstar[6])
     c0::Float64
@@ -287,12 +288,12 @@ struct NormalFormRF
     c_s::Float64
     # note-formula counterparts
     c_s_note::Float64       # -eta1/(2 eta0) * (Js scaling): see delta_eq_nf
-    c_x_note::Float64       # + (2pi/C) xi_x / eta0   from Lambda
+    c_x_note::Float64       # + (2pi/path_length) xi_x / eta0   from Lambda
     c_y_note::Float64
 end
 
 """
-    normal_form_rf(lat_mag, ref, C, h, V_MV, phi_s; T = 1.0, ds = 0.01) -> NormalFormRF
+    normal_form_rf(lattice, ref, path_length, h, V_MV, phi_s; T = 1.0, ds = 0.01) -> NormalFormRF
 
 6D normal-form analysis of the one-turn map with a thin RF kick of voltage V·T.
 
@@ -306,19 +307,19 @@ end
 
 For the full Dragt-Finn normal form use [`dragt_finn_nf6d`](@ref).
 """
-function normal_form_rf(lat_mag::Lattice, ref::RefParticle, C::Real, h::Int,
+function normal_form_rf(lattice::Lattice, ref::RefParticle, path_length::Real, h::Int,
                         V_MV::Real, phi_s::Real; T = 1.0, ds = 0.01)
     cav = RFCavity("NF", V_MV * T, h, phi_s)
-    M = one_turn_map_rf(lat_mag, cav, ref, C; ds = ds)
+    M = one_turn_map_rf(lattice, cav, ref, path_length; ds = ds)
     zstar = fixed_point_6d(M)
     Mc = center_map_at(M, zstar)
     # optics / slip from magnetic map (RF off)
-    Mm = ring_taylor_map(Lattice(lat_mag.name, lat_mag.elements, ref, h); ds = ds)
-    pe = path_expansion(Mm, ref, C)
+    Mm = ring_taylor_map(Lattice(lattice.name, lattice.elements, ref, h); ds = ds)
+    pe = path_expansion(Mm, ref, path_length)
     xi = chromaticity_orders(Mm)
-    po = periodic_optics(ring_matrix(Lattice(lat_mag.name, lat_mag.elements, ref, h)), ref, C)
+    po = periodic_optics(ring_matrix(Lattice(lattice.name, lattice.elements, ref, h)), ref, path_length)
     Qs0 = synchrotron_tune(ref, pe.eta0, V_MV, h, phi_s; T = T)
-    A, beta_s = linear_A_6d(po, pe, Qs0, h, C, ref)
+    A, beta_s = linear_A_6d(po, pe, Qs0, h, path_length, ref)
     # Transform centered map to normalised coords: M_n = A^{-1} o Mc o A
     Ai = inv(A)
     ZA = [sum(A[i, j] * Z[j] for j in 1:6) for i in 1:6]
@@ -340,7 +341,7 @@ function normal_form_rf(lat_mag::Lattice, ref::RefParticle, C::Real, h::Int,
                          (0.0, 1e-6, 5e-4),
                          (2e-6, 0.0, 5e-4),
                          (0.0, 2e-6, 5e-4))
-        deq = delta_eq_phase_condition(M, A, zstar, ref, C, h, beta_s;
+        deq = delta_eq_phase_condition(M, A, zstar, ref, path_length, h, beta_s;
                                        Jx = Jx, Jy = Jy, delta_m = dm)
         Js = beta_s * dm^2 / 2
         push!(samples, (Jx, Jy, Js, deq))
@@ -355,13 +356,13 @@ function normal_form_rf(lat_mag::Lattice, ref::RefParticle, C::Real, h::Int,
     # Note counterparts:
     # delta_eq = -eta1/eta0 * (dm^2/2) - Lambda/eta0
     # dm^2/2 = ⟨delta^2⟩ = Js / beta_s  => coeff of Js: -eta1/eta0 / beta_s
-    # Lambda = -2pi/C (Jx xi_x + Jy xi_y) => delta_eq += -Lambda/eta0
-    #        = (2pi/C)/eta0 * (Jx xi_x + ...) => cx_note = (2pi/C)*xi_x/eta0
+    # Lambda = -2pi/path_length (Jx xi_x + Jy xi_y) => delta_eq += -Lambda/eta0
+    #        = (2pi/path_length)/eta0 * (Jx xi_x + ...) => cx_note = (2pi/path_length)*xi_x/eta0
     cs_note = -pe.eta1 / pe.eta0 / beta_s
-    cx_note = (2pi / C) * xi.x[2] / pe.eta0
-    cy_note = (2pi / C) * xi.y[2] / pe.eta0
+    cx_note = (2pi / path_length) * xi.x[2] / pe.eta0
+    cy_note = (2pi / path_length) * xi.y[2] / pe.eta0
     return NormalFormRF(zstar, beta_s, A, F.R, F.f3, F.f4, F3, h3, h4,
-                        pe, xi, Qs0, C, h, c0, cx, cy, cs,
+                        pe, xi, Qs0, path_length, h, c0, cx, cy, cs,
                         cs_note, cx_note, cy_note)
 end
 
@@ -513,17 +514,17 @@ _lie_map_of(F) = [truncate_to(lie_exp(F, Z[i]), MAP_ORDER) for i in 1:6]
 _conj(Mx, F) = compose_maps(_lie_map_of(-F), compose_maps(Mx, _lie_map_of(F)))
 
 """
-    one_turn_factor_rf(lat_mag, cav::RFCavity, ref, C) -> LieFactor
+    one_turn_factor_rf(lattice, cav::RFCavity, ref, path_length) -> LieFactor
 
 One-turn Lie factor with RF: [`ring_lie_factor`](@ref) of the magnetic ring,
 concatenated with the Dragt-Finn factor of [`rf_kick_taylor`](@ref)
 (read from the polynomial of the kick itself).
 """
-function one_turn_factor_rf(lat_mag::Lattice, cav::RFCavity, ref::RefParticle, C::Real)
-    Fmag = ring_lie_factor(lat_mag)
-    Mrf = rf_kick_taylor(cav, ref, C)
+function one_turn_factor_rf(lattice::Lattice, cav::RFCavity, ref::RefParticle, path_length::Real)
+    Fmag = ring_lie_factor(lattice)
+    Mrf = rf_kick_taylor(cav, ref, path_length)
     Frf = dragt_finn_factor(Mrf; name = cav.name)
-    return concatenate(Fmag, Frf; name = lat_mag.name * "+RF")
+    return concatenate(Fmag, Frf; name = lattice.name * "+RF")
 end
 
 """

@@ -22,8 +22,8 @@ Modules = [Bell.ExactIntegrator]
 Modules = [Bell.Acceleration]
 ```
 
-## `Longitudinal`
+## `Smooth`
 
 ```@autodocs
-Modules = [Bell.Longitudinal]
+Modules = [Bell.Smooth]
 ```

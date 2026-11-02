@@ -1,51 +1,21 @@
 # =============================================================================
-# Hamiltonians.jl - the s-Hamiltonian of every element, expanded to degree 4
+# hamiltonians.jl - s-Hamiltonian of every element
 # =============================================================================
-#
 #
 # Author: Kolokolchikov Sergey Dmitrievich <sergey.bell13@gmail.com>
 #
-# WHAT
-#   hamiltonian(element, ref) returns H(z) as a TaylorN polynomial in the
-#   canonical variables z = (x, px, y, py, l, delta), expanded to total degree
-#   JET_ORDER = 4 (constant dropped).  It is computed by TaylorSeries arithmetic directly
-#   from the EXACT expressions below, so no hand expansion can go wrong.
-#
-#   With ps = sqrt((1+delta)^2 - px^2 - py^2) and the energy term
-#   e(delta) = sqrt((1+delta)^2 + 1/(beta0 gamma0)^2)/beta0 - 1/beta0^2 :
-#
-#     Drift       H = e(delta) - ps
-#     Quadrupole  H = e(delta) - ps + k1/2 (x^2 - y^2)
-#     Sextupole   H = e(delta) - ps + k2/6 (x^3 - 3 x y^2)
-#     SBend       H = e(delta) - (1 + h x) ps + h x + h^2 x^2/2 + k1/2 (x^2 - y^2)
-#
-#   Origin of the bend terms: in the curved frame (radius 1/h) the
-#   Hamiltonian is  e(delta) - (1+hx) ps - (1+hx) a_s, with a_s = q A_s/p0.
-#   For the uniform design field B0 = (B rho) h we need
-#   b_y = (1/(1+hx)) d/dx[ -(1+hx) a_s ] = h, i.e. -(1+hx) a_s = h x + h^2 x^2/2.
-#   Check: dH/dx at z = 0 equals -h + h = 0, so the reference arc is a
-#   solution.  The k1 term in a bend uses the straight-magnet potential
-#   (curvature corrections to a gradient in a bend are O(h k1 x^3) and are
-#   not needed here because all OptiM bends have G = 0).
-#
-#   Hamilton's equations:  dz/ds = [z, H] = S grad H   with
-#   [f, g] = sum_k (df/dq_k dg/dp_k - df/dp_k dg/dq_k),  q = (x, y, l),
-#   p = (px, py, delta).
-#
-# WHY
-#   Everything else (linear matrices = exp(L S Hess H), Lie generators,
-#   Taylor maps) is derived from these H; this file is the single place where
-#   element physics is defined.
-#
-# WHAT YOU SEE
-#   Nothing printed; scripts/02 prints H of every element.
+# Two formulations of the same equations live here:
+#   hamiltonian(e, ref)          polynomial (TaylorN), truncated at JET_ORDER
+#   magnetic_field / cavity_field  exact (unexpanded) vector field dz/ds = S ∇H
+# The tracker does not rewrite these expressions.
 # =============================================================================
 module Hamiltonians
 
 using TaylorSeries
 using ..Coordinates, ..Elements, ..LieAlgebra
 
-export hamiltonian, hamiltonian_formula
+export hamiltonian, hamiltonian_formula, hamiltonian_field, magnetic_field, cavity_field,
+       magnetic_parameters, velocity_derivative
 
 function _clean(H::TaylorN, e)
     H = H - constant_term(H)
@@ -66,28 +36,18 @@ end
 s-Hamiltonian of element `e` in canonical variables ``z = (x, p_x, y, p_y, l, \delta)``, as a
 polynomial of degree [`JET_ORDER`](@ref) = 4 (constant term dropped).
 
-With ``p_s = \sqrt{(1+\delta)^2 - p_x^2 - p_y^2}`` and ``e(\delta)`` = [`energy_term`](@ref):
+With ``p_s = \sqrt{(1+\delta)^2 - p_x^2 - p_y^2}`` and [`energy_term`](@ref):
 
 | element | ``H`` |
 |:--|:--|
-| `Drift`, `Cavity` (RF off) | ``e(\delta) - p_s`` |
-| `Quadrupole` | ``e(\delta) - p_s + \tfrac{k_1}{2}(x^2 - y^2)`` |
-| `Sextupole` | ``e(\delta) - p_s + \tfrac{k_2}{6}(x^3 - 3xy^2)`` |
-| `SBend` | ``e(\delta) - (1+hx)p_s + hx + \tfrac{h^2x^2}{2} + \tfrac{k_1}{2}(x^2 - y^2)`` |
+| `Drift`, `LongCavity` (RF off) | ``\mathrm{energy\_term}(\delta) - p_s`` |
+| `Quadrupole` | ``\mathrm{energy\_term}(\delta) - p_s + \tfrac{k_1}{2}(x^2 - y^2)`` |
+| `Sextupole` | ``\mathrm{energy\_term}(\delta) - p_s + \tfrac{k_2}{6}(x^3 - 3xy^2)`` |
+| `SBend` | ``\mathrm{energy\_term}(\delta) - (1+hx)p_s + hx + \tfrac{h^2x^2}{2} + \tfrac{k_1}{2}(x^2 - y^2)`` |
 | `Marker` | ``0`` (thin `RFCavity`: error, it is a kick) |
 
-# Algorithm
-The exact expressions are evaluated in `TaylorN` arithmetic, so the expansion
-(square roots included) is done by the polynomial engine, not by hand. Then the
-constant is removed, and the result is checked to have no linear terms (a warning
-is issued otherwise: the reference orbit would not be a solution).
-
-The bend terms come from the curved-frame vector potential
-``-(1+hx)a_s = hx + h^2x^2/2`` (uniform field ``h\,B\rho``); ``\partial H/\partial x = 0`` at ``z = 0``.
-This is the only place in Bell where element physics is defined: linear
-matrices, Lie maps, DA maps and the exact integrator all derive from these ``H``.
-The explicit expansions and maps are listed in the Programmer Manual, page
-"Elements: explicit maps".
+The exact expressions are evaluated in `TaylorN` arithmetic. The constant is
+removed, and linear terms warn that the reference orbit is not a solution.
 """
 hamiltonian(e::Drift, ref::RefParticle) = (p = _parts(ref); _clean(p[5] - p[4], e))
 
@@ -108,21 +68,74 @@ function hamiltonian(e::SBend, ref::RefParticle)
 end
 
 hamiltonian(e::Marker, ref::RefParticle) = zero(Z[1])
-# The RF part of a finite cavity is s- and time-dependent -> ExactIntegrator.jl.
-# For maps / linear optics the cavity is taken with RF OFF, i.e. as a drift.
-hamiltonian(e::Cavity, ref::RefParticle) = hamiltonian(Drift(e.name, e.L), ref)
+hamiltonian(e::LongCavity, ref::RefParticle) = hamiltonian(Drift(e.name, e.L), ref)
 hamiltonian(e::RFCavity, ref::RefParticle) =
-    error("RFCavity is a thin kick (see Tracking.rf_kick); it has no s-Hamiltonian in phase 1")
+    error("RFCavity is a thin kick (see rf_kick); it has no s-Hamiltonian")
 
 """
     hamiltonian_formula(e) -> String
 
 The formula of [`hamiltonian`](@ref) for the type of `e` as plain text (for printing).
 """
-hamiltonian_formula(::Drift) = "H = e(delta) - ps"
-hamiltonian_formula(::Quadrupole) = "H = e(delta) - ps + k1/2 (x^2 - y^2)"
-hamiltonian_formula(::Sextupole) = "H = e(delta) - ps + k2/6 (x^3 - 3 x y^2)"
-hamiltonian_formula(::SBend) = "H = e(delta) - (1+hx) ps + h x + h^2 x^2/2 + k1/2 (x^2-y^2)"
+hamiltonian_formula(::Drift) = "H = energy_term(delta) - ps"
+hamiltonian_formula(::Quadrupole) = "H = energy_term(delta) - ps + k1/2 (x^2 - y^2)"
+hamiltonian_formula(::Sextupole) = "H = energy_term(delta) - ps + k2/6 (x^3 - 3 x y^2)"
+hamiltonian_formula(::SBend) = "H = energy_term(delta) - (1+hx) ps + h x + h^2 x^2/2 + k1/2 (x^2-y^2)"
 hamiltonian_formula(::AbstractElement) = "H = 0"
+
+"""
+    hamiltonian_field(H) -> Vector
+
+Polynomial vector field ``dz/ds = S\\nabla H`` of a TaylorN Hamiltonian.
+"""
+function hamiltonian_field(H)
+    g = [differentiate(H, j) for j in 1:6]
+    return [sum(SYMPLECTIC_S[i, j] * g[j] for j in 1:6) for i in 1:6]
+end
+
+"Curvature and normalised strengths (h, k1, k2) of a magnetic element."
+magnetic_parameters(e::Drift) = (0.0, 0.0, 0.0)
+magnetic_parameters(e::Quadrupole) = (0.0, e.k1, 0.0)
+magnetic_parameters(e::Sextupole) = (0.0, 0.0, e.k2)
+magnetic_parameters(e::SBend) = (curvature(e), e.k1, 0.0)
+magnetic_parameters(e::AbstractElement) = (0.0, 0.0, 0.0)
+
+"d(v/v0)/dδ of the reference particle."
+velocity_derivative(d, ref::RefParticle) = (a2 = 1 / ref.betagamma^2; a2 / ((1 + d)^2 + a2)^1.5 / ref.beta)
+
+@doc raw"""
+    magnetic_field(z, ref, h, k1, k2)
+
+Exact vector field ``dz/ds = S\nabla H`` of the magnetic Hamiltonian
+``H = \mathrm{energy\_term}(\delta) - (1+hx)p_s + hx + h^2x^2/2 + k_1(x^2-y^2)/2 + k_2(x^3-3xy^2)/6``
+(no expansion in ``p_x, p_y, \delta``).
+"""
+function magnetic_field(z, ref, h, k1, k2)
+    x, px, y, py, l, d = z
+    ps = sqrt((1 + d)^2 - px^2 - py^2)
+    hx1 = 1 + h * x
+    Hx = -h * ps + h + h^2 * x + k1 * x + k2 / 2 * (x^2 - y^2)
+    Hy = -k1 * y - k2 * x * y
+    return [hx1 * px / ps, -Hx, hx1 * py / ps, -Hy, velocity_ratio(d, ref) - hx1 * (1 + d) / ps, zero(x)]
+end
+
+@doc raw"""
+    cavity_field(z, s, ref, L, ω, A, v0, φs)
+
+Exact s-dependent vector field of the long-cavity Hamiltonian
+``H = \mathrm{energy\_term}(\delta) - p_s + A\cos\Phi``,
+``\Phi = \omega(s - L/2)/v_0 - \omega l / v(\delta) - \varphi_s``.
+"""
+function cavity_field(z, s, ref, L, omega, A, v0, phis)
+    x, px, y, py, l, d = z
+    ps = sqrt((1 + d)^2 - px^2 - py^2)
+    vr = velocity_ratio(d, ref); v = vr * v0
+    Phi = omega * (s - L / 2) / v0 - omega * l / v - phis
+    sP = sin(Phi)
+    dPhi_dd = omega * l * velocity_derivative(d, ref) * v0 / v^2
+    Hl = A * sP * omega / v
+    Hd = vr - (1 + d) / ps - A * sP * dPhi_dd
+    return [px / ps, zero(x), py / ps, zero(x), Hd, -Hl]
+end
 
 end # module

@@ -78,7 +78,7 @@ end
 
 strip_comment(l) = (i = findfirst('#', l); i === nothing ? l : l[1:prevind(l, i)])
 
-function _parse_optim_raw(path::AbstractString; particle::Particle = DEUTERON, close_ring::Bool = true)
+function _parse_optim_raw(path::AbstractString; particle::Particle = deuteron, close_ring::Bool = true)
     lines = readlines(path)
     warnings = String[]
     vars = Dict{String,Float64}()
@@ -183,15 +183,15 @@ function _parse_optim_raw(path::AbstractString; particle::Particle = DEUTERON, c
     for _ in 1:nrep
         append!(elems, once)
     end
-    lat = Lattice(splitext(basename(String(path)))[1], elems, ref, 1)
+    lattice = Lattice(splitext(basename(String(path)))[1], elems, ref, 1)
     meta = (path = String(path), variables = vars, energy_MeV = energy, mass_MeV = mass,
             initial = initial, nperiods_file = nper, nrepeat_used = nrep, sequence = seq,
-            definitions = defs, warnings = warnings, lattice = lat)
+            definitions = defs, warnings = warnings, lattice = lattice)
     return meta
 end
 
 """
-    convert_optim(opt_path, structure_path; particle = DEUTERON, close_ring = true) -> OptiMFile
+    convert_optim(opt_path, structure_path; particle = deuteron, close_ring = true) -> OptiMFile
 
 Read an OptiM lattice file, write an equivalent Bell structure file to
 `structure_path`, and return conversion metadata ([`OptiMFile`](@ref)).
@@ -204,7 +204,7 @@ bend angles are scaled by one common factor so that the total is exactly 2 pi (e
 exactly pi/8); a warning records the factor. `close_ring = false` keeps L B / B rho.
 """
 function convert_optim(opt_path::AbstractString, structure_path::AbstractString;
-                       particle::Particle = DEUTERON, close_ring::Bool = true)
+                       particle::Particle = deuteron, close_ring::Bool = true)
     meta = _parse_optim_raw(opt_path; particle, close_ring)
     extra = "# converted from $(meta.path)\n# OptiM header Mass = $(meta.mass_MeV) MeV (not used; CODATA particle mass)"
     write_structure(structure_path, meta.lattice; extra_header = extra)

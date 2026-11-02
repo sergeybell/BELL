@@ -3,66 +3,117 @@
 **Author:** Kolokolchikov Sergey Dmitrievich  
 **Email:** sergey.bell13@gmail.com
 
-Bell is a Julia program for symplectic modelling of a magnetic ring. The
-object of the ring is a product of Lie transformations. Linear optics and
-higher-order numbers are readings of that product. A truncated Taylor map
-is an independent check of the same Hamiltonians; it does not define the
-ring.
+Bell is a Julia program for symplectic modelling of a magnetic ring. There is
+one scheme: a formulation of the element Hamiltonian, a truncation of that
+formulation, and an integrator of the resulting field. Linear optics and
+higher-order numbers are readings of a map. Smooth motion in `(φ, δ)` is a
+separate averaged equation, not a fourth tracker.
 
-This page describes the program: blocks, how they call each other, the two
-six-dimensional propagators, and the structure file. Physics is in the
-Beam Physics Manual.
+This page describes the program: blocks, how they call each other, and the
+structure file. Physics is in the Beam Physics Manual.
 
 ## Blocks
 
 ```mermaid
 flowchart TD
-  structureFile[StructureFile] --> elements[Elements]
-  elements --> hamiltonians[Hamiltonians]
-  hamiltonians --> lie[LieAlgebra]
-  hamiltonians --> da[DifferentialAlgebra]
-  lie --> factor[OneTurnFactor]
-  da --> taylorCheck[TaylorMap_check]
-  factor --> linear[Linear]
-  factor --> higher[HigherOrder]
-  factor --> normalForm[NormalForm]
-  factor --> lieTrack[LieTracking]
-  hamiltonians --> exact[ExactIntegrator]
-  higher --> longitudinal[LongitudinalReduced]
-  exact --> acceleration[Acceleration]
-  linear --> optimizers[Optimizers]
-  higher --> optimizers
-  optimizers --> structureFile
-  linear --> plotting[Plotting]
-  higher --> plotting
-  normalForm --> plotting
-  lieTrack --> plotting
-  exact --> plotting
-  longitudinal --> plotting
+  coords[coordinates]
+  elements[elements]
+  structure[structure_file_and_Lattice]
+  H[hamiltonians]
+  da[DiffAlgebra]
+  integrators[integrators_one_file_each]
+  lie[lie_algebra]
+  flow[lie_flow]
+  linear[linear_matrix]
+  readings[map_readings]
+  track[lie_factor_tracking]
+  exact[exact_tracking]
+  long[smooth]
+  fringe[fringe]
+  coords --> elements --> structure --> H
+  H --> lie
+  H --> flow
+  da --> flow
+  integrators --> exact
+  integrators --> track
+  integrators --> fringe
+  H --> exact
+  lie --> linear
+  lie --> readings
+  flow --> readings
+  lie --> track
+  exact --> accel[acceleration]
+  readings --> long
+  research[research_normal_form]
 ```
 
 | File | Block | Role |
 |------|--------|------|
-| `src/coordinates.jl` | Coordinates | Particle, reference, canonical `(x, px, y, py, l, δ)` and the exact map to laboratory angles |
-| `src/elements.jl` | Elements | Data types only: drift, sector bend, quadrupole, sextupole, thin RF, finite cavity, marker |
+| `src/coordinates.jl` | Coordinates | Particle, reference, canonical `(x, px, y, py, l, δ)` and laboratory `(x, x', y, y', φ, δ)` |
+| `src/elements.jl` | Elements | Data types only: drift, sector bend, quadrupole, sextupole, thin RF, long cavity, marker |
 | `src/structure.jl` | Structure | Named parameters, element cards, sequence of names, `Lattice` |
-| `src/hamiltonians.jl` | Hamiltonians | Exact `s`-Hamiltonian of each element, expanded as a polynomial |
-| `src/lie_algebra.jl` | Lie algebra | Poisson bracket, Lie series, Dragt–Finn factor, product of factors |
-| `src/differential_algebra.jl` | Differential algebra | Independent RK4 Taylor map of the same `H`. Check only |
-| `src/linear.jl` | Linear | Degree-1 reading: `R = exp(:f₂:)`, Twiss, dispersion, `α_c` |
-| `src/higher_order.jl` | Higher order | Readings of the one-turn polynomial: `D₂`, `η`, chromaticity |
-| `src/normal_form.jl` | Normal form | Homological equation on the generators; torus average of `δ` |
-| `src/tracking.jl` | Lie tracking | Flow of each truncated factor; thin RF kick |
-| `src/exact_integrator.jl` | Exact integrator | Unexpanded `H`, Yoshida midpoint, finite cavity |
-| `src/longitudinal.jl` | Longitudinal | Averaged turn-by-turn motion in `(φ, δ)` from already-read `η` |
-| `src/acceleration.jl` | Acceleration | Reference ramp through the exact integrator |
-| `src/optimizers.jl` | Optimizers | Optional change of named strengths; never part of the model |
-| `src/plotting.jl` | Plotting | Figures. No physics |
-| `src/symplectic.jl` | Symplectic | `Jᵀ S J − S` |
+| `src/hamiltonians.jl` | Hamiltonians | Polynomial `H` and exact vector fields of the same equations |
+| `src/lie_algebra.jl` | Lie algebra | Poisson bracket, Lie series, Dragt–Finn factor, product of factors (order-3 path) |
+| `src/lie_flow.jl` | Lie flow | Flow of `H` to the order of the call (`DiffAlgebra`) |
+| `src/tracking.jl` | Tracking | Flow of each truncated factor; Taylor map of the same `H` |
+| `src/exact_integrator.jl` | Exact tracking | Unexpanded `H`, chosen integrator, long cavity, `rf_kick`, `renormalize` |
+| `src/linear.jl` | Linear | `R = exp(L S Hess H)`, periodic Twiss, optics along `s` |
+| `src/map_readings.jl` | Map readings | Closed orbit, chromaticity, compaction, maxima of optics |
+| `src/smooth.jl` | Smooth | Averaged turn-by-turn motion in `(φ, δ)` through `η1` |
+| `src/acceleration.jl` | Acceleration | Reference ramp through the exact tracker |
+| `src/fringe.jl` | Fringe | Hard-edge thin lenses and soft-edge `Body(-W)∘Soft∘Drift(-W)` |
+| `src/symplectic.jl` | Symplectic | `max |Jᵀ S J − S|` of a matrix, a series map, or a tracking step |
+| `src/integrators/` | Integrators | One file per ODE method; no accelerator equations |
+| `src/da/` | DiffAlgebra | Truncated power series of any order |
+| `src/sextupole_families.jl` | Sextupole families | Optional placement and fitting of families |
+| `src/optimizers/` | Optimizers | Stubs `GridSearch`, `RandomStart` |
+| `src/plotting/` | Plotting | Figures. No physics |
+| `src/research/normal_form.jl` | Normal form | Research; not exported by `using Bell` |
 | `src/optim_converter.jl` | Converter | Writes a structure file from an OptiM `.opt` |
 
 A script loads a structure file and calls readers. An application of a
-concrete ring lives outside this package and depends on it.
+concrete ring lives outside this package and depends on it. Research names
+are loaded with `using Bell.NormalForm`.
+
+## One scheme
+
+The Hamiltonian of an element is written once. The polynomial in
+`hamiltonians.jl` and the exact fields `magnetic_field` / `cavity_field` are
+two formulations of the same equations, truncated and unexpanded. After the
+split, both live next to `H`. A tracker does not rewrite them.
+
+Truncation of a series to a chosen order is a property of that formulation.
+A higher order is the same formulation with a weaker cut, not a new tracker.
+`lie_flow.jl` already does this to the order of the call.
+
+Lie tracking in `tracking.jl` sends a point through a Dragt–Finn factor:
+the flow of `f4`, then `f3`, then the matrix `R`. The generators are the
+expansion of the truncated `H`. Their flow is the implicit midpoint, which
+is the same integrator family as the exact tracker.
+
+An integrator contains no equations. It is given a ready field: closed
+formulas or series coefficients. Exact tracking of an element and a Taylor
+map are two such calls. The step is chosen by `method`.
+
+Thin `rf_kick` and the long cavity are two formulations of the longitudinal
+kick (zero length and finite length). The ramp in `acceleration.jl` only
+decides when to change the phase and when to update the reference. It calls
+the tracker; it does not write a third equation of motion.
+
+## Smooth model
+
+`smooth.jl` does not track the ring in 6D. It is the average of one turn in
+`(φ, δ)`:
+
+```text
+dφ/dn     = −2π h (η₀ δ + η₁ δ²)
+dδ/dn     = (Z V T / (β² E)) (sin(φ_s + φ) − sin φ_s)
+```
+
+`η` is taken from a map reading. The ring product does not use this model.
+A higher order of the same smooth model would be further `η` from the same
+readings, in this file. This revision keeps the cut at `η1`. Synchrotron
+tune, separatrix and bucket height are readings of this `H`.
 
 ## Where the orders come from
 
@@ -73,53 +124,15 @@ one-turn Lie factor
 F = R ∘ exp(:f₃:) ∘ exp(:f₄:)
 ```
 
-`observables(lat)` builds that factor once. Twiss and `η₀` come from
+`observables(lattice)` builds that factor once. Twiss and `η₀` come from
 degree 1 (`F.R`). `D₂` and `η₁` come from degree 2 of the polynomial of
-`F`. Chromaticity `ξ₁` comes from degree 3. The RK4 Taylor map is not
-used for these numbers.
+`F`. Chromaticity `ξ₁` comes from degree 3. The Taylor map is a check of
+the same `H`, not the source of these numbers.
 
 An element in the structure file is a card of parameters. It is not a
 procedure that writes into a global map. `hamiltonians.jl` writes `H`.
-The Lie algebra builds a factor from `H`. Differential algebra repeats
-the flow of the same `H` as a truncated polynomial and stops there.
-
-## Two six-dimensional propagators
-
-Both live in `(x, px, y, py, l, δ)`. Neither lives in the reduced
-longitudinal model.
-
-**Lie tracking** applies an already-built Dragt–Finn factor: the flow of
-`f₄`, then `f₃`, then the matrix `R`. A thin RF cavity is a separate
-canonical kick. There are no terms above the stored polynomial degree.
-The factor does not depend on `s`, so a finite cavity whose field varies
-along `s` is not this propagator.
-
-**Exact integrator** integrates Hamilton's equations with the unexpanded
-`H` (square roots, not a polynomial) by a symplectic implicit midpoint
-composed as Yoshida's fourth-order jump. It does not cut a polynomial
-order; it cuts the step in `s`. It is the propagator for a finite cavity
-and for a ramp of the reference energy. After the cavity,
-`renormalize` makes the synchronous particle the new reference.
-
-Full six-dimensional motion is already here. Truncation exists only in
-Lie tracking and equals the factor order.
-
-The exact integrator reads `H`, not the factor. Reading the factor would
-turn the finite cavity and the ramp back into a truncated map.
-
-## Reduced longitudinal model
-
-`longitudinal.jl` does not track the ring in 6D. It is the smooth
-turn-by-turn Hamiltonian in `(φ, δ)`:
-
-```text
-dφ/dn     = −2π h (η₀ δ + η₁ δ²)
-dδ/dn     = (Z V T / (β² E)) (sin(φ_s + φ) − sin φ_s)
-```
-
-`η` is taken from the higher-order reading of the Lie factor. The ring
-product does not use this model. Synchrotron tune, separatrix and bucket
-height are readings of this `H`.
+The Lie algebra builds a factor from `H`. A Taylor map repeats the flow of
+the same `H` as a truncated polynomial and stops there.
 
 ## Structure file
 
@@ -180,7 +193,7 @@ l  = −v(δ) dt     [m]
 δ  = (p − p0) / p0
 ```
 
-Laboratory angles `(x', φ)` are input and output only:
+Laboratory coordinates `(x, x', y, y', φ, δ)` are input and output only:
 
 ```text
 x'  = px / ps
@@ -189,7 +202,7 @@ x'  = px / ps
 
 ## Install
 
-From the `Julia` folder:
+From the package root:
 
 ```julia
 using Pkg

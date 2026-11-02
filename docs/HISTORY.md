@@ -401,3 +401,29 @@ one-turn DA map (LieFlow), to the order of the map.
 the ring closes exactly to `2 pi` (`26e6cea`).
 
 **Package version** `0.14.0` (not a product release).
+
+## v0.15 - Core review: names, one scheme, research out of the export (2026-11-02)
+
+**Code.** Public names: `lattice`, `record`, `injection_reference`,
+`laboratory_particles`, `path_length`, `c_light`, `deuteron` / `proton` /
+`electron`, `index_x`…, `position_indices` / `momentum_indices`. Laboratory
+coordinates `(x, x', y, y', φ, δ)`. `Cavity` is `LongCavity`. `insert_cavity`
+requires `in_element`.
+
+`differential_algebra.jl` is split: integrator, series, Hamiltonian live in
+their places. Taylor maps of `H` sit in tracking. `HigherOrder` is
+`MapReadings` (Newton closed orbit, integer vs fractional tune,
+`chromaticity_series`). `longitudinal.jl` is `Smooth`. Integrators are one
+file per method, including implicit midpoint and implicit-midpoint Yoshida.
+Exact tracking keeps `rf_kick`, `renormalize` and the cavity; the step is
+`method`. HardEdge vs SoftEdge (`Body(-W)∘Soft∘Drift(-W)`) is written in
+fringe; `enge_default` is an unverified set. `symplectic_error` is the single
+check of a matrix, a series map, a DA map, or a tracking step.
+
+Sextupole families leave `structure.jl`. `src/optimizers/` holds `GridSearch`
+and `RandomStart` stubs. Plotting moves to `src/plotting/`. Normal form moves
+to `src/research/` and is not re-exported by `using Bell`.
+
+**Tests / CI.** Mathematical pendulum on every integrator
+(`benchmarks/pendulum`). GitHub Actions runs `Pkg.test`. Package version
+`0.15.0` (not a product release). Examples are not edited in this branch.

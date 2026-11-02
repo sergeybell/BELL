@@ -10,8 +10,8 @@ CurrentModule = Bell
 Modules = [Bell.Linear]
 ```
 
-## `HigherOrder`
+## `MapReadings`
 
 ```@autodocs
-Modules = [Bell.HigherOrder]
+Modules = [Bell.MapReadings]
 ```

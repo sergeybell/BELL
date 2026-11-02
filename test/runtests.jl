@@ -92,7 +92,7 @@ end
 @testset "LieFlow (flow-operator element maps)" begin
     tcoef(p, ex) = Bell.LieAlgebra.TaylorSeries.getcoeff(p, ex)
     maxdiff(M, ML) = maximum(abs(M[i].c[m] - tcoef(ML[i], monomial_exponents(M[1].sp, m))) for i in 1:6, m in 1:nmonomials(M[1].sp))
-    ref = reference_from_kinetic(DEUTERON, 270.0)
+    ref = reference_from_kinetic(deuteron, 270.0)
     els = [Drift("D", 1.3), Quadrupole("Q", 0.4, 1.7), Sextupole("S", 0.3, 15.0), SBend("B", 1.2, 0.3, 0.2)]
     @testset "= Dragt-Finn/Lie route at order 3" begin
         for e in els
@@ -174,5 +174,38 @@ end
         cr ? (@test abs(tot - 2pi) < 1e-13 && abs(lat.elements[2].angle - pi / 8) < 1e-15) :
              (@test 1e-9 < abs(tot - 2pi) < 1e-6)
         @test any(w -> occursin("close_ring", w), m.warnings) == cr
+    end
+end
+
+@testset "pendulum on every integrator" begin
+    # Mathematical pendulum: q'' = -sin(q), z = [q, p], E = p^2/2 - cos(q).
+    pend(z, s) = [z[2], -sin(z[1])]
+    energy(z) = z[2]^2 / 2 - cos(z[1])
+    theta = 0.3
+    z0 = [theta, 0.0]
+    E0 = energy(z0)
+    period = 2pi * (1 + theta^2 / 16 + 11 * theta^4 / 3072)
+    flows = SplitFlows((z, h) -> [z[1] + h * z[2], z[2]],
+                       (z, h) -> [z[1], z[2] - h * sin(z[1])])
+    function check(name, z, nfev)
+        dE = abs(energy(z) - E0)
+        dist = hypot(z[1] - z0[1], z[2] - z0[2])
+        println("  pendulum ", name, ": dE ", dE, " dist ", dist, " nfev ", nfev)
+        @test dE < 1e-6
+        @test dist < 2e-4
+    end
+    for (name, method, n) in (("RK4", RK4(), 200),
+                              ("ImplicitMidpoint", ImplicitMidpoint(), 2000),
+                              ("ImplicitYoshida(4)", ImplicitYoshida(4), 200))
+        r = integrate(pend, z0, 0.0, period; method, nsteps = n)
+        check(name, r.z, r.nfev)
+    end
+    r = integrate(flows, z0, 0.0, period; method = Yoshida(4), nsteps = 200)
+    check("Yoshida(4) split", r.z, r.nfev)
+    for (name, method, tol) in (("DormandPrince5", DormandPrince5(), 1e-12),
+                                ("DormandPrince853", DormandPrince853(), 1e-13),
+                                ("GraggBulirschStoer", GraggBulirschStoer(6), 1e-12))
+        r = integrate(pend, z0, 0.0, period; method, tol)
+        check(name, r.z, r.nfev)
     end
 end

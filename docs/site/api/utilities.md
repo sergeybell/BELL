@@ -15,3 +15,9 @@ Modules = [Bell.Plotting]
 ```@autodocs
 Modules = [Bell.Optimizers]
 ```
+
+## `SextupoleFamilies`
+
+```@autodocs
+Modules = [Bell.SextupoleFamilies]
+```

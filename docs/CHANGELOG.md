@@ -21,3 +21,4 @@ restructures are listed as notes inside the nearest version.
 | v0.12 | 2026-10-30 20:22 | `79e2306` | `Bell.DiffAlgebra` and `Bell.Integrators` |
 | v0.13 | 2026-10-30 21:41 | `457b5b5` `9068936` | `Bell.LieFlow`: flow operator to arbitrary order |
 | v0.14 | 2026-10-30 22:02 | `846891a` `26e6cea` | `chromaticity_series`; `close_ring` converter option |
+| v0.15 | 2026-11-02 | `v0.15-core-review` | Core review: names, one tracking scheme, Smooth, MapReadings, research NormalForm |
