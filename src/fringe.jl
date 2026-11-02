@@ -4,82 +4,38 @@
 #
 # Author: Kolokolchikov Sergey Dmitrievich <sergey.bell13@gmail.com>
 #
-# WHAT
-#   The lattice stays physical: an SBend carries L, angle, e1, e2 and an
-#   optional full gap / FINT.  No element carries a "fringe on" flag.  The
-#   fringe model is chosen when the ring is built:
+# The lattice stays physical: an SBend carries L, angle, e1, e2 and optional
+# gap / FINT. No element carries a fringe flag. The model is chosen when the
+# ring is built. FringeModel() is NoEdge everywhere and leaves the ring as is.
 #
-#     model = FringeModel(dipole = SoftEdge(profile = Enge(gap = 0.05),
-#                                           method  = Splitting(n = 20, order = 4)),
-#                         quad = HardEdge(order = 2), sext = NoEdge(),
-#                         override = Dict("BM3" => HardEdge()))
-#     F = ring_lie_factor(lat, model)          # one-turn Lie factor with edges
+# HardEdge is a thin lens at each end. The body Hamiltonian is not changed.
+# Linear (order 1): dpx = h tan(e) x, dpy = -h tan(psi) y. Higher order keeps
+# a Lie generator K from the step-field B_s.
 #
-#   Every magnet with a non-trivial model is expanded to
-#       EdgeIn -> Body -> EdgeOut
-#   EdgeIn / EdgeOut are thin maps (EdgeMap) that read the parent magnet's
-#   parameters.  The body Hamiltonian (hamiltonians.jl) is not touched.
-#   FringeModel() = NoEdge everywhere and reproduces the plain ring exactly
-#   (the element list is passed through unchanged).
+# SoftEdge is a different layout. Half-width W is read from the profile (Enge:
+# first z where F is below 1e-10 and 1-F is below 1e-10, step gap/20, cap 40
+# gaps). The edge map is Body(-W) o Soft o Drift(-W): a slice of solid body at
+# depth W is removed and replaced by the s-dependent Hamiltonian. W depends on
+# the profile and the gap, not on magnet strength (the profile is normalised;
+# the strength sits in h0). Subtracting the body on depth W is the account of
+# field leaking into the magnet; if notes later say otherwise, the formulas
+# stay until that is reviewed.
 #
-#   Edge models
-#     NoEdge()                      identity
-#     HardEdge(order = 1)           linear thin edge kick (standard dipole-edge form):
-#                                   dpx = h tan(e) x, dpy = -h tan(psi) y,
-#                                   psi = e - h g FINT (1 + sin^2 e)/cos e
-#     HardEdge(order = 2 | 3)       nonlinear hard edge: the vertical kick uses
-#                                   the effective angle e +/- x' (exact
-#                                   x' = px/ps), i.e. the term h y^2 px/(2 ps)
-#                                   that comes from B_s = y b'(s) of a step
-#                                   field.  Generated as a Lie map exp(:-K:),
-#                                   hence symplectic.  order 2 keeps K to
-#                                   degree 3, order 3 to degree 4.
-#     SoftEdge(profile, method)     field b(s) = h F(s) through a region
-#                                   [-W, W] around the effective field
-#                                   boundary (EFB, equal area).
-#   Profiles F (rising into the magnet, normalised to 1 inside)
-#     Enge(coeffs; gap)             1/(1 + exp(P(-z/gap)))
-#     Tanh(lambda)                  (1 + tanh(z/lambda))/2
-#     LinearRamp(width)             trapezoid edge of given width
-#     Tabulated(z, B)               measured / computed profile, interpolated
-#   Methods for the s-dependent Hamiltonian
-#     Splitting(n, order = 2 | 4)   product of n slice maps exp(-ds :H_k:) with
-#                                   piecewise-constant F (order 4 = Yoshida)
-#     Magnus(n, order = 2 | 4)      Magnus expansion on n sub-intervals
-#                                   (order 4: two Gauss nodes + one bracket)
-#     TaylorIntegrate(tol)          RK4 integration of the DA vector field,
-#                                   step halving until the map changes < tol
+# enge_default is an unverified default coefficient set stored in this
+# repository. There is no citation for it; it is not a standard.
 #
-#   Soft-edge Hamiltonian (Frenet frame that follows the field, h(s) = h0 F):
-#     H = e(delta) - (1 + h x) sqrt((1+delta)^2 - (px - a_x)^2 - py^2)
-#         + h x + h^2 x^2 / 2 + b1 (x^2 - y^2)/2 + h b1 (x^3/3 - x y^2/2)
-#         + b2 (x^3 - 3 x y^2)/6,     (h b1 term: metric factor (1 + h x) of the force)
-#     a_x = -y^2 h0 F'(s) / (2 (1 + h x)),
-#     b1 = h0 F' theta,  b2 = h0 F'' theta^2   (straight EFB seen from the
-#     curved orbit: field h0 F(s + x theta(s)), theta = orbit angle to the
-#     field-free straight orbit, see _Edge below).
-#   It gives B_y = b - y^2/2 [b''/(1+hx)^2 - b' h' x/(1+hx)^3],
-#   B_s = y b'/(1+hx), B_x = 0 + O(y^3): curl-free to second order in y.
-#   F = 1 gives the body Hamiltonian, F = 0 a drift.
-#   The soft region replaces "drift W, then body W" of the hard-edge layout:
-#     EdgeIn  = Body(-W) o Soft o Drift(-W)
-#     EdgeOut = Drift(-W) o Soft_out o Body(-W)
-#   so the lattice (and neighbouring elements) keeps its length.
-#
-# WHY
-#   One physical lattice, many edge descriptions.  The same ring can be
-#   computed with any model and the results compared.
-#
+# RK4 of the soft-edge field and Yoshida weights of splitting come from
+# Integrators. Simpson of a profile integral is quadrature, not an ODE method.
 # =============================================================================
 module Fringe
 
 using TaylorSeries, LinearAlgebra
 using ..Coordinates, ..Elements, ..Structure, ..LieAlgebra, ..Hamiltonians, ..Linear,
-      ..Symplectic, ..Tracking, ..HigherOrder
+      ..Symplectic, ..Tracking, ..MapReadings, ..Integrators
 import ..Tracking: build_factors, ring_lie_factor
 
 export EdgeModel, NoEdge, HardEdge, SoftEdge,
-       FringeProfile, Enge, Tanh, LinearRamp, Tabulated, ENGE_DEFAULT,
+       FringeProfile, Enge, Tanh, LinearRamp, Tabulated, enge_default,
        FringeMethod, Splitting, Magnus, TaylorIntegrate,
        FringeModel, EdgeMap, edge_model, fringe_sequence, edge_map,
        profile_function, fringe_integral, fringe_observables, fringe_hamiltonian
@@ -137,20 +93,26 @@ end
 HardEdge(; order::Int = 2, gap = nothing, fint = nothing) =
     HardEdge(order, gap === nothing ? nothing : Float64(gap), fint === nothing ? nothing : Float64(fint))
 
-"Default Enge coefficients of a dipole edge (z in units of the full gap)."
-const ENGE_DEFAULT = [0.478959, 1.911289, -1.185953, 1.630554, -1.082657, 0.318111]
+"""
+    enge_default :: Vector{Float64}
+
+Unverified default Enge coefficients of a dipole edge (z in units of the full
+gap). Stored in this repository with no citation; not a published standard.
+"""
+const enge_default = [0.478959, 1.911289, -1.185953, 1.630554, -1.082657, 0.318111]
 
 @doc raw"""
-    Enge(coeffs = ENGE_DEFAULT; gap = 0.05)
+    Enge(coeffs = enge_default; gap = 0.05)
 
 Enge profile ``F(z) = 1/\big(1 + \exp P(-z/g)\big)``, ``P(t) = \sum_{k\ge 1} c_k t^{k-1}``, ``g`` = full gap [m].
 `coeffs::Vector{Float64}` are the Enge coefficients (dimensionless, ``z`` in units of the gap).
+Default `coeffs` is [`enge_default`](@ref), an unverified set without a citation.
 """
 struct Enge <: FringeProfile
     coeffs::Vector{Float64}
     gap::Float64
 end
-Enge(coeffs::AbstractVector = ENGE_DEFAULT; gap = 0.05) = Enge(collect(Float64, coeffs), Float64(gap))
+Enge(coeffs::AbstractVector = enge_default; gap = 0.05) = Enge(collect(Float64, coeffs), Float64(gap))
 
 @doc raw"""
     Tanh(lambda)
@@ -250,7 +212,7 @@ Choice of [`EdgeModel`](@ref) per magnet family, with per-name overrides
 model = FringeModel(dipole = SoftEdge(profile = Enge(gap = 0.05)),
                     quad = HardEdge(order = 2),
                     override = Dict("BM3" => HardEdge()))
-F = ring_lie_factor(lat, model)
+F = ring_lie_factor(lattice, model)
 ```
 """
 struct FringeModel
@@ -281,7 +243,7 @@ end
 Base.show(io::IO, ::NoEdge) = print(io, "NoEdge()")
 Base.show(io::IO, m::HardEdge) = print(io, "HardEdge(order=", m.order,
     m.gap === nothing ? "" : ", gap=$(m.gap)", m.fint === nothing ? "" : ", fint=$(m.fint)", ")")
-Base.show(io::IO, p::Enge) = print(io, "Enge(gap=", p.gap, p.coeffs == ENGE_DEFAULT ? "" : ", coeffs=$(p.coeffs)", ")")
+Base.show(io::IO, p::Enge) = print(io, "Enge(gap=", p.gap, p.coeffs == enge_default ? "" : ", coeffs=$(p.coeffs)", ")")
 Base.show(io::IO, p::Tanh) = print(io, "Tanh(", p.lambda, ")")
 Base.show(io::IO, p::LinearRamp) = print(io, "LinearRamp(", p.width, ")")
 Base.show(io::IO, p::Tabulated) = print(io, "Tabulated(", length(p.z), " points)")
@@ -360,18 +322,29 @@ struct EdgeMap
     model::EdgeModel
 end
 
+const _LAST_FRINGE = Ref("")
+function _announce_fringe(model::FringeModel)
+    (model.dipole isa NoEdge && model.quad isa NoEdge && model.sext isa NoEdge &&
+     isempty(model.override)) && return
+    key = repr((model.dipole, model.quad, model.sext, sort(collect(keys(model.override)))))
+    _LAST_FRINGE[] == key && return
+    _LAST_FRINGE[] = key
+    @info "fringe model enabled" dipole = model.dipole quad = model.quad sext = model.sext override = model.override
+end
+
 "Element list with EdgeMap items around every magnet whose model is not NoEdge."
-function fringe_sequence(lat::Lattice, model::FringeModel)
-    out = Any[]
-    for e in lat.elements
+function fringe_sequence(lattice::Lattice, model::FringeModel)
+    _announce_fringe(model)
+    expanded = Any[]
+    for e in lattice.elements
         m = edge_model(model, e)
         if m isa NoEdge
-            push!(out, e)
+            push!(expanded, e)
         else
-            push!(out, EdgeMap(e.name * "_in", e, :in, m), e, EdgeMap(e.name * "_out", e, :out, m))
+            push!(expanded, EdgeMap(e.name * "_in", e, :in, m), e, EdgeMap(e.name * "_out", e, :out, m))
         end
     end
-    return out
+    return expanded
 end
 
 # ----------------------------------------------------------------------------- hard edges
@@ -464,7 +437,7 @@ end
 
 function _soft(E::_Edge, m::Splitting, ref)
     W = E.W
-    ws = m.order >= 4 ? (w1 = 1 / (2 - 2^(1 / 3)); [w1, 1 - 2w1, w1]) : [1.0]
+    ws = splitting_weights(m.order >= 4 ? Yoshida(4) : Leapfrog())
     hs = 2W / m.n
     M = collect(Z)
     for k in 0:m.n-1
@@ -499,23 +472,13 @@ end
 function _rk4(E::_Edge, n, ref)
     W = E.W
     hs = 2W / n
-    function V(s)
+    function f(z, s)
         H = _Hnode(E, s, ref, max(E.ep, hs / 4))
-        g = [differentiate(H, j) for j in 1:6]
-        return [sum(SYMPLECTIC_S[i, j] * g[j] for j in 1:6) for i in 1:6]
+        V = hamiltonian_field(H)
+        return [truncate_to(evaluate(V[i], z), MAP_ORDER) for i in 1:6]
     end
-    ev(Vs, u) = [truncate_to(evaluate(Vs[i], u), MAP_ORDER) for i in 1:6]
-    z = collect(Z)
-    for k in 0:n-1
-        s = -W + k * hs
-        V1, V2, V3 = V(s), V(s + hs / 2), V(s + hs)
-        k1 = ev(V1, z)
-        k2 = ev(V2, [z[i] + hs / 2 * k1[i] for i in 1:6])
-        k3 = ev(V2, [z[i] + hs / 2 * k2[i] for i in 1:6])
-        k4 = ev(V3, [z[i] + hs * k3[i] for i in 1:6])
-        z = [truncate_to(z[i] + hs / 6 * (k1[i] + 2k2[i] + 2k3[i] + k4[i]), MAP_ORDER) for i in 1:6]
-    end
-    return z
+    r = integrate_fixed(f, collect(Z), -W, W, n; method = RK4())
+    return [truncate_to(zi, MAP_ORDER) for zi in r.z]
 end
 
 const _RK_STEPS = Dict{Any,Int}()
@@ -576,41 +539,42 @@ edge_map(E::EdgeMap, ref::RefParticle) =
 
 # ----------------------------------------------------------------------------- ring
 "One factor per item of fringe_sequence (edges are separate factors)."
-function build_factors(lat::Lattice, model::FringeModel)
+function build_factors(lattice::Lattice, model::FringeModel)
     cache = Dict{Any,LieFactor}()
-    out = Any[]
-    for it in fringe_sequence(lat, model)
+    factors = Any[]
+    for it in fringe_sequence(lattice, model)
         if it isa RFCavity
-            push!(out, it)
+            push!(factors, it)
         elseif it isa EdgeMap
-            push!(out, get!(() -> dragt_finn_factor(edge_map(it, lat.ref); name = it.name), cache,
+            push!(factors, get!(() -> dragt_finn_factor(edge_map(it, lattice.ref); name = it.name), cache,
                             (it.parent, it.side, _model_key(it.model))))
         else
-            push!(out, get!(() -> dragt_finn_factor(element_lie_map(it, lat.ref); name = it.name), cache, it))
+            push!(factors, get!(() -> dragt_finn_factor(element_lie_map(it, lattice.ref); name = it.name), cache, it))
         end
     end
-    return out
+    return factors
 end
 
 "One-turn Lie factor of the ring with the given fringe model."
-ring_lie_factor(lat::Lattice, model::FringeModel; name = lat.name) =
-    product_factors(LieFactor[F for F in build_factors(lat, model) if F isa LieFactor]; name)
+ring_lie_factor(lattice::Lattice, model::FringeModel; name = lattice.name) =
+    product_factors(LieFactor[F for F in build_factors(lattice, model) if F isa LieFactor]; name)
 
 """
-fringe_observables(lat, model) -> NamedTuple
+    fringe_observables(lattice, model) -> NamedTuple
+
 Fractional tunes, first/second-order chromaticity of the one-turn map and the
 symplecticity of the edge maps (linear part, and Jacobian at a test point z0).
 """
-function fringe_observables(lat::Lattice, model::FringeModel = FringeModel(); dd = 1e-4,
+function fringe_observables(lattice::Lattice, model::FringeModel = FringeModel(); dd = 1e-4,
                             z0 = [1e-3, 1e-4, 1e-3, 1e-4, 0.0, 1e-3])
     t0 = time()
-    F = ring_lie_factor(lat, model)
+    F = ring_lie_factor(lattice, model)
     M = factor_to_map(F)
     ch = chromaticity_orders(M; dd)
     se_lin, se_pt = 0.0, 0.0
-    for it in fringe_sequence(lat, model)
+    for it in fringe_sequence(lattice, model)
         it isa EdgeMap || continue
-        E = edge_map(it, lat.ref)
+        E = edge_map(it, lattice.ref)
         se_lin = max(se_lin, symplectic_error(map_linear_part(E)))
         se_pt = max(se_pt, symplectic_error(jacobian_of_map(E, z0)))
     end

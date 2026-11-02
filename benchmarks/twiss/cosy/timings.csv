@@ -1,0 +1,4 @@
+stage,seconds
+cosy lattice compile (process),0.1548
+cosy twiss OV1 (process; min of 5),0.0386
+cosy chrom OV3 TP (process; min of 5),0.0353

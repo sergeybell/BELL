@@ -25,7 +25,7 @@ module Plotting
 
 ENV["GKSwstype"] = "100"
 using Plots
-using ..Elements, ..Longitudinal
+using ..Elements, ..Smooth
 
 export plot_twiss, plot_dispersion2, plot_chromatic, plot_acceleration, separatrix!, gif_ramp, gif_elements
 
@@ -50,7 +50,8 @@ function plot_twiss(opt, path::AbstractString; title = "")
     p2 = plot(d.s, d.D, label = "D_x", lw = 2, color = :green, ylabel = "D_x [m]", legend = :topright,
               xformatter = _ -> "")
     hline!(p2, [0.0], color = :black, lw = 0.5, label = "")
-    p3 = plot([0, opt.C], [0, 0], color = :black, lw = 1, label = "", ylims = (-1.2, 1.2),
+    Lpath = opt.path_length
+    p3 = plot([0, Lpath], [0, 0], color = :black, lw = 1, label = "", ylims = (-1.2, 1.2),
               yticks = false, xlabel = "s [m]", framestyle = :box, grid = false)
     for (s0, s1, e) in opt.bounds
         if e isa SBend
@@ -62,8 +63,9 @@ function plot_twiss(opt, path::AbstractString; title = "")
             plot!(p3, _box(s0, s1, -0.6, 0.6), color = :green, lw = 0, label = "")
         end
     end
-    p = plot(p1, p2, p3, layout = grid(3, 1, heights = [0.5, 0.32, 0.18]), size = (1300, 800),
-             link = :x, left_margin = 8Plots.mm, xlims = (0, opt.C))
+    p = plot(p1, p2, p3, layout = grid(3, 1, heights = [0.5, 0.32, 0.18]), size = (1400, 860),
+             link = :x, left_margin = 12Plots.mm, right_margin = 8Plots.mm,
+             top_margin = 6Plots.mm, bottom_margin = 10Plots.mm, xlims = (0, Lpath))
     savefig(p, path)
     return path
 end
@@ -134,9 +136,9 @@ const PHI_LABEL = "phi = -h w0 dt  [rad]   (phi > 0: early)"
 const DELTA_LABEL = "delta = dp/p0"
 
 """
-    plot_acceleration(rec, info, path) -> path
+    plot_acceleration(record, info, path) -> path
 
-2×2 summary of an `accelerate` run:
+2×2 summary of an `accelerate` run (`record` is the named tuple of that call):
 
 - E_kin(turn);
 - end-of-ramp phase space with the separatrix;
@@ -145,14 +147,14 @@ const DELTA_LABEL = "delta = dp/p0"
 
 `info` carries the derived series.
 """
-function plot_acceleration(rec, info, path)
+function plot_acceleration(record, info, path)
     gr()
-    t = rec.turn
-    p1 = plot(t, rec.Ekin, xlabel = "turn", ylabel = "E_kin [MeV]", label = "reference particle", lw = 2,
-              title = "reference energy: $(round(rec.Ekin[1], digits=1)) -> $(round(rec.Ekin[end], digits=2)) MeV")
+    t = record.turn
+    p1 = plot(t, record.Ekin, xlabel = "turn", ylabel = "E_kin [MeV]", label = "reference particle", lw = 2,
+              title = "reference energy: $(round(record.Ekin[1], digits=1)) -> $(round(record.Ekin[end], digits=2)) MeV")
     vline!(p1, [info.flat_start], label = "start of flat top (phi_s = 180 deg)", ls = :dash)
     p2 = plot(xlabel = PHI_LABEL, ylabel = DELTA_LABEL, legend = :bottomleft,
-              title = "end of ramp (turn $(info.n_end), $(round(rec.Ekin[info.n_end+1], digits=1)) MeV)")
+              title = "end of ramp (turn $(info.n_end), $(round(record.Ekin[info.n_end+1], digits=1)) MeV)")
     separatrix!(p2, info.lp_end; dmax = info.dmax_end, phimin = info.philim[1], phimax = info.philim[2])
     scatter!(p2, info.ens_phi, info.ens_delta, ms = 2, msw = 0, color = :blue, alpha = 0.6, label = "ensemble particles")
     plot!(p2, info.tr_phi, info.tr_delta, color = :orange, lw = 1, label = "test particle #4, last 300 turns")
@@ -169,18 +171,18 @@ function plot_acceleration(rec, info, path)
 end
 
 """
-    gif_ramp(rec, frames, lps, path; ens, philim, dlim, fps = 15) -> path
+    gif_ramp(record, frames, lps, path; ens, philim, dlim, fps = 15) -> path
 
 Animated GIF of the ensemble in (φ, δ) turn by turn, with the separatrix of the
 current energy. A second panel shows δ scaled by the bucket height.
 """
-function gif_ramp(rec, frames, lps, path; ens = 5:length(rec.u), philim = (-2pi, pi), dlim = 0.01, fps = 15)
+function gif_ramp(record, frames, lps, path; ens = 5:length(record.u), philim = (-2pi, pi), dlim = 0.01, fps = 15)
     gr()
     anim = @animate for (k, n) in enumerate(frames)
-        phi = [rec.u[j][n+1][5] for j in ens]; dl = [rec.u[j][n+1][6] for j in ens]
+        phi = [record.u[j][n+1][5] for j in ens]; dl = [record.u[j][n+1][6] for j in ens]
         bh = bucket_height(lps[k])[1]
         pa = plot(xlabel = PHI_LABEL, ylabel = DELTA_LABEL, xlims = philim, ylims = (-dlim, dlim), legend = :bottomleft,
-                  title = "turn $n, E_kin = $(round(rec.Ekin[n+1], digits=2)) MeV, phi_s = $(round(rad2deg(lps[k].phi_s), digits=0)) deg")
+                  title = "turn $n, E_kin = $(round(record.Ekin[n+1], digits=2)) MeV, phi_s = $(round(rad2deg(lps[k].phi_s), digits=0)) deg")
         separatrix!(pa, lps[k]; dmax = dlim, phimin = philim[1], phimax = philim[2])
         scatter!(pa, phi, dl, ms = 2.5, msw = 0, color = :blue, label = "particles")
         pb = plot(xlabel = PHI_LABEL, ylabel = "delta / bucket half-height", xlims = philim, ylims = (-1.3, 1.3),

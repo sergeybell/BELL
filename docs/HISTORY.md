@@ -1,4 +1,4 @@
-﻿# HISTORY.md - version notes for Bell (was Julia/ring, LieRing)
+# HISTORY.md - version notes for Bell (was Julia/ring, LieRing)
 
 Local tags and commits live in `C:\GIT_REPOS\BELL` (never pushed by this
 work). Phases 1 and 2 were not snapshotted separately; their content is
@@ -340,3 +340,120 @@ Programmer notes: `docs/src/programmer/`.
 `Pkg.develop` `Julia/`, not `Julia/ring`.
 
 **Not a product.** Package version is `0.10.0`. There is no 1.0 release.
+
+## v0.11 - Fringe-field models (2026-10-30)
+
+**Commits.** `0bf92c1`, `fdb71ef`, `dd9d21a`, `3d067b4`, `0d6454c`, `bd712e2`.
+
+**Code.** New block `src/fringe.jl`: the fringe-field model of each magnet is
+chosen when the lattice is built. Models: `NoEdge`, hard edge (linear edge
+kick or nonlinear), soft edge (Enge, Tanh, linear ramp, tabulated profile),
+integrated by splitting, Magnus or Taylor. Example `19_fringe_models` runs
+every model on `magnetic_2`: gap -> 0 limit, convergence, symplecticity.
+
+**Physics fix (`bd712e2`).** The soft dipole edge Hamiltonian now includes
+the metric term `h*b1`; the cache key of `Tabulated` profiles is content based.
+
+**Docs.** Beam Physics chapter on fringe fields; Programmer notes for `fringe.jl`.
+
+**Minor (no own version), 2026-10-28..30.** Repository root is the package
+(`0531680`, `5109955`); one folder per example and `examples/Project.toml`
+(`20c180e`, `0349f24`, `8653af4`, `7360c8b`); new README / .gitignore
+(`814259d`); corrected `magnetic_2` lattice from SCT_2 (`55fd17f`);
+docstrings for every exported name and LaTeX formulas (`5687cb2`, `a06600e`);
+Programmer Manual as HTML site with explicit algorithms (`36b642a`,
+`4af0096`); docs site restructured into Physics / Guide / Developer / API
+(`62f273f`); PDF rebuild (`d944ac2`).
+
+## v0.12 - Differential algebra and selectable integrators (2026-10-30)
+
+**Commit.** `79e2306`.
+
+**Code.** Pure-mathematics submodules, not re-exported into `Bell`:
+
+* `Bell.DiffAlgebra` (`src/da/`) - general truncated power series
+  (differential algebra) in any number of variables and any order.
+* `Bell.Integrators` (`src/integrators/`) - selectable ODE integrators
+  used by the exact-H tracking and checks.
+
+Use with `using Bell.DiffAlgebra`, `using Bell.Integrators`.
+
+## v0.13 - Lie flow operator to arbitrary order (2026-10-30)
+
+**Commits.** `457b5b5`, `9068936`.
+
+**Code.** `Bell.LieFlow`: element maps as the flow operator `exp(L :H:)`
+summed as a Lie series to arbitrary order N, with a Lie-series layer in
+`DiffAlgebra`. The series at order N is built from `F = S grad H` with `H`
+taken to order N+1; for long / strong elements (`L*rho > 3`) the map is
+obtained by scaling and squaring.
+
+**Docs.** Developer notes `docs/site/dev/lie_flow.md`.
+
+## v0.14 - Chromaticity series from the one-turn DA map (2026-10-30)
+
+**Commit.** `846891a`.
+
+**Code.** `chromaticity_series`: exact series `Q(delta)` of the tunes from a
+one-turn DA map (LieFlow), to the order of the map.
+
+**Minor.** `convert_optim(...; close_ring=true)` scales bend angles so that
+the ring closes exactly to `2 pi` (`26e6cea`).
+
+**Package version** `0.14.0` (not a product release).
+
+## v0.15 - Core review: names, one scheme, research out of the export (2026-11-02)
+
+**Code.** Public names: `lattice`, `record`, `injection_reference`,
+`laboratory_particles`, `path_length`, `c_light`, `deuteron` / `proton` /
+`electron`, `index_x`…, `position_indices` / `momentum_indices`. Laboratory
+coordinates `(x, x', y, y', φ, δ)`. `Cavity` is `LongCavity`. `insert_cavity`
+requires `in_element`.
+
+`differential_algebra.jl` is split: integrator, series, Hamiltonian live in
+their places. Taylor maps of `H` sit in tracking. `HigherOrder` is
+`MapReadings` (Newton closed orbit, integer vs fractional tune,
+`chromaticity_series`). `longitudinal.jl` is `Smooth`. Integrators are one
+file per method, including implicit midpoint and implicit-midpoint Yoshida.
+Exact tracking keeps `rf_kick`, `renormalize` and the cavity; the step is
+`method`. HardEdge vs SoftEdge (`Body(-W)∘Soft∘Drift(-W)`) is written in
+fringe; `enge_default` is an unverified set. `symplectic_error` is the single
+check of a matrix, a series map, a DA map, or a tracking step.
+
+Sextupole families leave `structure.jl`. `src/optimizers/` holds `GridSearch`
+and `RandomStart` stubs. Plotting moves to `src/plotting/`. Normal form moves
+to `src/research/` and is not re-exported by `using Bell`.
+
+**Tests / CI.** Mathematical pendulum on every integrator
+(`benchmarks/pendulum`). GitHub Actions runs `Pkg.test`. Package version
+`0.15.0` (not a product release). Examples are not edited in this branch.
+
+## v0.16 - Lie path vs field/DA path; thin RF only (2026-11-02)
+
+**Code.** Two stacks that share elements, coordinates and integrators but do
+not cross:
+
+- Lie: polynomial `hamiltonian` → `lie_algebra` / Dragt–Finn → `Tracking`.
+- Field/DA: `src/da/fields.jl` (`dz/ds` from multipole fields) → `FieldTrack`
+  (Float64) and `src/da/tracking.jl` (`DATracking`, any order N). No
+  `hamiltonian_da`. DiffAlgebra stays pure maths; fields and DA tracking sit
+  beside it under `src/da/`.
+
+Removed: `LongCavity`, `cavity_field` / `cavity_parameters` / `transit_factor`,
+module `LieFlow` (`lie_flow_map`, `hamiltonian_da`). RF is only thin
+`RFCavity` + `rf_kick` (numbers or DA). `insert_cavity` / `accelerate` /
+`exact_track_*` use the thin kick; `renormalize` after each kick on a ramp.
+`exact_integrator.jl` is `field_track.jl` (`FieldTrack`). Smooth stays a
+separate averaged `(φ, δ)` model.
+
+**Tests.** DATracking replaces the LieFlow testset (field map vs Lie at order
+3, analytic drift/quad, symplecticity, chromaticity_series, thin RF turn).
+Package version `0.16.0`. Examples still not edited.
+
+**Optimizers (same branch).** `NelderMead` — local derivative-free fit with
+`tol` on the simplex spread in `f`. `RandomStart` — MultiStart: random
+initial points in a box, local Nelder–Mead from each. `GridSearch` — fixed
+list of points, optional polish. Entry point `optimize`.
+
+
+**Note (stale references).** Removed with LongCavity/LieFlow: `docs/site/dev/lie_flow.md` (replaced by `dev/da_tracking.md`); `ExactIntegrator` references in the docs now point to `FieldTrack`. Example 14 and `benchmarks/twiss/bell/linear_routes.jl` were moved to the thin `RFCavity` / `one_turn_map_da` path.

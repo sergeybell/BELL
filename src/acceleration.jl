@@ -1,87 +1,68 @@
 # =============================================================================
-# Acceleration.jl - ramping the reference energy with a finite RF cavity
+# acceleration.jl - ramping the reference energy with a thin RF cavity
 # =============================================================================
-#
 #
 # Author: Kolokolchikov Sergey Dmitrievich <sergey.bell13@gmail.com>
 #
-# WHAT
-#   insert_cavity(lat, cav; in_element) splits one long drift (default: the
-#   first "OBM" straight-section drift) as  drift - cavity - drift.
-#   accelerate(lat, ref0, users; ...) tracks several particles turn by turn
-#   with ExactIntegrator; directly after the cavity the synchronous particle
-#   (particle 1, starts on the reference orbit) becomes the new reference
-#   (renormalize): this is how the reference energy ramps, and it is where
-#   adiabatic damping of x', y', delta appears (momenta are normalised to p0).
-#   When Ekin >= target the cavity phase is switched to phi_flat (default
-#   pi = stationary bucket, no net acceleration) for `flat_turns` turns.
-#   Records per turn: kinetic energy of the reference, and all particles in
-#   user coordinates (x, x', y, y', phi, delta).
-#   measure_tune(series): linear-motion tune from x_{n+1} + x_{n-1} = 2 cos(2 pi Q) x_n + b
-#   (least squares; exact for linear motion about a KNOWN fixed point), Q in [0, 0.5].
-#
-# ASSUMPTIONS (stated in the scripts as well)
-#   * magnet fields ramp in proportion to p0 (fixed normalised strengths);
-#   * RF frequency follows h * f0(p0) (phase-locked to the synchronous particle);
-#   * cavity field purely longitudinal on axis (no transverse RF fields).
-#
-# WHAT YOU SEE
-#   Nothing printed here.
+# accelerate tracks several particles in 6D with exact_track_element
+# (Fields ODEs + rf_kick). There is no polynomial-order cut; the cut
+# is the step ds. Particle 1 is the synchronous particle: after each
+# RFCavity, renormalize makes it the new reference. Smooth (φ, δ) is not
+# used here — it is a separate averaged model.
 # =============================================================================
 module Acceleration
 
-using ..Coordinates, ..Elements, ..Structure, ..ExactIntegrator
+using ..Coordinates, ..Elements, ..Structure, ..FieldTrack
 
 export accelerate, measure_tune, turn_snapshots
 
 """
-    accelerate(lat, ref0, users; Ekin_target = 270.0, max_turns = 10_000,
-               flat_turns = 1000, phi_flat = π, ds = 0.2) -> (rec, flat_start)
+    accelerate(lattice, injection_reference, laboratory_particles;
+               Ekin_target = 270.0, max_turns = 10_000,
+               flat_turns = 1000, phi_flat = π, ds = 0.2) -> (record, flat_start)
 
-Turn-by-turn acceleration with a finite [`Cavity`](@ref) in `lat`.
+Turn-by-turn acceleration with a thin [`RFCavity`](@ref) in `lattice`.
+
+Particle 1 of `laboratory_particles` is the synchronous particle and starts
+on the design orbit. After every thin RF kick, [`renormalize`](@ref) makes
+that particle the new reference (energy ramp).
 
 # Arguments
-- `lat` – lattice containing a `Cavity` (see [`insert_cavity`](@ref)).
-- `ref0` – injection reference particle.
-- `users` – initial particles in user coordinates (x, x', y, y', φ, δ).
-  Particle 1 must be the synchronous particle and should start at 0.
+- `lattice` – lattice containing a thin `RFCavity` (see [`insert_cavity`](@ref)).
+- `injection_reference` – reference particle at injection.
+- `laboratory_particles` – initial particles in laboratory coordinates
+  (x, x', y, y', φ, δ). Particle 1 must be the synchronous particle.
 - `Ekin_target` [MeV] – when the reference reaches it, the cavity phase is set to
   `phi_flat` (default π: stationary bucket) for `flat_turns` more turns.
-- `ds` – integrator step [m].
-
-# Algorithm
-Every element is tracked by `exact_track_element`. Directly after the cavity,
-[`renormalize`](@ref) makes particle 1 the new reference, which is how the energy
-ramps. Assumptions: magnets ramp with p0, the RF frequency follows h f0(p0), and
-there is no transverse RF field.
+- `ds` – integrator step [m] for magnetic elements.
 
 # Returns
-- `rec` – NamedTuple of per-turn vectors `turn, Ekin, gamma, beta, p0` and
-  `u[k]` = user coordinates of particle k per turn.
+- `record` – NamedTuple of per-turn vectors `turn, Ekin, gamma, beta, p0` and
+  `u[k]` = laboratory coordinates of particle k on turn n.
 - `flat_start` – turn at which the flat top started (0 if never).
 """
-function accelerate(lat::Lattice, ref0::RefParticle, users::Vector{<:AbstractVector};
+function accelerate(lattice::Lattice, injection_reference::RefParticle, laboratory_particles::Vector{<:AbstractVector};
                     Ekin_target = 270.0, max_turns = 10_000, flat_turns = 1000, phi_flat = pi, ds = 0.2)
-    C = circumference(lat)
-    h = lat.harmonic
-    ref = ref0
-    zs = [user_to_canonical(u, ref, C, h) for u in users]
-    rec = (turn = Int[], Ekin = Float64[], gamma = Float64[], beta = Float64[], p0 = Float64[],
-           u = [Vector{Vector{Float64}}() for _ in users])
+    Lpath = path_length(lattice)
+    h = lattice.harmonic
+    ref = injection_reference
+    zs = [laboratory_to_canonical(u, ref, Lpath, h) for u in laboratory_particles]
+    record = (turn = Int[], Ekin = Float64[], gamma = Float64[], beta = Float64[], p0 = Float64[],
+              u = [Vector{Vector{Float64}}() for _ in laboratory_particles])
     function record!(n)
-        push!(rec.turn, n); push!(rec.Ekin, ref.Ekin_MeV); push!(rec.gamma, ref.gamma); push!(rec.beta, ref.beta)
-        push!(rec.p0, ref.p0_MeV)
+        push!(record.turn, n); push!(record.Ekin, ref.Ekin_MeV); push!(record.gamma, ref.gamma); push!(record.beta, ref.beta)
+        push!(record.p0, ref.p0_MeV)
         for k in eachindex(zs)
-            push!(rec.u[k], canonical_to_user(zs[k], ref, C, h))
+            push!(record.u[k], canonical_to_laboratory(zs[k], ref, Lpath, h))
         end
     end
     record!(0)
-    curlat = lat
+    curlat = lattice
     flat_start = 0
     for n in 1:max_turns
         for e in curlat.elements
-            zs = [exact_track_element(z, e, ref, C; ds = ds) for z in zs]
-            if e isa Cavity
+            zs = [exact_track_element(z, e, ref, Lpath; ds = ds) for z in zs]
+            if e isa RFCavity
                 zs, ref = renormalize(zs, ref, 1)
             end
         end
@@ -92,15 +73,13 @@ function accelerate(lat::Lattice, ref0::RefParticle, users::Vector{<:AbstractVec
         end
         flat_start > 0 && n >= flat_start + flat_turns && break
     end
-    return rec, flat_start
+    return record, flat_start
 end
 
 """
     measure_tune(x) -> Q ∈ [0, 0.5]
 
 Tune of turn-by-turn data of linear motion about an unknown fixed point.
-Fits x_{n+1} + x_{n−1} = 2cos(2πQ) x_n + b by least squares in (cos 2πQ, b),
-so an offset of the fixed point does not bias Q.
 """
 function measure_tune(x::AbstractVector)
     n = length(x)
@@ -109,25 +88,26 @@ function measure_tune(x::AbstractVector)
     c = (A \ y)[1]
     return acos(clamp(c, -1, 1)) / 2pi
 end
-"""
-    turn_snapshots(lat, ref, zs; ds = 0.2) -> (snaps, names, s, zs_end, ref_end)
 
-One turn element by element. `snaps[k]` holds the user coordinates of all particles
-after element k−1 (`snaps[1]` = start), with the same renormalisation after the
-cavity as in [`accelerate`](@ref). `names` and `s` give element names and exit
-positions [m].
 """
-function turn_snapshots(lat::Lattice, ref::RefParticle, zs; ds = 0.2)
-    C = circumference(lat); h = lat.harmonic
-    snaps = [[canonical_to_user(z, ref, C, h) for z in zs]]
+    turn_snapshots(lattice, ref, zs; ds = 0.2) -> (snapshots, names, s, zs_end, ref_end)
+
+One turn element by element. `snapshots[k]` holds the laboratory coordinates of
+all particles after element k−1 (`snapshots[1]` = start). After a thin
+[`RFCavity`](@ref) the same [`renormalize`](@ref) as in [`accelerate`](@ref)
+is applied.
+"""
+function turn_snapshots(lattice::Lattice, ref::RefParticle, zs; ds = 0.2)
+    Lpath = path_length(lattice); h = lattice.harmonic
+    snapshots = [[canonical_to_laboratory(z, ref, Lpath, h) for z in zs]]
     names = ["start"]; svals = [0.0]; s = 0.0
-    for e in lat.elements
-        zs = [exact_track_element(z, e, ref, C; ds = ds) for z in zs]
-        e isa Cavity && ((zs, ref) = renormalize(zs, ref, 1))
+    for e in lattice.elements
+        zs = [exact_track_element(z, e, ref, Lpath; ds = ds) for z in zs]
+        e isa RFCavity && ((zs, ref) = renormalize(zs, ref, 1))
         s += elem_length(e)
-        push!(snaps, [canonical_to_user(z, ref, C, h) for z in zs]); push!(names, e.name); push!(svals, s)
+        push!(snapshots, [canonical_to_laboratory(z, ref, Lpath, h) for z in zs]); push!(names, e.name); push!(svals, s)
     end
-    return snaps, names, svals, zs, ref
+    return snapshots, names, svals, zs, ref
 end
 
 end # module

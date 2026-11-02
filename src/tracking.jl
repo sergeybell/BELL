@@ -1,186 +1,152 @@
 # =============================================================================
-# Tracking.jl - symplectic tracking with factorised Lie maps
+# tracking.jl - symplectic tracking with factorised Lie maps
 # =============================================================================
-#
 #
 # Author: Kolokolchikov Sergey Dmitrievich <sergey.bell13@gmail.com>
 #
-# WHAT
-#   build_factors(lat)           one Dragt-Finn factor per element
-#   ring_lie_factor(lat)         product of those factors in the Lie algebra
-#   apply_factor(F, z)           flow of f4, then f3, then R (implicit midpoint)
-#   track(factors, z; turns)     apply each factor in order; RF as a thin kick
-#   rf_kick(z, cav, ref, C)      thin RF cavity, own derivation:
-#                                 dt = -l/v,  phi = -h omega0 dt,
-#                                 E -> E + Z V sin(phi_s + phi),
-#                                 delta from the new E, l -> -v(delta_new) dt.
-#                                (Energy kick at fixed arrival time = canonical
-#                                in (t,-E); the change of variables is canonical
-#                                too, so the kick is symplectic.)  Phase 1: the
-#                                kick is implemented but NOT used/validated.
-#
-# WHY
-#   This is the "Lie" tracking engine of the program: generic code (works on
-#   Float64 and on TaylorN, so Symplectic.jacobian_of_function can check it).
-#
-# WHAT YOU SEE
-#   Nothing printed here; scripts/02 prints the tracking checks.
+# The ring object is a product of Lie factors. Tracking applies each factor
+# (flow of f4, then f3, then R). Thin RF is rf_kick from FieldTrack.
+# A Taylor-series map of the same Hamiltonian is obtained by integrating
+# hamiltonian_field with a chosen ODE method; it stores no copy of H.
 # =============================================================================
 module Tracking
 
 using TaylorSeries, LinearAlgebra
-using ..Coordinates, ..Elements, ..Structure, ..Hamiltonians, ..LieAlgebra
+using ..Coordinates, ..Elements, ..Structure, ..Hamiltonians, ..LieAlgebra, ..Integrators
+using ..FieldTrack: rf_kick
 
-export build_factors, apply_factor, track, rf_kick, element_lie_map, ring_lie_factor
+export build_factors, apply_factor, track, element_lie_map, ring_lie_factor,
+       taylor_map_element, element_maps, ring_taylor_map, laboratory_map
 
 const _MCACHE = Dict{Any,Any}()
 
 """
-    element_lie_map(e, ref) -> Vector{TaylorN}
+    element_lie_map(e, ref; order = MAP_ORDER) -> Vector{TaylorN}
 
 Map exp(−L :H:) z of one element ([`lie_map`](@ref) of its [`hamiltonian`](@ref)),
-truncated to MAP_ORDER; identity for markers. Cached per (element, p0).
+truncated to `order`; identity for markers. Cached per (element, p0, order).
 """
-element_lie_map(e::AbstractElement, ref::RefParticle) =
-    get!(_MCACHE, (e, ref.p0_MeV)) do
-        (e isa Marker) ? collect(Z) : lie_map(hamiltonian(e, ref), elem_length(e))
+element_lie_map(e::AbstractElement, ref::RefParticle; order::Int = MAP_ORDER) =
+    get!(_MCACHE, (e, ref.p0_MeV, order)) do
+        (e isa Marker) ? collect(Z) : lie_map(hamiltonian(e, ref), elem_length(e); order)
     end
 
 """
-    ring_lie_factor(lat; name = lat.name) -> LieFactor
+    ring_lie_factor(lattice; name = lattice.name) -> LieFactor
 
 One-turn Dragt-Finn factor of the magnetic ring: [`product_factors`](@ref) of
-[`build_factors`](@ref)(lat), with thin RF cavities skipped. The RF factor is
-concatenated separately (`one_turn_factor_rf`). This is the primary one-turn
-object of Bell; `observables` reads all ring quantities from it.
+[`build_factors`](@ref)(lattice), with thin RF cavities skipped.
 """
-function ring_lie_factor(lat::Lattice; name = lat.name)
-    fs = LieFactor[F for F in build_factors(lat) if F isa LieFactor]
+function ring_lie_factor(lattice::Lattice; name = lattice.name)
+    fs = LieFactor[F for F in build_factors(lattice) if F isa LieFactor]
     return product_factors(fs; name)
 end
 
 """
-    build_factors(lat) -> Vector{Any}
+    build_factors(lattice) -> Vector
 
-One [`LieFactor`](@ref) per element: `dragt_finn_factor(element_lie_map(e, ref))`,
-computed once per distinct element value. A thin [`RFCavity`](@ref) is kept
-as the cavity object itself, so that [`track`](@ref) applies [`rf_kick`](@ref) there.
+One [`LieFactor`](@ref) per element. A thin [`RFCavity`](@ref) is kept as the
+cavity object itself, so that [`track`](@ref) applies [`rf_kick`](@ref) there.
 """
-function build_factors(lat::Lattice)
+function build_factors(lattice::Lattice)
     cache = Dict{Any,LieFactor}()
-    out = Any[]
-    for e in lat.elements
+    factors = Any[]
+    for e in lattice.elements
         if e isa RFCavity
-            push!(out, e)
+            push!(factors, e)
         else
-            push!(out, get!(() -> dragt_finn_factor(element_lie_map(e, lat.ref); name = e.name), cache, e))
+            push!(factors, get!(() -> dragt_finn_factor(element_lie_map(e, lattice.ref); name = e.name), cache, e))
         end
     end
-    return out
-end
-
-"""
-    _flow(field, z; nsteps = 2, iters = 12)
-
-Time-1 flow of the polynomial vector field `field` (that of a generator f, i.e.
-exp(:f:) z) by the implicit midpoint rule.
-
-# Algorithm
-`nsteps` steps of h = 1/nsteps:
-w_{n+1} = w_n + h F((w_n + w_{n+1})/2).
-The implicit equation is solved by fixed-point iteration from an explicit Euler
-guess. With numbers it stops at |Δ| ≤ 1e-17 or after `iters` iterations; with
-`TaylorN` all `iters` iterations are done.
-
-# Properties
-- The implicit midpoint rule is symplectic for any Hamiltonian vector field and
-  of order 2.
-- Because f3 and f4 are small (non-linear) generators, two steps reproduce the
-  Lie series to well below the truncation error, while staying exactly
-  symplectic.
-- Generic: works on Float64 and on TaylorN (exact Jacobians).
-"""
-function _flow(fieldvec, z::AbstractVector; nsteps = 2, iters = 12)
-    h = 1 / nsteps
-    w = collect(z)
-    ev(u) = [evaluate(fieldvec[i], u) for i in 1:6]
-    for _ in 1:nsteps
-        wn = w .+ h .* ev(w)
-        for _ in 1:iters
-            wnew = w .+ h .* ev((w .+ wn) ./ 2)
-            if eltype(wnew) <: Real
-                done = maximum(abs.(wnew .- wn)) <= 1e-17
-                wn = wnew
-                done && break
-            else
-                wn = wnew
-            end
-        end
-        w = wn
-    end
-    return w
+    return factors
 end
 
 """
     apply_nonlinear(F, z) -> Vector
 
-Apply the non-linear part of a factor, N3 ∘ P4: first the f4 flow (skipped if
-f4 = 0), then the f3 flow, each by [`_flow`](@ref Bell.Tracking._flow).
+Apply the non-linear part of a factor, N3 ∘ P4, each by the implicit midpoint
+rule of [`implicit_midpoint`](@ref Bell.Integrators.implicit_midpoint).
 """
-apply_nonlinear(F::LieFactor, z::AbstractVector) =
-    _flow(F.field, iszero(F.f4) ? collect(z) : _flow(F.field4, z))
-"""
-    apply_factor(F::LieFactor, z) -> Vector
-
-Track one point (numbers or `TaylorN`) through a factor: w = N3(P4(z)), then R·w.
-Each step is symplectic, so the composition is symplectic to round-off. It is not
-the truncated polynomial `factor_to_map(F)`.
-"""
-apply_factor(F::LieFactor, z) = (w = apply_nonlinear(F, z); [sum(F.R[i, j] * w[j] for j in 1:6) for i in 1:6])
-
-@doc raw"""
-    rf_kick(z, cav::RFCavity, ref, C) -> Vector
-
-Thin RF cavity acting on a canonical point (exact formulas, no expansion).
-
-# Algorithm
-1. Arrival-time offset ``\Delta t = -l/v(\delta)``, RF phase ``\varphi = -h\omega_0\Delta t``,
-   ``\omega_0 = 2\pi v_0/C``.
-2. Energy kick ``E' = E + ZV\sin(\varphi_s + \varphi)`` [MeV], ``E = \sqrt{p_0^2(1+\delta)^2 + m^2}``.
-3. New momentum ``\delta' = \sqrt{E'^2 - m^2}/p_0 - 1``.
-4. Same arrival time: ``l' = -v(\delta')\,\Delta t``.
-
-An energy kick at fixed arrival time is canonical in ``(t, -E)``, and the change of
-variables to ``(l, \delta)`` is canonical too, so the kick is symplectic. ``x, p_x, y, p_y`` are
-unchanged (no transverse RF field). The reference momentum is not changed. Works on
-numbers and `TaylorN`.
-"""
-function rf_kick(z, cav::RFCavity, ref::RefParticle, C::Real)
-    x, px, y, py, l, d = z
-    v0 = ref.beta * C_LIGHT
-    v = velocity_ratio(d, ref) * v0
-    dt = -l / v
-    phi = -cav.harmonic * 2pi * v0 / C * dt
-    E = sqrt((ref.p0_MeV * (1 + d))^2 + ref.mass_MeV^2)
-    E2 = E + ref.particle.charge * cav.voltage_MV * sin(cav.phi_s + phi)
-    d2 = sqrt(E2^2 - ref.mass_MeV^2) / ref.p0_MeV - 1
-    l2 = -velocity_ratio(d2, ref) * v0 * dt
-    return [x, px, y, py, l2, d2]
+function apply_nonlinear(F::LieFactor, z::AbstractVector)
+    ev4 = (u, s) -> [evaluate(F.field4[i], u) for i in 1:6]
+    ev3 = (u, s) -> [evaluate(F.field[i], u) for i in 1:6]
+    w = iszero(F.f4) ? collect(z) : integrate_fixed(ev4, collect(z), 0.0, 1.0, 2; method = ImplicitMidpoint()).z
+    return integrate_fixed(ev3, w, 0.0, 1.0, 2; method = ImplicitMidpoint()).z
 end
 
 """
-    track(factors, z; turns = 1, ref = nothing, C = 0.0) -> Vector
+    apply_factor(F::LieFactor, z) -> Vector
 
-Track a canonical point `z` for `turns` turns through the list from
-[`build_factors`](@ref). Entries that are `LieFactor`s use [`apply_factor`](@ref);
-`RFCavity` entries use [`rf_kick`](@ref) and then need `ref` and `C`.
+Track one point through a factor: w = N3(P4(z)), then R·w.
 """
-function track(factors, z; turns::Int = 1, ref = nothing, C = 0.0)
+apply_factor(F::LieFactor, z) = (w = apply_nonlinear(F, z); [sum(F.R[i, j] * w[j] for j in 1:6) for i in 1:6])
+
+"""
+    track(factors, z; turns = 1, ref = nothing, path_length = 0.0) -> Vector
+
+Track a canonical point `z` for `turns` turns. Lie factors use [`apply_factor`](@ref);
+`RFCavity` entries use [`rf_kick`](@ref).
+"""
+function track(factors, z; turns::Int = 1, ref = nothing, path_length = 0.0)
     w = collect(z)
-    for _ in 1:turns, F in factors
-        w = F isa LieFactor ? apply_factor(F, w) : rf_kick(w, F, ref, C)
+    for n in 1:turns, F in factors
+        w = F isa LieFactor ? apply_factor(F, w) : rf_kick(w, F, ref, path_length)
     end
     return w
+end
+
+const _TMCACHE = Dict{Any,Any}()
+
+"""
+    taylor_map_element(e, ref; ds = 0.01, method = RK4(), order = MAP_ORDER) -> Vector{TaylorN}
+
+Taylor map of one element: integrate ``dz/ds = S\\nabla H`` of [`hamiltonian`](@ref)
+with `method` in polynomial arithmetic, starting from the identity. Truncated
+to `order`. This is a check of the Lie map, not the production route.
+"""
+function taylor_map_element(e::AbstractElement, ref::RefParticle; ds = 0.01,
+                            method::ODEMethod = RK4(), order::Int = MAP_ORDER)
+    e isa Marker && return collect(Z)
+    e isa RFCavity && error("RF not included in the Taylor map")
+    L = elem_length(e)
+    V = hamiltonian_field(hamiltonian(e, ref))
+    n = max(4, ceil(Int, L / ds))
+    f = (z, s) -> [evaluate(V[i], z) for i in 1:6]
+    r = integrate_fixed(f, collect(Z), 0.0, L, n; method)
+    return [truncate_to(zi, order) for zi in r.z]
+end
+
+"""
+    element_maps(lattice; ds = 0.01) -> Vector
+
+[`taylor_map_element`](@ref) for every element of `lattice`, cached per (element, p0, ds).
+"""
+element_maps(lattice::Lattice; ds = 0.01) =
+    [get!(() -> taylor_map_element(e, lattice.ref; ds = ds), _TMCACHE, (e, lattice.ref.p0_MeV, ds)) for e in lattice.elements]
+
+"""
+    ring_taylor_map(lattice; ds = 0.01) -> Vector{TaylorN}
+
+One-turn Taylor map by composition of the element maps.
+"""
+function ring_taylor_map(lattice::Lattice; ds = 0.01)
+    M = collect(Z)
+    for Me in element_maps(lattice; ds = ds)
+        M = compose_maps(Me, M)
+    end
+    return M
+end
+
+"""
+    laboratory_map(M, ref, path_length, h) -> Vector{TaylorN}
+
+The map `M` written in laboratory coordinates:
+U = T ∘ M ∘ T⁻¹, where T = [`canonical_to_laboratory`](@ref).
+"""
+function laboratory_map(M, ref::RefParticle, path_length::Real, h::Real)
+    Tinv = [truncate_to(c, MAP_ORDER) for c in laboratory_to_canonical(collect(Z), ref, path_length, h)]
+    T    = [truncate_to(c, MAP_ORDER) for c in canonical_to_laboratory(collect(Z), ref, path_length, h)]
+    return compose_maps(T, compose_maps(M, Tinv))
 end
 
 end # module

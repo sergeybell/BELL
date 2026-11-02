@@ -1,0 +1,7 @@
+﻿OptiM GUI values for magnetic_2, entered manually by the user on 2026-10-31.
+NOT produced by the benchmark scripts; manual reference only. Source: OptiM GUI (View | Integrals).
+L = 11738.8 cm
+Qx = 2.46172, Qy = 2.46134
+alpha_c = 0.23047, eta = -0.533689
+chromaticity: hor = -1.46153, ver = -1.81705
+E = 270 MeV

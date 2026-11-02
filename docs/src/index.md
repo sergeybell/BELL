@@ -1,5 +1,7 @@
 # Beam Physics Manual
 
+**BELL - Beam Evolution in Accelerator Lattice**
+
 **Author:** Kolokolchikov Sergey Dmitrievich (`sergey.bell13@gmail.com`)
 
 Program blocks and the structure file: [Architecture](architecture.md).

@@ -10,10 +10,10 @@ CurrentModule = Bell
 Modules = [Bell.Tracking]
 ```
 
-## `ExactIntegrator`
+## `FieldTrack`
 
 ```@autodocs
-Modules = [Bell.ExactIntegrator]
+Modules = [Bell.FieldTrack]
 ```
 
 ## `Acceleration`
@@ -22,8 +22,8 @@ Modules = [Bell.ExactIntegrator]
 Modules = [Bell.Acceleration]
 ```
 
-## `Longitudinal`
+## `Smooth`
 
 ```@autodocs
-Modules = [Bell.Longitudinal]
+Modules = [Bell.Smooth]
 ```

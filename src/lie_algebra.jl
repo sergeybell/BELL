@@ -6,8 +6,12 @@
 #
 # WHAT
 #   Polynomial space in the 6 canonical variables (x, px, y, py, l, delta).
-#   Hamiltonians are kept to total degree JET_ORDER = 4; maps obtained from
-#   the Lie series are cut at MAP_ORDER = 3.
+#   Hamiltonians of this TaylorSeries path are kept to total degree JET_ORDER = 4;
+#   maps are cut at MAP_ORDER = 3 by default. That truncation is a property of
+#   this path, not of Bell. Arbitrary order uses DiffAlgebra and DATracking.
+#   concatenate drops Poisson brackets of degree >= 5, so the product of
+#   factors is not symmetric at this cut. rotation_matrix_6 is a rotation by
+#   phase advances (μx, μy, μs), not an element tilt.
 #   poisson, lie_exp, lie_map, LieFactor, dragt_finn_factor, concatenate,
 #   product_factors, factor_to_map.
 #
@@ -32,10 +36,11 @@ export SPACE, Z, JET_ORDER, MAP_ORDER, truncate_to, hom, maxabs, map_linear_part
 """
     JET_ORDER :: Int = 4
 
-Maximum total degree of every `TaylorN` polynomial in Bell. Hamiltonians are
+Maximum total degree of every `TaylorN` polynomial on this path. Hamiltonians are
 expanded to this degree, so maps of degree [`MAP_ORDER`](@ref) = 3 are exact
-(a degree-4 H gives the cubic terms of the map). Changing it changes the
-whole polynomial space ([`SPACE`](@ref)).
+(a degree-4 H gives the cubic terms of the map). This is not a global limit of
+Bell: the field / DA path ([`DATracking`](@ref Bell.DATracking)) takes the order
+as an argument. Changing JET_ORDER changes the whole polynomial space ([`SPACE`](@ref)).
 """
 const JET_ORDER = 4   # phase 2: H to order 4 -> maps exact to order 3
 """
@@ -110,17 +115,17 @@ equation of the normal form (`homological_operator`).
 For k = 3 there are 56 monomials, for k = 4 there are 126.
 """
 function exponents_of_order(k::Int)
-    out = Vector{Vector{Int}}()
+    exponents = Vector{Vector{Int}}()
     function rec(prefix, left, pos)
         if pos == 6
-            push!(out, vcat(prefix, left)); return
+            push!(exponents, vcat(prefix, left)); return
         end
         for a in left:-1:0
             rec(vcat(prefix, a), left - a, pos + 1)
         end
     end
     rec(Int[], k, 1)
-    return out
+    return exponents
 end
 
 """
@@ -153,8 +158,8 @@ end
 
 
 
-const QIDX = (1, 3, 5)
-const PIDX = (2, 4, 6)
+const position_indices = (1, 3, 5)
+const momentum_indices = (2, 4, 6)
 
 """
     SYMPLECTIC_S :: Matrix{Float64} (6×6)
@@ -179,7 +184,7 @@ Degree: deg[f, g] = deg f + deg g − 2.
 """
 function poisson(f::TaylorN, g::TaylorN)
     s = zero(f)
-    for (q, p) in zip(QIDX, PIDX)
+    for (q, p) in zip(position_indices, momentum_indices)
         s += differentiate(f, q) * differentiate(g, p) - differentiate(f, p) * differentiate(g, q)
     end
     return s
@@ -209,22 +214,24 @@ function lie_exp(f::TaylorN, g::TaylorN; nmax::Int = 400, tol = 1e-18)
 end
 
 @doc raw"""
-    lie_map(H, L) -> Vector{TaylorN}
+    lie_map(H, L; order = MAP_ORDER) -> Vector{TaylorN}
 
 Transfer map of an element with s-independent Hamiltonian `H` over length `L` [m]:
-``z \mapsto e^{-L{:}H{:}}z`` (component-wise), truncated to [`MAP_ORDER`](@ref).
-Since ``dz/ds = [z, H] = -{:}H{:}\,z``, this is the exact flow of ``H`` to that order.
+``z \mapsto e^{-L{:}H{:}}z`` (component-wise), truncated to `order` (default
+[`MAP_ORDER`](@ref) = 3). Since ``dz/ds = [z, H] = -{:}H{:}\,z``, this is the
+exact flow of ``H`` to that order. Arbitrary order on the independent field path
+uses [`element_da_map`](@ref Bell.DATracking.element_da_map).
 """
-lie_map(H::TaylorN, L::Real) = [truncate_to(lie_exp(-L * H, Z[i]), MAP_ORDER) for i in 1:6]
+lie_map(H::TaylorN, L::Real; order::Int = MAP_ORDER) = [truncate_to(lie_exp(-L * H, Z[i]), order) for i in 1:6]
 
 """
-    compose_maps(A, B) -> Vector{TaylorN}
+    compose_maps(A, B; order = MAP_ORDER) -> Vector{TaylorN}
 
 Composition A ∘ B (B is applied first, then A): component i is A_i(B(z)),
-truncated to [`MAP_ORDER`](@ref). Truncation makes the result symplectic only
-up to the dropped degree; prefer [`concatenate`](@ref) for long products.
+truncated to `order`. Truncation makes the result symplectic only up to the
+dropped degree; prefer [`concatenate`](@ref) for long products at this cut.
 """
-compose_maps(A, B) = [truncate_to(evaluate(a, collect(B)), MAP_ORDER) for a in A]
+compose_maps(A, B; order::Int = MAP_ORDER) = [truncate_to(evaluate(a, collect(B)), order) for a in A]
 
 """
     LieFactor(name, R, f3, f4)
@@ -319,7 +326,9 @@ pull_generator(f::TaylorN, R) = evaluate(f, linear_on_Z(R))
     rotation_matrix_6(mu) -> Matrix{Float64} (6×6)
 
 Block-diagonal rotation with phase advances `mu = (μx, μy, μs)` [rad], blocks
-[cos μ  sin μ; −sin μ  cos μ]: the linear normal form of a stable one-turn matrix.
+[cos μ  sin μ; −sin μ  cos μ]. This is a rotation in phase space of the linear
+normal form. It is not a geometric tilt of a lattice element; element tilts
+are not implemented.
 """
 function rotation_matrix_6(mu)
     R = zeros(6, 6)
@@ -343,9 +352,10 @@ The second generators are pulled through ``R_a`` (``g_3 = f_{3b}\circ R_a``,
 R = R_bR_a,\qquad f_3 = f_{3a} + g_3,\qquad f_4 = f_{4a} + g_4 - \tfrac12[g_3, f_{3a}].
 ```
 
-Nested brackets are of degree ``\ge 5`` and are dropped. The result is again an
-exactly symplectic map. This is how the one-turn factor of the ring is built
-([`product_factors`](@ref)), instead of composing truncated polynomials.
+Nested brackets are of degree 5 and higher and are dropped, so the product is
+truncated at generators f3, f4 and is not symmetric at this cut. Arbitrary-order
+products are compositions of Lie-flow maps, not this concatenate. This is how
+the order-3 one-turn factor is built ([`product_factors`](@ref)).
 """
 function concatenate(Fa::LieFactor, Fb::LieFactor; name = Fa.name * "+" * Fb.name)
     g3 = pull_generator(Fb.f3, Fa.R)
@@ -371,17 +381,17 @@ function product_factors(factors; name = "product")
 end
 
 """
-    factor_to_map(F) -> Vector{TaylorN}
+    factor_to_map(F; order = MAP_ORDER) -> Vector{TaylorN}
 
-Polynomial map of a factor: M = R ∘ exp(:f3:) ∘ exp(:f4:), truncated to
-[`MAP_ORDER`](@ref). This is the "reading" of the one-turn factor from which
-dispersion, path length and chromaticity are extracted.
+Polynomial map of a factor: M = R ∘ exp(:f3:) ∘ exp(:f4:), truncated to `order`.
+This is the reading of the one-turn factor from which dispersion, path length
+and chromaticity are extracted.
 """
-function factor_to_map(F::LieFactor)
-    N3 = [truncate_to(lie_exp(F.f3, Z[j]), MAP_ORDER) for j in 1:6]
-    P4 = [truncate_to(lie_exp(F.f4, Z[j]), MAP_ORDER) for j in 1:6]
-    N = compose_maps(N3, P4)
-    return [truncate_to(sum(F.R[i, j] * N[j] for j in 1:6), MAP_ORDER) for i in 1:6]
+function factor_to_map(F::LieFactor; order::Int = MAP_ORDER)
+    N3 = [truncate_to(lie_exp(F.f3, Z[j]), order) for j in 1:6]
+    P4 = [truncate_to(lie_exp(F.f4, Z[j]), order) for j in 1:6]
+    N = compose_maps(N3, P4; order)
+    return [truncate_to(sum(F.R[i, j] * N[j] for j in 1:6), order) for i in 1:6]
 end
 
 end # module

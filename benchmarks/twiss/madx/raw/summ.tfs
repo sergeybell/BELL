@@ -1,0 +1,9 @@
+@ NAME             %04s "SUMM"
+@ TYPE             %04s "SUMM"
+@ TITLE            %08s "no-title"
+@ ORIGIN           %18s "5.09.01 Windows 64"
+@ DATE             %08s "31/10/26"
+@ TIME             %08s "14.35.43"
+*             LENGTH             ORBIT5               ALFA            GAMMATR                 Q1                DQ1            BETXMAX              DXMAX              DXRMS             XCOMAX             XCORMS                 Q2                DQ2            BETYMAX              DYMAX              DYRMS             YCOMAX             YCORMS             DELTAP            SYNCH_1            SYNCH_2            SYNCH_3            SYNCH_4            SYNCH_5            SYNCH_6            SYNCH_8             NFLIPS              DQMIN        DQMIN_PHASE 
+$                %le                %le                %le                %le                %le                %le                %le                %le                %le                %le                %le                %le                %le                %le                %le                %le                %le                %le                %le                %le                %le                %le                %le                %le                %le                %le                %le                %le                %le 
+         117.388296                 -0       0.2304702822        2.083015652         2.46172015       -3.009531834        19.36773852        24.09549735        10.01524348                  0                  0        2.461337323       -3.741619599        19.36464098                 -0                  0                  0                  0                  0         27.0545137       0.4629778677      0.03411462427        0.146892782       0.1357048854        26.47295549        60.84524738                  0                  0                  0

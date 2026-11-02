@@ -1,0 +1,6 @@
+cosy/lattice_md.bin
+cosy/*.lis
+
+madx/internal_mag_pot.txt
+optim/optimx.log
+optim/raw/optimx.log

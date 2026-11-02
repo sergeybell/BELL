@@ -1,51 +1,19 @@
 # =============================================================================
-# Hamiltonians.jl - the s-Hamiltonian of every element, expanded to degree 4
+# hamiltonians.jl - s-Hamiltonian of every element (Lie path only)
 # =============================================================================
-#
 #
 # Author: Kolokolchikov Sergey Dmitrievich <sergey.bell13@gmail.com>
 #
-# WHAT
-#   hamiltonian(element, ref) returns H(z) as a TaylorN polynomial in the
-#   canonical variables z = (x, px, y, py, l, delta), expanded to total degree
-#   JET_ORDER = 4 (constant dropped).  It is computed by TaylorSeries arithmetic directly
-#   from the EXACT expressions below, so no hand expansion can go wrong.
-#
-#   With ps = sqrt((1+delta)^2 - px^2 - py^2) and the energy term
-#   e(delta) = sqrt((1+delta)^2 + 1/(beta0 gamma0)^2)/beta0 - 1/beta0^2 :
-#
-#     Drift       H = e(delta) - ps
-#     Quadrupole  H = e(delta) - ps + k1/2 (x^2 - y^2)
-#     Sextupole   H = e(delta) - ps + k2/6 (x^3 - 3 x y^2)
-#     SBend       H = e(delta) - (1 + h x) ps + h x + h^2 x^2/2 + k1/2 (x^2 - y^2)
-#
-#   Origin of the bend terms: in the curved frame (radius 1/h) the
-#   Hamiltonian is  e(delta) - (1+hx) ps - (1+hx) a_s, with a_s = q A_s/p0.
-#   For the uniform design field B0 = (B rho) h we need
-#   b_y = (1/(1+hx)) d/dx[ -(1+hx) a_s ] = h, i.e. -(1+hx) a_s = h x + h^2 x^2/2.
-#   Check: dH/dx at z = 0 equals -h + h = 0, so the reference arc is a
-#   solution.  The k1 term in a bend uses the straight-magnet potential
-#   (curvature corrections to a gradient in a bend are O(h k1 x^3) and are
-#   not needed here because all OptiM bends have G = 0).
-#
-#   Hamilton's equations:  dz/ds = [z, H] = S grad H   with
-#   [f, g] = sum_k (df/dq_k dg/dp_k - df/dp_k dg/dq_k),  q = (x, y, l),
-#   p = (px, py, delta).
-#
-# WHY
-#   Everything else (linear matrices = exp(L S Hess H), Lie generators,
-#   Taylor maps) is derived from these H; this file is the single place where
-#   element physics is defined.
-#
-# WHAT YOU SEE
-#   Nothing printed; scripts/02 prints H of every element.
+# Polynomial H truncated at JET_ORDER for the Lie / Dragt–Finn path.
+# Field ODEs for Float64 / DA tracking live in da/fields.jl and do not
+# call this module.
 # =============================================================================
 module Hamiltonians
 
 using TaylorSeries
 using ..Coordinates, ..Elements, ..LieAlgebra
 
-export hamiltonian, hamiltonian_formula
+export hamiltonian, hamiltonian_formula, hamiltonian_field
 
 function _clean(H::TaylorN, e)
     H = H - constant_term(H)
@@ -66,28 +34,18 @@ end
 s-Hamiltonian of element `e` in canonical variables ``z = (x, p_x, y, p_y, l, \delta)``, as a
 polynomial of degree [`JET_ORDER`](@ref) = 4 (constant term dropped).
 
-With ``p_s = \sqrt{(1+\delta)^2 - p_x^2 - p_y^2}`` and ``e(\delta)`` = [`energy_term`](@ref):
+With ``p_s = \sqrt{(1+\delta)^2 - p_x^2 - p_y^2}`` and [`energy_term`](@ref):
 
 | element | ``H`` |
 |:--|:--|
-| `Drift`, `Cavity` (RF off) | ``e(\delta) - p_s`` |
-| `Quadrupole` | ``e(\delta) - p_s + \tfrac{k_1}{2}(x^2 - y^2)`` |
-| `Sextupole` | ``e(\delta) - p_s + \tfrac{k_2}{6}(x^3 - 3xy^2)`` |
-| `SBend` | ``e(\delta) - (1+hx)p_s + hx + \tfrac{h^2x^2}{2} + \tfrac{k_1}{2}(x^2 - y^2)`` |
+| `Drift` | ``\mathrm{energy\_term}(\delta) - p_s`` |
+| `Quadrupole` | ``\mathrm{energy\_term}(\delta) - p_s + \tfrac{k_1}{2}(x^2 - y^2)`` |
+| `Sextupole` | ``\mathrm{energy\_term}(\delta) - p_s + \tfrac{k_2}{6}(x^3 - 3xy^2)`` |
+| `SBend` | ``\mathrm{energy\_term}(\delta) - (1+hx)p_s + hx + \tfrac{h^2x^2}{2} + \tfrac{k_1}{2}(x^2 - y^2)`` |
 | `Marker` | ``0`` (thin `RFCavity`: error, it is a kick) |
 
-# Algorithm
-The exact expressions are evaluated in `TaylorN` arithmetic, so the expansion
-(square roots included) is done by the polynomial engine, not by hand. Then the
-constant is removed, and the result is checked to have no linear terms (a warning
-is issued otherwise: the reference orbit would not be a solution).
-
-The bend terms come from the curved-frame vector potential
-``-(1+hx)a_s = hx + h^2x^2/2`` (uniform field ``h\,B\rho``); ``\partial H/\partial x = 0`` at ``z = 0``.
-This is the only place in Bell where element physics is defined: linear
-matrices, Lie maps, DA maps and the exact integrator all derive from these ``H``.
-The explicit expansions and maps are listed in the Programmer Manual, page
-"Elements: explicit maps".
+The exact expressions are evaluated in `TaylorN` arithmetic. The constant is
+removed, and linear terms warn that the reference orbit is not a solution.
 """
 hamiltonian(e::Drift, ref::RefParticle) = (p = _parts(ref); _clean(p[5] - p[4], e))
 
@@ -108,21 +66,28 @@ function hamiltonian(e::SBend, ref::RefParticle)
 end
 
 hamiltonian(e::Marker, ref::RefParticle) = zero(Z[1])
-# The RF part of a finite cavity is s- and time-dependent -> ExactIntegrator.jl.
-# For maps / linear optics the cavity is taken with RF OFF, i.e. as a drift.
-hamiltonian(e::Cavity, ref::RefParticle) = hamiltonian(Drift(e.name, e.L), ref)
 hamiltonian(e::RFCavity, ref::RefParticle) =
-    error("RFCavity is a thin kick (see Tracking.rf_kick); it has no s-Hamiltonian in phase 1")
+    error("RFCavity is a thin kick (see rf_kick); it has no s-Hamiltonian")
 
 """
     hamiltonian_formula(e) -> String
 
 The formula of [`hamiltonian`](@ref) for the type of `e` as plain text (for printing).
 """
-hamiltonian_formula(::Drift) = "H = e(delta) - ps"
-hamiltonian_formula(::Quadrupole) = "H = e(delta) - ps + k1/2 (x^2 - y^2)"
-hamiltonian_formula(::Sextupole) = "H = e(delta) - ps + k2/6 (x^3 - 3 x y^2)"
-hamiltonian_formula(::SBend) = "H = e(delta) - (1+hx) ps + h x + h^2 x^2/2 + k1/2 (x^2-y^2)"
+hamiltonian_formula(::Drift) = "H = energy_term(delta) - ps"
+hamiltonian_formula(::Quadrupole) = "H = energy_term(delta) - ps + k1/2 (x^2 - y^2)"
+hamiltonian_formula(::Sextupole) = "H = energy_term(delta) - ps + k2/6 (x^3 - 3 x y^2)"
+hamiltonian_formula(::SBend) = "H = energy_term(delta) - (1+hx) ps + h x + h^2 x^2/2 + k1/2 (x^2-y^2)"
 hamiltonian_formula(::AbstractElement) = "H = 0"
+
+"""
+    hamiltonian_field(H) -> Vector
+
+Polynomial vector field ``dz/ds = S\\nabla H`` of a TaylorN Hamiltonian.
+"""
+function hamiltonian_field(H)
+    g = [differentiate(H, j) for j in 1:6]
+    return [sum(SYMPLECTIC_S[i, j] * g[j] for j in 1:6) for i in 1:6]
+end
 
 end # module

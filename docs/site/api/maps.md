@@ -16,10 +16,10 @@ Modules = [Bell.LieAlgebra]
 Modules = [Bell.Hamiltonians]
 ```
 
-## `DifferentialAlgebra`
+## `Fields`
 
 ```@autodocs
-Modules = [Bell.DifferentialAlgebra]
+Modules = [Bell.Fields]
 ```
 
 ## `Symplectic`

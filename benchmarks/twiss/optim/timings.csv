@@ -1,0 +1,4 @@
+stage,seconds
+optimx64 -f process (min of 5),0.5988
+optimx64 -s process (min of 5),0.6026
+parse table,0.0205

@@ -1,4 +1,4 @@
-# Differential algebra, integrators, Lie flow
+# Differential algebra, integrators, DA tracking
 
 ```@autodocs
 Modules = [Bell.DiffAlgebra]
@@ -7,6 +7,7 @@ Modules = [Bell.DiffAlgebra]
 ```@autodocs
 Modules = [Bell.Integrators]
 ```
+
 ```@autodocs
-Modules = [Bell.LieFlow]
+Modules = [Bell.DATracking]
 ```

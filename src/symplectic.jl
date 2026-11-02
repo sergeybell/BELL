@@ -1,41 +1,51 @@
 # =============================================================================
-# Symplectic.jl - symplecticity checks  || J^T S J - S ||
+# symplectic.jl - one check: max |J^T S J - S|
 # =============================================================================
-#
 #
 # Author: Kolokolchikov Sergey Dmitrievich <sergey.bell13@gmail.com>
 #
-# WHAT
-#   symplectic_error(J)              max |J^T S J - S| for a 6x6 Jacobian J
-#   jacobian_of_map(M, z0)           Jacobian of a polynomial map at point z0
-#   jacobian_of_function(f, z0)      Jacobian of ANY generic function f(z)
-#                                    (e.g. a tracking routine) at z0, computed
-#                                    exactly by feeding z0 + Z (TaylorN) in -
-#                                    automatic differentiation, no finite steps.
-#
-# WHY
-#   A truncated Taylor map is symplectic only up to its truncation order
-#   (error grows like |z|^order at amplitude), whereas the factorised Lie map
-#   applied element by element must be symplectic to machine precision at any
-#   amplitude.  These functions make that difference visible (scripts/02).
-#
-# WHAT YOU SEE
-#   Nothing printed here.
+# symplectic_error accepts anything that reduces to a Jacobian or a series map:
+# a numeric matrix, a tracking step z -> z, a TaylorSeries polynomial, a DA map.
+# The defect is always max |J^T S J - S|. For a series, that maximum runs over
+# every retained coefficient. DA arithmetic stays in DiffAlgebra; this file
+# is the call site.
 # =============================================================================
 module Symplectic
 
 using TaylorSeries, LinearAlgebra
 using ..LieAlgebra
+using ..DiffAlgebra: DA, da_symplectic_error
 
 export symplectic_error, jacobian_of_map, jacobian_of_function
 
 """
-    symplectic_error(J) -> Float64
+    symplectic_error(object) -> Float64
+    symplectic_error(f, z0) -> Float64
 
-max |Jᵀ S J − S| over all entries: 0 for an exactly symplectic matrix. Applied
-to Jacobians of maps or tracking functions to measure the symplecticity defect.
+Symplecticity defect ``\\max|J^T S J - S|``. The object is the thing being
+checked: a numeric Jacobian, a polynomial map, a DA map, or a tracking step
+`f` at point `z0`. Zero (up to round-off) for an exactly symplectic linear map.
+A truncated Taylor map is symplectic only through its retained degree.
 """
 symplectic_error(J::AbstractMatrix) = maximum(abs, J' * SYMPLECTIC_S * J - SYMPLECTIC_S)
+
+function symplectic_error(M::AbstractVector{<:TaylorN})
+    J = [differentiate(M[i], j) for i in 1:6, j in 1:6]
+    err = 0.0
+    for a in 1:6, b in 1:6
+        s = zero(M[1])
+        for i in 1:6, j in 1:6
+            SYMPLECTIC_S[i, j] == 0 && continue
+            s += SYMPLECTIC_S[i, j] * (J[i, a] * J[j, b])
+        end
+        err = max(err, maxabs(truncate_to(s - SYMPLECTIC_S[a, b], MAP_ORDER - 1)))
+    end
+    return err
+end
+
+symplectic_error(M::AbstractVector{<:DA}; kwargs...) = da_symplectic_error(M; kwargs...)
+
+symplectic_error(f, z0::AbstractVector) = symplectic_error(jacobian_of_function(f, z0))
 
 """
     jacobian_of_map(M, z0) -> Matrix{Float64}
