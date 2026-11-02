@@ -1,4 +1,4 @@
-﻿# Twiss cross-code benchmark — magnetic_2
+# Twiss cross-code benchmark — magnetic_2
 
 Same lattice (examples/lattices/magnetic_2.opt, deuteron, E_kin = 270 MeV, C = 117.388 m) in four codes.
 Each subfolder: `run.jl` (runs the code headless, parses output -> `results.csv`, `timings.csv`), `raw/`, `README.md`.
@@ -9,7 +9,7 @@ Each subfolder: `run.jl` (runs the code headless, parses output -> `results.csv`
     julia --project=examples benchmarks/twiss/madx/run.jl
     julia --project=examples benchmarks/twiss/compare.jl            # -> comparison.md
     julia --project=examples benchmarks/twiss/plot_compare.jl       # -> twiss_overlay.png, twiss_diff_vs_bell*.png, twiss_diff_summary.csv
-    julia --project=examples benchmarks/twiss/bell/linear_routes.jl all   # Bell: ring_matrix vs Dragt-Finn vs LieFlow N=1/2
+    julia --project=examples benchmarks/twiss/bell/linear_routes.jl all   # Bell: ring_matrix vs Dragt-Finn vs DATracking one_turn_map_da N=1/2
 
 `common.jl` — shared CSV/plot helpers (Plots.jl from examples env; loading Plots adds ~3-4 s to each script, not part of code timings).
 

@@ -2,7 +2,7 @@
 #
 # Author: Kolokolchikov Sergey Dmitrievich <sergey.bell13@gmail.com>
 #
-# Finite-length RF cavity and a ramp 10 -> 270 MeV on magnetic_2.
+# Thin RF cavity (RFCavity + rf_kick, v0.16) and a ramp 10 -> 270 MeV on magnetic_2.
 # Injection energy is assumed (5 MeV/u); it is not in the OptiM file.
 # Takes a few minutes.
 #
@@ -13,37 +13,38 @@ using Bell, Printf, LinearAlgebra, TaylorSeries, Random
 include(joinpath(@__DIR__, "..", "common", "print_util.jl"))
 include(joinpath(@__DIR__, "..", "common", "reference_values.jl"))
 
-banner("Finite RF cavity, synchrotron motion, acceleration")
+banner("Thin RF cavity, synchrotron motion, acceleration")
 
 of = convert_optim(OPTIM_FILE, STRUCTURE_FILE)
 lat270 = load_structure(STRUCTURE_FILE)
 ref270 = lat270.ref
 
-# Parser uses DEUTERON.mass_MeV; of.mass_MeV is only the file header.
-mass = DEUTERON.mass_MeV
+# Parser uses deuteron.mass_MeV; of.mass_MeV is only the file header.
+mass = deuteron.mass_MeV
 E_inj = 10.0              # assumed: 5 MeV/u, not in magnetic_2.opt
 E_fin = of.energy_MeV     # 270 MeV from the .opt header
-Lc, V, h, phis = 1.0, 0.2, 5, deg2rad(150.0)
+V, h, phis = 0.2, 5, deg2rad(150.0)
 
 
 section("1. Parameters")
 
-ref_inj = reference_from_kinetic(DEUTERON, E_inj)
-cav = Cavity("RF", Lc, V, h, phis)
-lat_rf270, icav = insert_cavity(lat270, cav)
-C = circumference(lat_rf270)
+ref_inj = reference_from_kinetic(deuteron, E_inj)
+cav = RFCavity("RF", V, h, phis)
+idrift = something(findfirst(e -> e isa Drift && startswith(e.name, "OBM"), lat270.elements),
+                   findfirst(e -> e isa Drift, lat270.elements))
+lat_rf270, icav = insert_cavity(lat270, cav; in_element = lat270.elements[idrift].name)
+C = path_length(lat_rf270)
 lat_rf = Lattice(lat_rf270.name, lat_rf270.elements, ref_inj, h)
-T = transit_factor(cav, ref270, C)
+T = 1.0   # thin cavity: no transit-time factor (long cavity removed in v0.16)
 
 @printf("  injection E_kin = %.1f MeV (ASSUMED, 5 MeV/u; not given in magnetic_2.opt)\n", E_inj)
 @printf("  final     E_kin = %.1f MeV (135 MeV/u)\n", E_fin)
 
 println()
-@printf("  cavity: L = %.2f m in the first OBM drift (element %d)\n", Lc, icav)
+@printf("  thin cavity in the middle of drift %s (element %d)\n", lat270.elements[idrift].name, icav)
 @printf("          V = %.3f MV, h = %d, phi_s = %.1f deg\n", V, h, rad2deg(phis))
 @printf("  C = %.6f m (unchanged)\n", C)
-@printf("  transit factor T = sin(th/2)/(th/2), th = 2 pi h L/C = %.5f rad -> T = %.6f\n",
-        2pi * h * Lc / C, T)
+println("  thin cavity: transit factor T = 1")
 
 println()
 for (nm, rf) in (("injection", ref_inj), ("final", ref270))
@@ -59,30 +60,18 @@ println()
 
 
 section("2. Cavity checks",
-        "Single passes through the cavity at 270 MeV (no renormalisation).")
+        "Single thin kicks rf_kick at 270 MeV (no renormalisation).")
 
-z = exact_track_element(zeros(6), cav, ref270, C)
+z = rf_kick(zeros(6), cav, ref270, C)
 dE_sync = sqrt((ref270.p0_MeV * (1 + z[6]))^2 + mass^2) - sqrt(ref270.p0_MeV^2 + mass^2)
 @printf("  synchronous particle: delta_out = %.10e\n", z[6])
-@printf("                       dE = %.9f MeV   vs Z V T sin(phi_s) = %.9f MeV\n", dE_sync, dE)
+@printf("                       dE = %.9f MeV   vs Z V sin(phi_s) = %.9f MeV\n", dE_sync, dE)
 
-# phi = +0.05 rad
 lt = 0.05 * C * velocity_ratio(0.0, ref270) / (2pi * h)
-zin = [0.0, 0.0, 0.0, 0.0, lt, 2e-4]
-thin = rf_kick(zin, RFCavity("thin", V, h, phis), ref270, C)
-
-println()
-for Lx in (0.1, 0.01, 0.001)
-    zc = exact_track_element(zin, Cavity("c", Lx, V, h, phis), ref270, C)
-    @printf("  thin limit L = %-6g m: delta_out = %.12e  (thin kick %.12e, diff %.2e)\n",
-            Lx, zc[6], thin[6], zc[6] - thin[6])
-end
-
-Jc = jacobian_of_function(w -> exact_track_element(w, cav, ref270, C),
+Jc = jacobian_of_function(w -> rf_kick(w, cav, ref270, C),
                           [1e-3, 1e-4, 1e-3, 1e-4, lt, 2e-4])
 println()
-@printf("  symplectic error of cavity map Jacobian: %.2e\n", symplectic_error(Jc))
-
+@printf("  symplectic error of thin-kick Jacobian: %.2e\n", symplectic_error(Jc))
 
 section("3. Synchrotron tune at fixed energy (phi_s = 180 deg)",
         "Q_s = sqrt(h eta0 Z V T cos(phi_s) / (2 pi beta^2 E)), eta0 = alpha0 - 1/gamma^2.")
@@ -96,7 +85,7 @@ function fixed_energy_qs(rf; turns = 1024, d0 = 1e-4)
     for n in 1:turns
         for e in L.elements
             zs = [exact_track_element(w, e, ref, C; ds = 0.2) for w in zs]
-            e isa Cavity && ((zs, ref) = renormalize(zs, ref, 1))
+            e isa RFCavity && ((zs, ref) = renormalize(zs, ref, 1))
         end
         push!(dd, zs[2][6])
     end
@@ -119,7 +108,7 @@ section("4. Longitudinal Hamiltonian parameters (eta0, eta1) vs energy")
 
 pe = Dict{Float64,Any}()
 for rf in (ref_inj, ref270)
-    Lm = Lattice("m", lat_rf.elements, rf, h)
+    Lm = Lattice("m", lat270.elements, rf, h)   # magnets only: the Taylor map has no RF
     pe[rf.Ekin_MeV] = path_expansion(ring_taylor_map(Lm), rf, C)
     @printf("  E = %6.1f MeV: alpha0 = %.8f alpha1 = %.8f eta0 = %.8f eta1 = %.8f\n",
             rf.Ekin_MeV,
@@ -131,7 +120,7 @@ a0 = pe[E_inj].alpha0
 alpha1_at(E) = pe[E_inj].alpha1 + (pe[E_fin].alpha1 - pe[E_inj].alpha1) * (E - E_inj) / (E_fin - E_inj)
 
 function long_params(E, ph)
-    rf = reference_from_kinetic(DEUTERON, E; mass_MeV = mass)
+    rf = reference_from_kinetic(deuteron, E; mass_MeV = mass)
     c1, c2, _ = velocity_expansion(rf)
     a1 = alpha1_at(E)
     LongitudinalParams(h, a0 - c1, a1 - a0 * c1 - c2 + c1^2, V * T / (rf.beta^2 * rf.gamma * mass), ph)
@@ -176,7 +165,7 @@ users = [
 append!(users, ensemble)
 
 # One turn, element by element, at injection (before the ramp).
-zs0 = [user_to_canonical(u, ref_inj, C, h) for u in users]
+zs0 = [laboratory_to_canonical(u, ref_inj, C, h) for u in users]
 snaps, enames, svals, _, _ = turn_snapshots(lat_rf, ref_inj, zs0)
 
 t0 = time()
@@ -247,7 +236,7 @@ function amps(a, b)
     ph = maximum(abs(rec.u[4][n][5]) for n in a:b)
     dl = maximum(abs(rec.u[4][n][6]) for n in a:b)
     n = div(a + b, 2)
-    rf = reference_from_kinetic(DEUTERON, rec.Ekin[n]; mass_MeV = mass)
+    rf = reference_from_kinetic(deuteron, rec.Ekin[n]; mass_MeV = mass)
     w0 = 2pi * revolution_frequency(rf, C)
     return ph, dl, ph * dl * rf.beta^2 * rf.gamma * mass / (h * w0)
 end

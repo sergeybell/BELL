@@ -1,4 +1,4 @@
-﻿# Bell: linear one-turn matrix by three internal routes, each in a FRESH julia process
+# Bell: linear one-turn matrix by three internal routes (flow1/flow2 = DATracking.one_turn_map_da at order N, v0.16), each in a FRESH julia process
 # so "first call" includes its own JIT.  Usage (one method per process):
 #   julia --project=examples benchmarks/twiss/bell/linear_routes.jl matrix|dragtfinn|flow1|flow2
 # Driver: julia --project=examples benchmarks/twiss/bell/linear_routes.jl all
@@ -17,12 +17,12 @@ if meth == "all"
     print(read(out, String)); exit()
 end
 t0 = time(); using Bell, LinearAlgebra; t_using = time() - t0
-lat = load_structure(joinpath(HERE, "raw", "magnetic_2.bell")); C = circumference(lat)
+lat = load_structure(joinpath(HERE, "raw", "magnetic_2.bell")); C = path_length(lat)
 R(m) = m == "matrix"    ? ring_matrix(lat) :
        m == "dragtfinn" ? ring_lie_factor(lat).R :
-       m == "flow1"     ? Bell.DiffAlgebra.linear_part(one_turn_map_flow(lat, 1; cache = false)) :
-                          Bell.DiffAlgebra.linear_part(one_turn_map_flow(lat, 2; cache = false))
-clearcache() = (empty!(Bell.Linear._HCACHE); isdefined(Bell.LieFlow, :_FLOWCACHE) && empty!(Bell.LieFlow._FLOWCACHE))
+       m == "flow1"     ? Bell.DiffAlgebra.linear_part(one_turn_map_da(lat, 1; cache = false)) :
+                          Bell.DiffAlgebra.linear_part(one_turn_map_da(lat, 2; cache = false))
+clearcache() = (empty!(Bell.Linear._HCACHE))
 t_first = @elapsed (Rm = R(meth))
 t_warm = minimum(begin clearcache(); @elapsed R(meth) end for _ in 1:3)
 po = periodic_optics(Rm, lat.ref, C)
