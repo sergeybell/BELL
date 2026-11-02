@@ -427,3 +427,33 @@ to `src/research/` and is not re-exported by `using Bell`.
 **Tests / CI.** Mathematical pendulum on every integrator
 (`benchmarks/pendulum`). GitHub Actions runs `Pkg.test`. Package version
 `0.15.0` (not a product release). Examples are not edited in this branch.
+
+## v0.16 - Lie path vs field/DA path; thin RF only (2026-11-02)
+
+**Code.** Two stacks that share elements, coordinates and integrators but do
+not cross:
+
+- Lie: polynomial `hamiltonian` → `lie_algebra` / Dragt–Finn → `Tracking`.
+- Field/DA: `src/da/fields.jl` (`dz/ds` from multipole fields) → `FieldTrack`
+  (Float64) and `src/da/tracking.jl` (`DATracking`, any order N). No
+  `hamiltonian_da`. DiffAlgebra stays pure maths; fields and DA tracking sit
+  beside it under `src/da/`.
+
+Removed: `LongCavity`, `cavity_field` / `cavity_parameters` / `transit_factor`,
+module `LieFlow` (`lie_flow_map`, `hamiltonian_da`). RF is only thin
+`RFCavity` + `rf_kick` (numbers or DA). `insert_cavity` / `accelerate` /
+`exact_track_*` use the thin kick; `renormalize` after each kick on a ramp.
+`exact_integrator.jl` is `field_track.jl` (`FieldTrack`). Smooth stays a
+separate averaged `(φ, δ)` model.
+
+**Tests.** DATracking replaces the LieFlow testset (field map vs Lie at order
+3, analytic drift/quad, symplecticity, chromaticity_series, thin RF turn).
+Package version `0.16.0`. Examples still not edited.
+
+**Optimizers (same branch).** `NelderMead` — local derivative-free fit with
+`tol` on the simplex spread in `f`. `RandomStart` — MultiStart: random
+initial points in a box, local Nelder–Mead from each. `GridSearch` — fixed
+list of points, optional polish. Entry point `optimize`.
+
+
+**Note (stale references).** Removed with LongCavity/LieFlow: `docs/site/dev/lie_flow.md` (replaced by `dev/da_tracking.md`); `ExactIntegrator` references in the docs now point to `FieldTrack`. Example 14 and `benchmarks/twiss/bell/linear_routes.jl` were moved to the thin `RFCavity` / `one_turn_map_da` path.

@@ -4,7 +4,7 @@
 CurrentModule = Bell
 ```
 
-Modules: `Tracking` (`src/tracking.jl`), `ExactIntegrator`
+Modules: `Tracking` (`src/tracking.jl`), `FieldTrack` (`src/field_track.jl`)
 (`src/exact_integrator.jl`), `Acceleration` (`src/acceleration.jl`).
 
 Bell has four ways to move phase-space coordinates through elements. All of them
@@ -18,7 +18,7 @@ latter gives exact Jacobians for symplecticity checks).
 | Lie series | [`lie_map`](@ref) | ``e^{-L{:}H{:}}z`` | map cut at degree 3 | to degree 3 | element maps |
 | RK4 in TaylorN | [`taylor_map_element`](@ref) | ``dz/ds=S\nabla H`` | degree 3 | no | cross-check maps |
 
-## 1. Exact-Hamiltonian integrator (`ExactIntegrator`)
+## 1. Exact-Hamiltonian integrator (`FieldTrack` (`src/field_track.jl`))
 
 ### Equations of motion
 
@@ -56,7 +56,7 @@ with ``\partial\Phi/\partial\delta = \omega\,l\,v_0\,(dv/d\delta)/v^2``. The las
 equation is exactly ``dp/ds = (1/v)\,dE/ds`` with the on-axis field
 ``dE/ds = -(ZV/L)\sin\Phi``. Integrated over the cavity it gives the energy gain
 ``\Delta E = ZVT\sin(\varphi_s + \varphi)`` with the transit factor
-``T = \sin(\theta/2)/(\theta/2)``, ``\theta = \omega L/v_0`` ([`transit_factor`](@ref)).
+``T = \sin(\theta/2)/(\theta/2)``, ``\theta = \omega L/v_0`` (historical; the long cavity and `transit_factor` were removed in v0.16, RF is the thin `RFCavity` kick [`rf_kick`](@ref)).
 Transverse RF fields are not modelled.
 
 ### Step algorithm

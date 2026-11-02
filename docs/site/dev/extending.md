@@ -8,15 +8,12 @@ CurrentModule = Bell
 
 1. `src/elements.jl`: `struct NewElem <: AbstractElement` with `name::String`
    and, if it has length, `L::Float64`; add `kind_string(::NewElem)`.
-2. `src/hamiltonians.jl`: `hamiltonian(e::NewElem, ref)` built from `Z`,
-   `energy_term` and `p_s` exactly like the existing methods. Linear matrix, Lie
-   map, Dragt–Finn factor and RK4 map then follow automatically
-   (see [Elements](elements.md)).
-3. `src/exact_integrator.jl`: an `_params(e::NewElem)` method if the element is a
-   special case of ``(h, k_1, k_2)``, otherwise a dedicated vector field and a
-   branch in `exact_track_element`.
-4. `src/structure.jl`: the card in `_make_element` and `_card_line`, so the
-   element can be read and written.
+2. Lie path — `src/hamiltonians.jl`: `hamiltonian(e::NewElem, ref)`. Linear
+   matrix, Lie map and Dragt–Finn then follow (see [Elements](elements.md)).
+3. Field path — `src/da/fields.jl`: `magnetic_parameters` and/or a dedicated
+   branch of [`element_field`](@ref) / [`element_rhs`](@ref). `FieldTrack` and
+   `DATracking` then use the same ODEs.
+4. `src/structure.jl`: the card in `_make_element` and `_card_line`.
 5. A docstring; it appears in the API Reference via `@autodocs`.
 
 ## A new fringe model

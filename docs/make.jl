@@ -25,7 +25,8 @@ const PAGES = [
         "Fringe fields" => "dev/fringe.md",
         "Differential algebra" => "dev/da.md",
         "ODE integrators" => "dev/integrators.md",
-        "Lie flow-operator maps" => "dev/lie_flow.md",
+        "Field ODEs on DA" => "dev/da_tracking.md",
+        "Optimizers" => "dev/optimizers.md",
         "Extending Bell" => "dev/extending.md",
     ],
     "API Reference" => [
@@ -43,11 +44,11 @@ const PAGES = [
 # All submodules are listed so that `checkdocs = :exports` verifies that every
 # exported name has a docstring; the API pages collect them with @autodocs.
 const MODULES = [Bell, Bell.Coordinates, Bell.Elements, Bell.Structure, Bell.LieAlgebra,
-                 Bell.Hamiltonians, Bell.OptimConverter, Bell.Linear, Bell.Symplectic,
+                 Bell.Hamiltonians, Bell.Fields, Bell.OptimConverter, Bell.Linear, Bell.Symplectic,
                  Bell.Tracking, Bell.MapReadings, Bell.Smooth,
-                 Bell.ExactIntegrator, Bell.Acceleration, Bell.NormalForm, Bell.Fringe,
+                 Bell.FieldTrack, Bell.DATracking, Bell.Acceleration, Bell.NormalForm, Bell.Fringe,
                  Bell.SextupoleFamilies, Bell.Plotting, Bell.Optimizers,
-                 Bell.DiffAlgebra, Bell.Integrators, Bell.LieFlow]
+                 Bell.DiffAlgebra, Bell.Integrators]
 
 makedocs(sitename = "Bell",
          modules = MODULES,

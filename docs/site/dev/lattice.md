@@ -18,7 +18,7 @@ for physics. Each physics module adds its own method:
 | linear matrix | [`linear_matrix`](@ref) | Linear |
 | Lie map / factor | [`element_lie_map`](@ref), [`build_factors`](@ref) | Tracking |
 | RK4 Taylor map | [`taylor_map_element`](@ref) | DifferentialAlgebra |
-| exact tracking | [`exact_track_element`](@ref) | ExactIntegrator |
+| exact tracking | [`exact_track_element`](@ref) | FieldTrack |
 | edge maps | [`edge_map`](@ref) | Fringe |
 
 How to add a new element type: [Extending Bell](extending.md).
