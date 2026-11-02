@@ -23,3 +23,4 @@ restructures are listed as notes inside the nearest version.
 | v0.14 | 2026-10-30 22:02 | `846891a` `26e6cea` | `chromaticity_series`; `close_ring` converter option |
 | v0.15 | 2026-11-02 | `v0.15-core-review` | Core review: names, one tracking scheme, Smooth, MapReadings, research NormalForm |
 | v0.16 | 2026-11-02 | `v0.15-core-review` | Lie vs field/DA split; `da/fields` + DATracking; thin RF only; drop LongCavity / LieFlow |
+| v0.17 | 2026-11-02 | `rf-hamiltonian` | RFCavity s-Hamiltonian (thin = rf_kick, thick L), uniform element maps; src/lie, src/da, src/common, src/longitudinal_models |

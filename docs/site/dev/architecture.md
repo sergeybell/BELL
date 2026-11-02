@@ -12,23 +12,32 @@ share elements, coordinates and ODE integrators; they do not call each other.
 ```
 src/
   Bell.jl                 top module: include order + re-export
-  coordinates.jl          Coordinates        particle, reference, laboratory maps
-  elements.jl             Elements           element types (data only; thin RF only)
-  structure.jl            Structure          Lattice, .bell parser/writer
-  lie_algebra.jl          LieAlgebra         polynomial space, Poisson, Lie factors
-  hamiltonians.jl         Hamiltonians       polynomial H (Lie path only)
-  field_track.jl          FieldTrack         Float64 field ODEs, rf_kick, renormalize
-  tracking.jl             Tracking           Lie-factor tracking, Taylor map of H
-  map_readings.jl         MapReadings        closed orbit, chromaticity, compaction
-  smooth.jl               Smooth             averaged (phi, delta); not 6D RF
-  acceleration.jl         Acceleration       ramp with thin RFCavity
-  fringe.jl               Fringe             HardEdge / SoftEdge
-  da/
+  common/                 shared by both stacks
+    coordinates.jl        Coordinates        particle, reference, laboratory maps
+    elements.jl           Elements           element types (RFCavity thin or thick)
+    structure.jl          Structure          Lattice, .bell parser/writer, magnetic_lattice
+    optim_converter.jl    OptimConverter     OptiM -> .bell
+    map_readings.jl       MapReadings        closed orbit, chromaticity, compaction
+    symplectic.jl         Symplectic         symplecticity checks
+    sextupole_families.jl SextupoleFamilies
+  lie/                    Hamiltonian / Lie-algebra path
+    lie_algebra.jl        LieAlgebra         polynomial space, Poisson, Lie factors
+    hamiltonians.jl       Hamiltonians       polynomial H of every element (RF: rf_potential)
+    linear.jl             Linear             linear matrices / optics
+    tracking.jl           Tracking           Lie-factor tracking, Taylor map of H
+    fringe.jl             Fringe             HardEdge / SoftEdge
+    normal_form.jl        NormalForm         research (using Bell.NormalForm)
+  da/                     field / DA path
     DiffAlgebra.jl        DiffAlgebra        truncated series (pure maths)
     lie_series.jl         (in DiffAlgebra)   Poisson / Lie series on DA
     fields.jl             Fields             dz/ds from multipole fields
+    field_track.jl        FieldTrack         Float64 field ODEs, rf_kick, renormalize
     tracking.jl           DATracking         field ODEs on DA (any order N)
+  longitudinal_models/    approximate models kept for comparison
+    smooth.jl             Smooth             averaged (phi, delta)
+    acceleration.jl       Acceleration       ramp: rf_kick + renormalize
   integrators/            Integrators        one file per ODE method
+  optimizers/, plotting/
   ...
 ```
 
