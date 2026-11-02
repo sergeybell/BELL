@@ -76,6 +76,17 @@ function unique_elements(lattice::Lattice)
 end
 
 """
+    magnetic_lattice(lattice) -> Lattice
+
+Same lattice without RF voltage: thin `RFCavity` removed, thick one replaced by a `Drift`
+of the same length (magnetic-ring readings).
+"""
+magnetic_lattice(lattice::Lattice) = Lattice(lattice.name,
+    AbstractElement[e isa RFCavity ? Drift(e.name, e.L) : e for e in lattice.elements if !(e isa RFCavity && e.L == 0)],
+    lattice.ref, lattice.harmonic)
+export magnetic_lattice
+
+"""
     insert_cavity(lattice, cav::RFCavity; in_element) -> (Lattice, index)
 
 Split the first drift named `in_element` into drift(L/2) – thin `cav` – drift(L/2),
@@ -99,7 +110,7 @@ Same lattice with every thin [`RFCavity`](@ref) set to synchronous phase `phi_s`
 (used by `accelerate` to switch to a flat top).
 """
 set_cavity_phase(lattice::Lattice, phi_s) =
-    Lattice(lattice.name, [e isa RFCavity ? RFCavity(e.name, e.voltage_MV, e.harmonic, phi_s) : e for e in lattice.elements],
+    Lattice(lattice.name, [e isa RFCavity ? RFCavity(e.name, e.voltage_MV, e.harmonic, phi_s, e.L) : e for e in lattice.elements],
             lattice.ref, lattice.harmonic)
 
 """
@@ -262,7 +273,7 @@ function _make_element(name, kind, kv)
         V = haskey(kv, "v") ? kv["v"] : get(kv, "voltage_mv", 0.0)
         h = Int(round(haskey(kv, "h") ? kv["h"] : get(kv, "harmonic", 1.0)))
         ph = get(kv, "phi_s", get(kv, "phis", 0.0))
-        return RFCavity(name, V, h, ph)
+        return RFCavity(name, V, h, ph, L)
     elseif k == "marker"
         return Marker(name)
     else
@@ -447,7 +458,8 @@ function _card_line(e::AbstractElement)
         return @sprintf("%s %-12s L = %-20s k2 = %s", nm, "sextupole", _fmt(e.L), _fmt(e.k2))
     elseif e isa RFCavity
         return @sprintf("%s %-12s V = %-20s h = %-6d phi_s = %s",
-                        nm, "rfcavity", _fmt(e.voltage_MV), e.harmonic, _fmt(e.phi_s))
+                        nm, "rfcavity", _fmt(e.voltage_MV), e.harmonic, _fmt(e.phi_s)) *
+(e.L == 0 ? "" : "  L = $(_fmt(e.L))")
     elseif e isa Marker
         return @sprintf("%-8s marker", e.name)
     else

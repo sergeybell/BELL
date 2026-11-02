@@ -543,13 +543,11 @@ function build_factors(lattice::Lattice, model::FringeModel)
     cache = Dict{Any,LieFactor}()
     factors = Any[]
     for it in fringe_sequence(lattice, model)
-        if it isa RFCavity
-            push!(factors, it)
-        elseif it isa EdgeMap
+        if it isa EdgeMap
             push!(factors, get!(() -> dragt_finn_factor(edge_map(it, lattice.ref); name = it.name), cache,
                             (it.parent, it.side, _model_key(it.model))))
         else
-            push!(factors, get!(() -> dragt_finn_factor(element_lie_map(it, lattice.ref); name = it.name), cache, it))
+            push!(factors, get!(() -> dragt_finn_factor(element_lie_map(it, lattice.ref, path_length(lattice)); name = it.name), cache, it))
         end
     end
     return factors

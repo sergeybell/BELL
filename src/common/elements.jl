@@ -110,10 +110,13 @@ struct Sextupole <: AbstractElement
 end
 
 @doc raw"""
-    RFCavity(name, voltage_MV, harmonic, phi_s)
+    RFCavity(name, voltage_MV, harmonic, phi_s)        # thin, L = 0
+    RFCavity(name, voltage_MV, harmonic, phi_s, L)     # thick, length L [m]
 
-Thin (zero-length) RF cavity: a single energy kick per passage in 6D
-canonical ``z``. It has no s-Hamiltonian; the kick is [`rf_kick`](@ref).
+RF cavity with s-Hamiltonian ``H = H_{drift} + H_{rf}`` (see
+[`rf_potential`](@ref)); uniform accelerating gradient ``V/L`` (transit factor 1).
+`L = 0` is the thin limit, whose map is the exact energy kick [`rf_kick`](@ref).
+- `L::Float64` - length [m] (0 = thin).
 
 # Fields
 - `voltage_MV::Float64` – peak voltage ``V`` [MV] (per unit charge).
@@ -127,7 +130,9 @@ struct RFCavity <: AbstractElement
     voltage_MV::Float64
     harmonic::Int
     phi_s::Float64
+    L::Float64
 end
+RFCavity(name::AbstractString, V::Real, h::Integer, phi_s::Real) = RFCavity(String(name), Float64(V), Int(h), Float64(phi_s), 0.0)
 
 """
     Marker(name)

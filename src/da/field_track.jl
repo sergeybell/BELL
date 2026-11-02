@@ -53,7 +53,18 @@ function exact_track_element(z, e::AbstractElement, ref::RefParticle, path_lengt
                              ds = 0.1, method::ODEMethod = ImplicitYoshida(4))
     e isa Marker && return collect(z)
     if e isa RFCavity
-        return rf_kick(z, e, ref, path_length)
+        e.L == 0 && return rf_kick(z, e, ref, path_length)
+        # thick: Strang splitting of H = H_drift + G/L (2nd order in ds)
+        n = max(1, ceil(Int, e.L / ds)); hs = e.L / n
+        kick = RFCavity(e.name, e.voltage_MV / n, e.harmonic, e.phi_s, 0.0)
+        fd = element_rhs(Drift(e.name, hs), ref)
+        w = collect(z)
+        for _ in 1:n
+            w = integrate_fixed(fd, w, 0.0, hs / 2, 1; method).z
+            w = rf_kick(w, kick, ref, path_length)
+            w = integrate_fixed(fd, w, 0.0, hs / 2, 1; method).z
+        end
+        return w
     end
     L = elem_length(e)
     L == 0 && return collect(z)
