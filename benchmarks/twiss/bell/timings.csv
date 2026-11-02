@@ -1,0 +1,8 @@
+stage,seconds
+using_Bell,1.0200
+convert+load (first),1.9240
+linear optics first call (JIT),3.5820
+ring_metrics first call (JIT),3.4220
+linear optics warm,0.0132
+ring_metrics warm,0.1212
+script total inside julia,11.2880

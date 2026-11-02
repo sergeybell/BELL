@@ -1,4 +1,4 @@
-﻿# HISTORY.md - version notes for Bell (was Julia/ring, LieRing)
+# HISTORY.md - version notes for Bell (was Julia/ring, LieRing)
 
 Local tags and commits live in `C:\GIT_REPOS\BELL` (never pushed by this
 work). Phases 1 and 2 were not snapshotted separately; their content is
@@ -340,3 +340,64 @@ Programmer notes: `docs/src/programmer/`.
 `Pkg.develop` `Julia/`, not `Julia/ring`.
 
 **Not a product.** Package version is `0.10.0`. There is no 1.0 release.
+
+## v0.11 - Fringe-field models (2026-10-30)
+
+**Commits.** `0bf92c1`, `fdb71ef`, `dd9d21a`, `3d067b4`, `0d6454c`, `bd712e2`.
+
+**Code.** New block `src/fringe.jl`: the fringe-field model of each magnet is
+chosen when the lattice is built. Models: `NoEdge`, hard edge (linear edge
+kick or nonlinear), soft edge (Enge, Tanh, linear ramp, tabulated profile),
+integrated by splitting, Magnus or Taylor. Example `19_fringe_models` runs
+every model on `magnetic_2`: gap -> 0 limit, convergence, symplecticity.
+
+**Physics fix (`bd712e2`).** The soft dipole edge Hamiltonian now includes
+the metric term `h*b1`; the cache key of `Tabulated` profiles is content based.
+
+**Docs.** Beam Physics chapter on fringe fields; Programmer notes for `fringe.jl`.
+
+**Minor (no own version), 2026-10-28..30.** Repository root is the package
+(`0531680`, `5109955`); one folder per example and `examples/Project.toml`
+(`20c180e`, `0349f24`, `8653af4`, `7360c8b`); new README / .gitignore
+(`814259d`); corrected `magnetic_2` lattice from SCT_2 (`55fd17f`);
+docstrings for every exported name and LaTeX formulas (`5687cb2`, `a06600e`);
+Programmer Manual as HTML site with explicit algorithms (`36b642a`,
+`4af0096`); docs site restructured into Physics / Guide / Developer / API
+(`62f273f`); PDF rebuild (`d944ac2`).
+
+## v0.12 - Differential algebra and selectable integrators (2026-10-30)
+
+**Commit.** `79e2306`.
+
+**Code.** Pure-mathematics submodules, not re-exported into `Bell`:
+
+* `Bell.DiffAlgebra` (`src/da/`) - general truncated power series
+  (differential algebra) in any number of variables and any order.
+* `Bell.Integrators` (`src/integrators/`) - selectable ODE integrators
+  used by the exact-H tracking and checks.
+
+Use with `using Bell.DiffAlgebra`, `using Bell.Integrators`.
+
+## v0.13 - Lie flow operator to arbitrary order (2026-10-30)
+
+**Commits.** `457b5b5`, `9068936`.
+
+**Code.** `Bell.LieFlow`: element maps as the flow operator `exp(L :H:)`
+summed as a Lie series to arbitrary order N, with a Lie-series layer in
+`DiffAlgebra`. The series at order N is built from `F = S grad H` with `H`
+taken to order N+1; for long / strong elements (`L*rho > 3`) the map is
+obtained by scaling and squaring.
+
+**Docs.** Developer notes `docs/site/dev/lie_flow.md`.
+
+## v0.14 - Chromaticity series from the one-turn DA map (2026-10-30)
+
+**Commit.** `846891a`.
+
+**Code.** `chromaticity_series`: exact series `Q(delta)` of the tunes from a
+one-turn DA map (LieFlow), to the order of the map.
+
+**Minor.** `convert_optim(...; close_ring=true)` scales bend angles so that
+the ring closes exactly to `2 pi` (`26e6cea`).
+
+**Package version** `0.14.0` (not a product release).

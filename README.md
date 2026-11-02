@@ -1,125 +1,29 @@
 # Bell
 
-**Author:** Kolokolchikov Sergey Dmitrievich (`sergey.bell13@gmail.com`)
+**BELL - Beam Evolution in Accelerator Lattice**
 
-Julia package for symplectic modelling of a magnetic ring. The object of
-the ring is a product of Lie transformations. Linear optics and higher-order
-numbers are readings of that product. A truncated Taylor map is an independent
-check. Architecture: [`docs/src/architecture.md`](docs/src/architecture.md). Physics
-manual: [`docs/src/index.md`](docs/src/index.md).
+**Author:** S. D. Kolokolchikov (Kolokolchikov Sergey Dmitrievich, `sergey.bell13@gmail.com`)
+
+Bell is a Julia code for symplectic modelling of beam and particle evolution
+in an accelerator lattice. Element Hamiltonians are turned into Lie
+transformations; their product is the one-turn object from which optics and
+higher-order quantities are read, with exact integration used as a check.
+
+## Install and use
+
+```
+julia --project=. -e "using Pkg; Pkg.instantiate()"
+julia --project=examples -e "using Pkg; Pkg.instantiate()"
+julia --project=examples examples/10_linear_optics/run.jl
+```
 
 ```julia
-using Pkg
-Pkg.activate(".")
-Pkg.instantiate()
 using Bell
 lat = load_structure("examples/lattices/fodo.bell")
 ```
 
-A concrete ring is a structure file (examples: `examples/lattices/`). Convert an OptiM
-`.opt` with `convert_optim(opt_path, structure_path)`, then
-`load_structure`. The equilibrium-momentum study lives in
-`C:\GIT_REPOS\SCT_2\Julia\equilibrium_energy\` and should `Pkg.develop`
-this repository (`C:\GIT_REPOS\BELL`).
-
-Package version `0.10.0` (not a product release). Examples live in
-`examples/NN_name/run.jl`; notebook: `examples/Bell_examples.ipynb`.
-
-## Install
-
-Windows (recommended — installs `juliaup`, the Julia version manager):
-
-```
-winget install --id 9NJNWW8PVKMN -s msstore     # "Julia" from the Microsoft Store
-# alternative: winget install Julialang.Juliaup
-juliaup status              # installed versions
-juliaup update              # update to the latest release
-```
-
-Linux/macOS: `curl -fsSL https://install.julialang.org | sh`
-
-Open a **new** terminal afterwards so that `julia` is on the PATH, then check `julia --version`.
-
-## Run
-
-The repository root (`C:\GIT_REPOS\BELL`) is the package. Run from the root; use
-`--project=.` for the package itself and `--project=examples` for the examples
-(`examples/Project.toml` has Bell as a dev dependency on `..`):
-
-```
-julia --project=. -e "using Pkg; Pkg.instantiate()"   # once: installs packages from Project.toml
-julia --project=examples -e "using Pkg; Pkg.instantiate()"   # once: examples environment
-julia --project=examples examples/10_linear_optics/run.jl  # run one example
-julia --project=.                                      # interactive REPL in this project
-```
-
-**Windows console tip:** run `chcp 65001` once in a `cmd` window (switches the console to
-UTF-8) if you see garbled characters, e.g. in Julia's own messages. The examples themselves
-print only ASCII text, so their output is readable in any console.
-
-In the REPL: `include("examples/10_linear_optics/run.jl")` (with `--project=examples`) runs a file, `?det` shows help,
-`]` enters package mode, `;` shell mode, Backspace returns. Unicode names are typed
-LaTeX-style: `\mu<TAB>` → `μ`, `\pi<TAB>` → `π`.
-
-**VS Code**: install the *Julia* extension (julialang.language-julia). Open this folder,
-then `Shift+Enter` runs the current line/selection in the Julia REPL, `Ctrl+F5` runs the file.
-The extension also gives a plot pane, variable workspace and debugger.
-
-## Packages
-
-```
-julia --project=.
-julia> ]                      # package mode
-(Bell) pkg> add TaylorSeries
-(Bell) pkg> status
-```
-
-or in code: `using Pkg; Pkg.activate("."); Pkg.add("TaylorSeries")`.
-`Project.toml` lists the dependencies; `Manifest.toml` is generated locally and not committed.
-`LinearAlgebra` and `Printf` are standard libraries (always available).
-
-## Examples
-
-Every example is self-documenting:
-
-* **inside the file** a header block explains what the example teaches, the math/physics
-  background with the key formulas, the sections of the file, how to run it and how to read
-  the output; each code block has a short comment saying what it does and why;
-* **when run** it first prints a banner with *What this example does*, then for every section
-  a heading with 1-3 lines explaining what is computed and what to look for, then the results,
-  and at the end a *Summary / what you learned*.
-
-Every example folder `examples/NN_name/` holds `run.jl` and writes its plots to its
-own `output/` (git-ignored). Shared files:
-
-* `examples/common/print_util.jl` - `banner` / `section` used by all examples;
-* `examples/common/reference_values.jl` - OptiM/COSY numbers for comparison tables and
-  the paths `OPTIM_FILE`, `STRUCTURE_FILE`;
-* `examples/lattices/` - `magnetic_2.opt` (OptiM source), `magnetic_2.bell` (converted
-  structure, regenerated by the examples), `fodo.bell`.
-
-| Folder | Content |
-|------|---------|
-| `examples/10_linear_optics/` | Load the Nuclotron-based structure, closed Twiss, dispersion, tunes |
-| `examples/11_lie_maps/` | Lie factors, tracking, Taylor-map check |
-| `examples/12_higher_order/` | D2, slip, chromaticity from the one-turn factor |
-| `examples/13_sextupole_optimization/` | Optional sextupole families |
-| `examples/14_rf_acceleration/` | Finite cavity and ramp (takes several minutes) |
-| `examples/15_coordinates/` | Canonical <-> laboratory transform |
-| `examples/16_blond_longitudinal/` | External (dt, dE) drift formulae (not the ring product) |
-| `examples/17_lie_product/` | BCH product of two factors |
-| `examples/18_lie_normal_form/` | One-turn factor and torus average |
-| `examples/19_fringe_models/` | Fringe-field models: NoEdge, hard edge (linear / nonlinear), soft edge (Enge, Tanh, linear ramp, tabulated) with Splitting / Magnus / Taylor integration; gap -> 0 limit, convergence, symplecticity |
-| `examples/Bell_examples.ipynb` | Notebook running every example (built by `_make_notebook.py`) |
-
-Every example only needs `using Bell`. Run any of them from the repository root:
-
-```
-julia --project=examples examples/NN_name/run.jl
-```
-
 ## Documentation
 
-* HTML: `julia --project=docs docs/make.jl` -> `docs/build/` (git-ignored)
-* PDF (needs `xelatex`): `julia docs/make_pdf.jl` (Beam Physics) and
-  `julia docs/make_pdf.jl programmer` -> `docs/pdf/`
+* Physics manual: [`docs/src/index.md`](docs/src/index.md)
+* Docs site: [`docs/site/index.md`](docs/site/index.md); build HTML with `julia --project=docs docs/make.jl`
+* Version history: [`docs/CHANGELOG.md`](docs/CHANGELOG.md), details in [`docs/HISTORY.md`](docs/HISTORY.md)

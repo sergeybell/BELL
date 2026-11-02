@@ -1,5 +1,6 @@
 # =============================================================================
 # Bell.jl - top-level module
+# BELL - Beam Evolution in Accelerator Lattice
 # =============================================================================
 #
 # Author: Kolokolchikov Sergey Dmitrievich <sergey.bell13@gmail.com>
@@ -11,6 +12,8 @@
 # =============================================================================
 """
     Bell
+
+BELL - Beam Evolution in Accelerator Lattice.
 
 Beam-dynamics package for a storage ring. The package works in 6D canonical
 coordinates (x, px, y, py, l, δ) with Lie-algebraic transfer maps of

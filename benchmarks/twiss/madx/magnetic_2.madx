@@ -1,0 +1,19 @@
+! magnetic_2 (same as examples/lattices/magnetic_2.opt), deuteron E_kin = 270 MeV
+beam, particle=deuteron, mass=1.87561294257, charge=1, energy=1.87561294257+0.270;
+LB = 5.3294148;
+OS2: drift, l=0.06;  OS1: drift, l=0.12;  OBM: drift, l=LB;
+BM:  sbend, l=LB, angle=pi/8;
+QF:  quadrupole, l=0.21, k1= 0.5212441755015996;
+QD:  quadrupole, l=0.21, k1=-0.5805856428570646;
+QF1: quadrupole, l=0.21, k1= 0.5565959259588208;
+QD1: quadrupole, l=0.21, k1=-0.5565959259588208;
+SF1: sextupole, l=0.12, k2=0; SF2: sextupole, l=0.12, k2=0; SD: sextupole, l=0.12, k2=0;
+ARC: line=(OS2,QF,BM,QD,OS1,QD,BM,QF,SF2, QF,BM,QD,SD,QD,BM,QF,SF1,
+           QF,BM,QD,SD,QD,BM,QF,SF2, QF,BM,QD,OS1,QD,BM,QF,OS2);
+STR: line=(OS2,QF1,OBM,QD1,OS1,QD1,OBM,QF1,OS2);
+RING: line=(ARC,STR,ARC,STR);
+use, sequence=RING;
+select, flag=twiss, column=name,keyword,s,l,betx,alfx,mux,dx,dpx,bety,alfy,muy;
+twiss, chrom, file="raw/twiss.tfs";
+write, table=summ, file="raw/summ.tfs";
+stop;

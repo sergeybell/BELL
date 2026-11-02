@@ -1,0 +1,4 @@
+code,max_rel_dbetx,max_rel_dbety,max_abs_dalfx,max_abs_dalfy,max_abs_dDx_m,npoints
+optim,1.448e-06,2.411e-07,2.576e-06,5.322e-07,1.109e-02,86
+cosy,0.000e+00,2.466e-12,NaN,NaN,1.000e-11,85
+madx,2.530e-10,2.612e-10,4.800e-10,4.400e-10,2.290e-09,86

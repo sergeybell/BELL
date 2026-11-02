@@ -1,5 +1,7 @@
 # Bell
 
+**BELL - Beam Evolution in Accelerator Lattice**
+
 Bell is a Julia package for the beam dynamics of a ring: element Hamiltonians,
 Lie-algebraic one-turn maps, linear and nonlinear optics, exact 6D tracking with
 RF and acceleration, fringe-field models and 6D normal forms.
