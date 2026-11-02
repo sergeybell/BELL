@@ -1,5 +1,9 @@
 # =============================================================================
 # smooth.jl - averaged turn-by-turn motion in (phi, delta)
+#
+# NOTE (v0.17): approximate / expanded longitudinal model, kept for comparison.
+# The reference 6D RF model is the RFCavity s-Hamiltonian (src/lie/hamiltonians.jl)
+# and its exact thin limit rf_kick (src/da/field_track.jl).
 # =============================================================================
 #
 # Author: Kolokolchikov Sergey Dmitrievich <sergey.bell13@gmail.com>
