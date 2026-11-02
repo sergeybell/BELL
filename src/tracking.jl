@@ -5,7 +5,7 @@
 # Author: Kolokolchikov Sergey Dmitrievich <sergey.bell13@gmail.com>
 #
 # The ring object is a product of Lie factors. Tracking applies each factor
-# (flow of f4, then f3, then R). Thin RF is rf_kick from ExactIntegrator.
+# (flow of f4, then f3, then R). Thin RF is rf_kick from FieldTrack.
 # A Taylor-series map of the same Hamiltonian is obtained by integrating
 # hamiltonian_field with a chosen ODE method; it stores no copy of H.
 # =============================================================================
@@ -13,7 +13,7 @@ module Tracking
 
 using TaylorSeries, LinearAlgebra
 using ..Coordinates, ..Elements, ..Structure, ..Hamiltonians, ..LieAlgebra, ..Integrators
-using ..ExactIntegrator: rf_kick
+using ..FieldTrack: rf_kick
 
 export build_factors, apply_factor, track, element_lie_map, ring_lie_factor,
        taylor_map_element, element_maps, ring_taylor_map, laboratory_map

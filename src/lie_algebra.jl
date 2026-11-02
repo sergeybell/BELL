@@ -8,7 +8,7 @@
 #   Polynomial space in the 6 canonical variables (x, px, y, py, l, delta).
 #   Hamiltonians of this TaylorSeries path are kept to total degree JET_ORDER = 4;
 #   maps are cut at MAP_ORDER = 3 by default. That truncation is a property of
-#   this path, not of Bell. Arbitrary order uses DiffAlgebra and LieFlow.
+#   this path, not of Bell. Arbitrary order uses DiffAlgebra and DATracking.
 #   concatenate drops Poisson brackets of degree >= 5, so the product of
 #   factors is not symmetric at this cut. rotation_matrix_6 is a rotation by
 #   phase advances (μx, μy, μs), not an element tilt.
@@ -39,8 +39,8 @@ export SPACE, Z, JET_ORDER, MAP_ORDER, truncate_to, hom, maxabs, map_linear_part
 Maximum total degree of every `TaylorN` polynomial on this path. Hamiltonians are
 expanded to this degree, so maps of degree [`MAP_ORDER`](@ref) = 3 are exact
 (a degree-4 H gives the cubic terms of the map). This is not a global limit of
-Bell: [`LieFlow`](@ref Bell.LieFlow) takes the order as an argument. Changing
-JET_ORDER changes the whole polynomial space ([`SPACE`](@ref)).
+Bell: the field / DA path ([`DATracking`](@ref Bell.DATracking)) takes the order
+as an argument. Changing JET_ORDER changes the whole polynomial space ([`SPACE`](@ref)).
 """
 const JET_ORDER = 4   # phase 2: H to order 4 -> maps exact to order 3
 """
@@ -219,7 +219,8 @@ end
 Transfer map of an element with s-independent Hamiltonian `H` over length `L` [m]:
 ``z \mapsto e^{-L{:}H{:}}z`` (component-wise), truncated to `order` (default
 [`MAP_ORDER`](@ref) = 3). Since ``dz/ds = [z, H] = -{:}H{:}\,z``, this is the
-exact flow of ``H`` to that order. Arbitrary order uses [`LieFlow`](@ref Bell.LieFlow).
+exact flow of ``H`` to that order. Arbitrary order on the independent field path
+uses [`element_da_map`](@ref Bell.DATracking.element_da_map).
 """
 lie_map(H::TaylorN, L::Real; order::Int = MAP_ORDER) = [truncate_to(lie_exp(-L * H, Z[i]), order) for i in 1:6]
 

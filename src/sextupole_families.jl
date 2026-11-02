@@ -66,6 +66,9 @@ end
 
 """
     set_family_strengths(lattice, fam_idx, k2::Dict) -> Lattice
+
+Copy of `lattice` with every sextupole of family `f` set to strength `k2[f]`
+(missing keys → 0).
 """
 function set_family_strengths(lattice::Lattice, fam_idx, k2::Dict)
     elems = copy(lattice.elements)
@@ -75,6 +78,13 @@ function set_family_strengths(lattice::Lattice, fam_idx, k2::Dict)
     return Lattice(lattice.name, elems, lattice.ref, lattice.harmonic)
 end
 
+"""
+    ring_metrics(lattice) -> NamedTuple
+
+One-turn chromaticities, slip factors and dispersion figures of the ring
+(from [`observables`](@ref) and map readings). Used as the objective building
+block for sextupole family fitting.
+"""
 function ring_metrics(lattice::Lattice)
     obs = observables(lattice)
     M = obs.M
@@ -91,6 +101,12 @@ end
 
 const _LINEAR_KEYS = (:xi1x, :xi1y, :alpha1, :eta1, :D2_0)
 
+"""
+    response(lattice, fam_idx; dk = 1.0) -> (base, cols)
+
+Finite-difference response of ring metrics to each sextupole family strength
+(``\\pm dk``). `cols[f]` is `(linear_metric_dict, D2_along_response)`.
+"""
 function response(lattice, fam_idx; dk = 1.0)
     base = ring_metrics(set_family_strengths(lattice, fam_idx, Dict{String,Float64}()))
     cols = Dict{String,Any}()
@@ -104,6 +120,12 @@ function response(lattice, fam_idx; dk = 1.0)
     return base, cols
 end
 
+"""
+    solve_A(base, cols) -> Dict{String,Float64}
+
+Linear solve for family strengths that cancel ``(\\xi_x, \\xi_y, \\alpha_1)``
+at first order in the response matrix.
+"""
 function solve_A(base, cols)
     fs = [f for f in SEXT_FAMILIES if haskey(cols, f)]
     A = [cols[f][1][k] for k in (:xi1x, :xi1y, :alpha1), f in fs]
@@ -111,6 +133,12 @@ function solve_A(base, cols)
     return Dict(zip(fs, A \ b))
 end
 
+"""
+    solve_B(base, cols) -> Dict{String,Float64}
+
+Constrained least squares: minimise ``\\|D_2(s)\\|^2`` subject to cancelling
+``(\\xi_x, \\xi_y)`` (KKT system on the response).
+"""
 function solve_B(base, cols)
     fs = [f for f in SEXT_FAMILIES if haskey(cols, f)]
     G = hcat([cols[f][2] for f in fs]...)

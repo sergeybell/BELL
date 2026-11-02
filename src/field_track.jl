@@ -1,49 +1,25 @@
 # =============================================================================
-# exact_integrator.jl - tracking with the unexpanded Hamiltonian
+# field_track.jl - 6D tracking with field ODEs and thin RF kick
 # =============================================================================
 #
 # Author: Kolokolchikov Sergey Dmitrievich <sergey.bell13@gmail.com>
 #
-# The integrator is chosen by `method` (default ImplicitYoshida(4)).
-# The vector field comes from hamiltonians.jl. Thin RF is rf_kick.
-# renormalize updates the reference after a long cavity.
+# Magnets: integrate Fields.element_rhs with a chosen ODE method (no polynomial
+# cut; the cut is the step in s). Thin RFCavity: rf_kick (closed-form formulas
+# in canonical z). renormalize updates the reference after a kick on a ramp.
+# Independent of Hamiltonians / Lie algebra.
 # =============================================================================
-module ExactIntegrator
+module FieldTrack
 
-using ..Coordinates, ..Elements, ..Structure, ..Hamiltonians, ..Integrators
+using ..Coordinates, ..Elements, ..Structure, ..Fields, ..Integrators
 
-export exact_track_element, exact_track_turn, renormalize, cavity_parameters, transit_factor, rf_kick
-
-@doc raw"""
-    cavity_parameters(cav::LongCavity, ref, path_length) -> (ω, A, v0)
-
-Constants of the finite-cavity Hamiltonian, recomputed from the current `ref`
-at every call (so they follow the energy ramp):
-
-- ``\omega = h\,2\pi v_0/\mathrm{path\_length}`` [rad/s];
-- ``A = \dfrac{ZV}{p_0c}\,\dfrac{c}{\omega L}`` [1];
-- ``v_0 = \beta_0 c`` [m/s].
-"""
-function cavity_parameters(cav::LongCavity, ref::RefParticle, path_length::Real)
-    v0 = ref.beta * c_light
-    omega = cav.harmonic * 2pi * v0 / path_length
-    A = ref.particle.charge * cav.voltage_MV / ref.p0_MeV * c_light / (omega * cav.L)
-    return omega, A, v0
-end
-
-@doc raw"""
-    transit_factor(cav, ref, path_length) -> T
-
-Transit-time factor of a finite cavity: ``T = \dfrac{\sin(\theta/2)}{\theta/2}``,
-``\theta = 2\pi hL/\mathrm{path\_length} = \omega L/v_0``.
-"""
-transit_factor(cav::LongCavity, ref::RefParticle, path_length::Real) =
-    (th = 2pi * cav.harmonic * cav.L / path_length; sin(th / 2) / (th / 2))
+export exact_track_element, exact_track_turn, renormalize, rf_kick
 
 @doc raw"""
     rf_kick(z, cav::RFCavity, ref, path_length) -> Vector
 
-Thin RF cavity acting on a canonical point (exact formulas, no expansion).
+Thin RF cavity acting on a canonical point (exact formulas, no series cut).
+The same expressions accept numbers or DA.
 
 1. Arrival-time offset ``\Delta t = -l/v(\delta)``, RF phase ``\varphi = -h\omega_0\Delta t``.
 2. Energy kick ``E' = E + ZV\sin(\varphi_s + \varphi)`` [MeV].
@@ -68,30 +44,29 @@ end
 @doc raw"""
     exact_track_element(z, e, ref, path_length; ds = 0.1, method = ImplicitYoshida(4)) -> Vector
 
-Track a canonical point through one element with the exact (non-expanded)
-Hamiltonian. The integrator is `method`; the field is [`magnetic_field`](@ref)
-or [`cavity_field`](@ref). Nothing is truncated; the cut is the step in s.
+Track a canonical point through one element with the field equations of motion
+([`element_rhs`](@ref Bell.Fields.element_rhs)). Thin [`RFCavity`](@ref) uses
+[`rf_kick`](@ref). Nothing is truncated as a polynomial; the cut is the step
+in ``s``.
 """
 function exact_track_element(z, e::AbstractElement, ref::RefParticle, path_length::Real;
                              ds = 0.1, method::ODEMethod = ImplicitYoshida(4))
     e isa Marker && return collect(z)
-    if e isa LongCavity
-        omega, A, v0 = cavity_parameters(e, ref, path_length)
-        n = max(4, ceil(Int, e.L / 0.02))
-        f = (w, s) -> cavity_field(w, s, ref, e.L, omega, A, v0, e.phi_s)
-        return integrate_fixed(f, collect(z), 0.0, e.L, n; method).z
+    if e isa RFCavity
+        return rf_kick(z, e, ref, path_length)
     end
-    e isa RFCavity && error("thin RFCavity: use rf_kick")
-    h, k1, k2 = magnetic_parameters(e)
-    n = e isa Drift ? 1 : max(1, ceil(Int, e.L / ds))
-    f = (w, s) -> magnetic_field(w, ref, h, k1, k2)
-    return integrate_fixed(f, collect(z), 0.0, e.L, n; method).z
+    L = elem_length(e)
+    L == 0 && return collect(z)
+    n = e isa Drift ? 1 : max(1, ceil(Int, L / ds))
+    f = element_rhs(e, ref)
+    return integrate_fixed(f, collect(z), 0.0, L, n; method).z
 end
 
 """
     exact_track_turn(z, lattice; ds = 0.1, method = ImplicitYoshida(4)) -> Vector
 
-One turn of [`exact_track_element`](@ref) through all elements.
+One turn of [`exact_track_element`](@ref) through all elements (magnets and
+thin RF kicks).
 """
 function exact_track_turn(z, lattice::Lattice, ref::RefParticle = lattice.ref,
                           Lpath::Real = path_length(lattice); ds = 0.1,
@@ -106,8 +81,7 @@ end
 @doc raw"""
     renormalize(particles, ref, isync) -> (particles', ref')
 
-Make particle `isync` the new reference, i.e. ramp the reference energy after
-a cavity.
+Make particle `isync` the new reference after a thin RF kick on a ramp.
 
 With ``(x_s, p_{xs}, y_s, p_{ys}, l_s, \delta_s)`` the coordinates of the synchronous particle:
 - ``p_0' = p_0(1 + \delta_s)``, and `ref'` is rebuilt from the new kinetic energy;
@@ -132,7 +106,8 @@ function renormalize(particles::Vector{<:AbstractVector}, ref::RefParticle, isyn
         v = velocity_ratio(d, ref) * v0
         dt = -l / v - dts
         dn = (1 + d) / (1 + ds_) - 1
-        shifted[i] = [x - zsy[1], px / (1 + ds_) - zsy[2] / (1 + ds_), y - zsy[3], py / (1 + ds_) - zsy[4], -v * dt, dn]
+        shifted[i] = [x - zsy[1], px / (1 + ds_) - zsy[2] / (1 + ds_), y - zsy[3],
+                      py / (1 + ds_) - zsy[4] / (1 + ds_), -v * dt, dn]
     end
     return shifted, refn
 end

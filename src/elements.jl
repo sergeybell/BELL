@@ -6,14 +6,15 @@
 #
 # WHAT
 #   Plain data types describing beam-line elements, in SI units and in the
-#   normalised strengths that enter the Hamiltonians.
+#   normalised strengths that enter the Hamiltonians / field ODEs.
 #   The field L is the element length in metres. Physics lives in
-#   hamiltonians.jl. Sequence and Lattice live in structure.jl.
+#   hamiltonians.jl (Lie path) and da/fields.jl (field / DA path).
+#   Sequence and Lattice live in structure.jl.
 #
 # =============================================================================
 module Elements
 
-export AbstractElement, Drift, SBend, Quadrupole, Sextupole, RFCavity, LongCavity, Marker,
+export AbstractElement, Drift, SBend, Quadrupole, Sextupole, RFCavity, Marker,
        curvature, elem_length, kind_string
 
 """
@@ -24,11 +25,12 @@ data (no physics). Every subtype has a `name::String`; elements with a
 length have a field `L` [m] (see [`elem_length`](@ref)).
 
 Physics lives elsewhere: `hamiltonian(e, ref)` (Hamiltonians),
-`linear_matrix(e, ref)` (Linear), `element_lie_map(e, ref)` (Tracking),
-`exact_track_element` (ExactIntegrator), `edge_map` (Fringe).
+`element_field` (Fields), `linear_matrix(e, ref)` (Linear),
+`element_lie_map(e, ref)` (Tracking), `exact_track_element` (FieldTrack),
+`edge_map` (Fringe).
 
 Subtypes: [`Drift`](@ref), [`SBend`](@ref), [`Quadrupole`](@ref),
-[`Sextupole`](@ref), [`RFCavity`](@ref), [`LongCavity`](@ref), [`Marker`](@ref).
+[`Sextupole`](@ref), [`RFCavity`](@ref), [`Marker`](@ref).
 """
 abstract type AbstractElement end
 
@@ -63,7 +65,7 @@ values by the long constructor or by a structure-file card.
 - `gap::Float64` – full magnet gap [m].
 - `fint::Float64` – fringe-field integral FINT [1].
 
-The body Hamiltonian uses only `L`, `angle`, `k1`.
+The body Hamiltonian / field ODEs use only `L`, `angle`, `k1`.
 `e1, e2, gap, fint` are read only by the edge maps of the Fringe module.
 
 Structure-file card: `BM sbend L = 5.33 angle = 22.5 deg k1 = 0 e1 = 0 gap = 0.05 fint = 0.5`.
@@ -110,8 +112,8 @@ end
 @doc raw"""
     RFCavity(name, voltage_MV, harmonic, phi_s)
 
-Thin (zero-length) RF cavity: a single energy kick per passage. It has no
-s-Hamiltonian; the kick is [`rf_kick`](@ref).
+Thin (zero-length) RF cavity: a single energy kick per passage in 6D
+canonical ``z``. It has no s-Hamiltonian; the kick is [`rf_kick`](@ref).
 
 # Fields
 - `voltage_MV::Float64` – peak voltage ``V`` [MV] (per unit charge).
@@ -122,27 +124,6 @@ Card: `RF rfcavity V = 0.01 h = 1 phi_s = 0`.
 """
 struct RFCavity <: AbstractElement
     name::String
-    voltage_MV::Float64
-    harmonic::Int
-    phi_s::Float64
-end
-
-@doc raw"""
-    LongCavity(name, L, voltage_MV, harmonic, phi_s)
-
-Finite-length RF cavity with a purely longitudinal on-axis field. Transverse
-RF fields are neglected. For magnetic maps (RF off) it is a drift of length
-`L` [m]. The field is integrated only by `exact_track_element`.
-
-# Fields
-- `L::Float64` – length [m]; `voltage_MV::Float64` – ``V`` [MV];
-  `harmonic::Int` – ``h``; `phi_s::Float64` – ``\varphi_s`` [rad].
-
-Card: `CAV cavity L = 0.5 V = 0.01 h = 1 phi_s = 0.3`.
-"""
-struct LongCavity <: AbstractElement
-    name::String
-    L::Float64
     voltage_MV::Float64
     harmonic::Int
     phi_s::Float64
@@ -184,7 +165,6 @@ kind_string(::Quadrupole) = "Quadrupole"
 kind_string(::Sextupole) = "Sextupole"
 kind_string(::RFCavity) = "RFCavity"
 kind_string(::Marker) = "Marker"
-kind_string(::LongCavity) = "LongCavity"
 
 function Base.show(io::IO, e::AbstractElement)
     s = "$(kind_string(e))($(e.name), L=$(elem_length(e)) m"
@@ -193,7 +173,7 @@ function Base.show(io::IO, e::AbstractElement)
         (s *= ", e1=$(e.e1), e2=$(e.e2), gap=$(e.gap), fint=$(e.fint)")
     e isa Quadrupole && (s *= ", k1=$(e.k1) 1/m^2")
     e isa Sextupole && (s *= ", k2=$(e.k2) 1/m^3")
-    (e isa RFCavity || e isa LongCavity) && (s *= ", V=$(e.voltage_MV) MV, h=$(e.harmonic), phi_s=$(e.phi_s)")
+    e isa RFCavity && (s *= ", V=$(e.voltage_MV) MV, h=$(e.harmonic), phi_s=$(e.phi_s)")
     print(io, s, ")")
 end
 

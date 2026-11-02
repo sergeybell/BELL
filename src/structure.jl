@@ -12,7 +12,7 @@
 #     sequence     names only; `N * cell` repeats a named sequence
 #   load_structure(path) reads the file into a Lattice.
 #   write_structure(path, lattice) dumps a Lattice back to the same format.
-#   insert_cavity splits a named drift. Sextupole-family placement lives in
+#   insert_cavity splits a named drift and inserts a thin RFCavity. Sextupole families live in
 #   sextupole_families.jl.
 #
 # =============================================================================
@@ -76,17 +76,18 @@ function unique_elements(lattice::Lattice)
 end
 
 """
-    insert_cavity(lattice, cav::LongCavity; in_element) -> (Lattice, index)
+    insert_cavity(lattice, cav::RFCavity; in_element) -> (Lattice, index)
 
-Split the first drift named `in_element` into drift(L1) – `cav` – drift(L1)
-with L1 = (L_drift − L_cav)/2, keeping the path length. `in_element` is required.
+Split the first drift named `in_element` into drift(L/2) – thin `cav` – drift(L/2),
+keeping the path length. `in_element` is required. The cavity has zero length.
 Returns the new lattice and the index of the cavity in it.
 """
-function insert_cavity(lattice::Lattice, cav::LongCavity; in_element::AbstractString)
+function insert_cavity(lattice::Lattice, cav::RFCavity; in_element::AbstractString)
     i = findfirst(e -> e.name == in_element, lattice.elements)
     i === nothing && error("no element named $in_element")
     e = lattice.elements[i]
-    Ld = (e.L - cav.L) / 2
+    e isa Drift || error("insert_cavity: $in_element is not a Drift")
+    Ld = e.L / 2
     elems = vcat(lattice.elements[1:i-1], [Drift(e.name * "_u", Ld), cav, Drift(e.name * "_d", Ld)], lattice.elements[i+1:end])
     return Lattice(lattice.name * "+RF", elems, lattice.ref, cav.harmonic), i + 1
 end
@@ -94,11 +95,11 @@ end
 """
     set_cavity_phase(lattice, phi_s) -> Lattice
 
-Same lattice with every finite [`LongCavity`](@ref) set to synchronous phase `phi_s` [rad]
+Same lattice with every thin [`RFCavity`](@ref) set to synchronous phase `phi_s` [rad]
 (used by `accelerate` to switch to a flat top).
 """
 set_cavity_phase(lattice::Lattice, phi_s) =
-    Lattice(lattice.name, [e isa LongCavity ? LongCavity(e.name, e.L, e.voltage_MV, e.harmonic, phi_s) : e for e in lattice.elements],
+    Lattice(lattice.name, [e isa RFCavity ? RFCavity(e.name, e.voltage_MV, e.harmonic, phi_s) : e for e in lattice.elements],
             lattice.ref, lattice.harmonic)
 
 """
@@ -257,16 +258,11 @@ function _make_element(name, kind, kv)
         return Quadrupole(name, L, get(kv, "k1", 0.0))
     elseif k == "sextupole" || k == "sext"
         return Sextupole(name, L, get(kv, "k2", 0.0))
-    elseif k == "rfcavity" || k == "rf"
+    elseif k == "rfcavity" || k == "rf" || k == "cavity"
         V = haskey(kv, "v") ? kv["v"] : get(kv, "voltage_mv", 0.0)
         h = Int(round(haskey(kv, "h") ? kv["h"] : get(kv, "harmonic", 1.0)))
         ph = get(kv, "phi_s", get(kv, "phis", 0.0))
         return RFCavity(name, V, h, ph)
-    elseif k == "cavity"
-        V = haskey(kv, "v") ? kv["v"] : get(kv, "voltage_mv", 0.0)
-        h = Int(round(haskey(kv, "h") ? kv["h"] : get(kv, "harmonic", 1.0)))
-        ph = get(kv, "phi_s", get(kv, "phis", 0.0))
-        return LongCavity(name, L, V, h, ph)
     elseif k == "marker"
         return Marker(name)
     else
@@ -452,9 +448,6 @@ function _card_line(e::AbstractElement)
     elseif e isa RFCavity
         return @sprintf("%s %-12s V = %-20s h = %-6d phi_s = %s",
                         nm, "rfcavity", _fmt(e.voltage_MV), e.harmonic, _fmt(e.phi_s))
-    elseif e isa LongCavity
-        return @sprintf("%s %-12s L = %-20s V = %-20s h = %-6d phi_s = %s",
-                        nm, "cavity", _fmt(e.L), _fmt(e.voltage_MV), e.harmonic, _fmt(e.phi_s))
     elseif e isa Marker
         return @sprintf("%-8s marker", e.name)
     else

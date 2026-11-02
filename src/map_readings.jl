@@ -11,7 +11,7 @@
 module MapReadings
 
 using TaylorSeries, LinearAlgebra
-using ..Coordinates, ..Elements, ..Structure, ..LieAlgebra, ..Linear, ..Tracking, ..LieFlow, ..DiffAlgebra
+using ..Coordinates, ..Elements, ..Structure, ..LieAlgebra, ..Linear, ..Tracking, ..DATracking, ..DiffAlgebra
 
 export closed_orbit, tunes_at_delta, dispersion_orders, path_expansion,
        chromaticity_orders, dispersion_along, velocity_expansion, observables,
@@ -213,9 +213,8 @@ end
     chromaticity_series(M; iters = N + 2) -> NamedTuple
     chromaticity_series(lattice, N; cache = true) -> NamedTuple
 
-Exact chromaticity series of a one-turn DA map. See LieFlow documentation for
-the algorithm. The Lattice method drops thin `RFCavity` elements and uses
-[`one_turn_map_flow`](@ref).
+Exact chromaticity series of a one-turn DA map. The Lattice method drops thin
+`RFCavity` elements and uses [`one_turn_map_da`](@ref) (field ODEs on DA).
 """
 function chromaticity_series(M::AbstractVector{<:DA}; iters::Integer = M[1].sp.no + 2)
     sp = M[1].sp; N = sp.no
@@ -246,7 +245,7 @@ function chromaticity_series(M::AbstractVector{<:DA}; iters::Integer = M[1].sp.n
 end
 function chromaticity_series(lattice::Lattice, N::Integer; cache::Bool = true)
     l2 = Lattice(lattice.name, AbstractElement[e for e in lattice.elements if !(e isa RFCavity)], lattice.ref, lattice.harmonic)
-    chromaticity_series(one_turn_map_flow(l2, N; cache = cache))
+    chromaticity_series(one_turn_map_da(l2, N; cache = cache))
 end
 
 end # module

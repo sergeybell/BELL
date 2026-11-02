@@ -4,9 +4,9 @@
 #
 # Author: Kolokolchikov Sergey Dmitrievich <sergey.bell13@gmail.com>
 #
-# Smooth is a separate equation: the average of one turn in (φ, δ).
-# It is not a truncation of the element s-Hamiltonian. Higher order of the
-# same model is further η from map readings, not a second tracker.
+# Smooth is a separate averaged equation in (φ, δ). It is not 6D RF tracking
+# and not a replacement for thin rf_kick. Acceleration uses FieldTrack +
+# RFCavity. Higher order of this model is further η from map readings.
 # =============================================================================
 module Smooth
 
