@@ -21,6 +21,7 @@ const PAGES = [
         "Tracking & integrators" => "dev/tracking.md",
         "Optics" => "dev/optics.md",
         "RF & longitudinal" => "dev/rf.md",
+        "RF Hamiltonian & acceleration" => "dev/rf_acceleration.md",
         "Normal form" => "dev/normal_form.md",
         "Fringe fields" => "dev/fringe.md",
         "Differential algebra" => "dev/da.md",

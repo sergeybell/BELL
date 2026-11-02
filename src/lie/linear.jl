@@ -54,7 +54,8 @@ The same linear map can also be read as the matrix `R` of a Dragt-Finn factor
 or as [`linear_part`](@ref Bell.DiffAlgebra.linear_part) of a Lie-flow map.
 """
 function linear_matrix(e::AbstractElement, ref::RefParticle, L::Real = elem_length(e))
-    (e isa Marker || e isa RFCavity || L == 0) && return Matrix{Float64}(I, 6, 6)
+    (e isa Marker || L == 0) && return Matrix{Float64}(I, 6, 6)
+    e isa RFCavity && return linear_matrix(Drift(e.name, L), ref, L)  # RF voltage not in linear optics
     return exp(L * _SA(e, ref))
 end
 

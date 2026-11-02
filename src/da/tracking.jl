@@ -34,8 +34,11 @@ use [`rf_kick`](@ref) on DA variables. `SBend`: body only (no edge angles).
 """
 function element_da_map(e::AbstractElement, ref::RefParticle, N::Integer;
                         method::ODEMethod = DormandPrince853(), tol = 1e-14,
-                        nsteps::Union{Nothing,Int} = nothing)
-    e isa RFCavity && error("element_da_map: thin RFCavity — use rf_kick on DA vars with path_length")
+                        nsteps::Union{Nothing,Int} = nothing, path_length = nothing, ds = 0.01)
+    if e isa RFCavity
+        path_length === nothing && error("element_da_map(::RFCavity): pass path_length")
+        return exact_track_element(collect(da_vars(map_space(N))), e, ref, path_length; ds = ds)
+    end
     sp = map_space(N)
     e isa Marker && return identity_map(sp)
     L = elem_length(e)
@@ -63,7 +66,7 @@ function element_da_maps(lattice::Lattice, N::Integer; cache::Bool = true, kw...
     out = Vector{DA{Float64}}[]
     for e in lattice.elements
         if e isa RFCavity
-            @warn "element_da_maps: skipping thin RFCavity $(e.name)"
+            push!(out, element_da_map(e, lattice.ref, N; path_length = path_length(lattice)))
             continue
         end
         M = if cache
@@ -81,7 +84,7 @@ end
     one_turn_map_da(lattice, N; cache = true, kw...) -> Vector{DA}
 
 One-turn DA map at order N from composition of element field maps.
-Thin `RFCavity` elements are dropped (magnetic ring map).
+RF cavities are included (exact `rf_kick` / thick splitting); use `magnetic_lattice` for the magnetic ring.
 """
 function one_turn_map_da(lattice::Lattice, N::Integer; cache::Bool = true, kw...)
     M = identity_map(map_space(N))

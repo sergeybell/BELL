@@ -457,3 +457,26 @@ list of points, optional polish. Entry point `optimize`.
 
 
 **Note (stale references).** Removed with LongCavity/LieFlow: `docs/site/dev/lie_flow.md` (replaced by `dev/da_tracking.md`); `ExactIntegrator` references in the docs now point to `FieldTrack`. Example 14 and `benchmarks/twiss/bell/linear_routes.jl` were moved to the thin `RFCavity` / `one_turn_map_da` path.
+
+## v0.17 - RF cavity s-Hamiltonian; lie/ da/ common/ longitudinal_models/ (2026-11-02)
+
+**Code.** `RFCavity` has an s-Hamiltonian like every element:
+`H = energy_term(delta) - ps + G/L`, `G = rf_potential(cav, ref, C) = ZV/(p0 c k) cos(phi_s + k l/(beta0 v/v0))`,
+`k = rf_wavenumber = 2 pi h beta0 / C`. New field `L` (`RFCavity(name, V, h, phi_s, L)`; 4-argument form
+is thin, `L = 0`). Thin map `exp(-:G:)` equals `rf_kick` (Taylor coefficients to 2e-15); thick map
+`exp(-L:H:)` (Lie) or drift/kick/drift splitting (field/DA). `Tracking.build_factors`, `track`,
+`ring_lie_factor`, `taylor_map_element`, `element_maps`, `fringe` factors and `DATracking.element_da_map(s)`
+have no special RF branch; `element_lie_map(e, ref, path_length)`. New `magnetic_lattice` (RF removed /
+thick -> drift), used by MapReadings. Storage ring (`sin phi_s = 0`): constant p0, turn-independent
+symplectic one-turn map. Acceleration in H (p0(s), `Delta H = (p0'/p0)[x px + y py + l(1+delta)]`) is a
+documented TODO in `docs/site/dev/rf_acceleration.md` (with a summary of the COSY RF procedure); the
+`accelerate` path (`rf_kick` + `renormalize`) is unchanged.
+
+**Layout.** `src/common/` (coordinates, elements, structure, optim_converter, map_readings, symplectic,
+sextupole_families), `src/lie/` (lie_algebra, hamiltonians, linear, tracking, fringe, normal_form),
+`src/da/` (DiffAlgebra, lie_series, fields, field_track, tracking), `src/longitudinal_models/`
+(smooth, acceleration: approximate models kept for comparison). Exports unchanged except the additions
+`rf_potential`, `rf_wavenumber`, `magnetic_lattice`.
+
+**Tests.** "RF Hamiltonian": thin limit vs `rf_kick`, thick -> thin O(L^2), symplecticity, Q_s vs Smooth
+(1.5e-5), 10-turn Lie vs exact field tracking. Package version `0.17.0`.

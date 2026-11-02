@@ -5,7 +5,7 @@
 # Author: Kolokolchikov Sergey Dmitrievich <sergey.bell13@gmail.com>
 #
 # The ring object is a product of Lie factors. Tracking applies each factor
-# (flow of f4, then f3, then R). Thin RF is rf_kick from FieldTrack.
+# (flow of f4, then f3, then R). RFCavity maps come from its Hamiltonian like any element (v0.17).
 # A Taylor-series map of the same Hamiltonian is obtained by integrating
 # hamiltonian_field with a chosen ODE method; it stores no copy of H.
 # =============================================================================
@@ -13,7 +13,6 @@ module Tracking
 
 using TaylorSeries, LinearAlgebra
 using ..Coordinates, ..Elements, ..Structure, ..Hamiltonians, ..LieAlgebra, ..Integrators
-using ..FieldTrack: rf_kick
 
 export build_factors, apply_factor, track, element_lie_map, ring_lie_factor,
        taylor_map_element, element_maps, ring_taylor_map, laboratory_map
@@ -26,37 +25,40 @@ const _MCACHE = Dict{Any,Any}()
 Map exp(−L :H:) z of one element ([`lie_map`](@ref) of its [`hamiltonian`](@ref)),
 truncated to `order`; identity for markers. Cached per (element, p0, order).
 """
-element_lie_map(e::AbstractElement, ref::RefParticle; order::Int = MAP_ORDER) =
-    get!(_MCACHE, (e, ref.p0_MeV, order)) do
-        (e isa Marker) ? collect(Z) : lie_map(hamiltonian(e, ref), elem_length(e); order)
+element_lie_map(e::AbstractElement, ref::RefParticle, path_length::Real = 0.0; order::Int = MAP_ORDER) =
+    get!(_MCACHE, (e, ref.p0_MeV, e isa RFCavity ? Float64(path_length) : 0.0, order)) do
+        if e isa Marker
+            collect(Z)
+        elseif e isa RFCavity && e.L == 0
+            G = rf_potential(e, ref, path_length)
+            lie_map(G - constant_term(G), 1.0; order)       # thin limit: exp(-:G:) = rf_kick
+        else
+            lie_map(hamiltonian(e, ref, path_length), elem_length(e); order)
+        end
     end
 
 """
     ring_lie_factor(lattice; name = lattice.name) -> LieFactor
 
 One-turn Dragt-Finn factor of the magnetic ring: [`product_factors`](@ref) of
-[`build_factors`](@ref)(lattice), with thin RF cavities skipped.
+[`build_factors`](@ref)(lattice), RF cavities included (use `magnetic_lattice` for the magnetic ring).
 """
 function ring_lie_factor(lattice::Lattice; name = lattice.name)
-    fs = LieFactor[F for F in build_factors(lattice) if F isa LieFactor]
-    return product_factors(fs; name)
+    return product_factors(LieFactor[F for F in build_factors(lattice)]; name)
 end
 
 """
     build_factors(lattice) -> Vector
 
-One [`LieFactor`](@ref) per element. A thin [`RFCavity`](@ref) is kept as the
-cavity object itself, so that [`track`](@ref) applies [`rf_kick`](@ref) there.
+One [`LieFactor`](@ref) per element. RF cavities too: thin = exp(-:G:) of [`rf_potential`](@ref) (= [`rf_kick`](@ref)),
+thick = exp(-L:H:).
 """
 function build_factors(lattice::Lattice)
     cache = Dict{Any,LieFactor}()
-    factors = Any[]
+    factors = LieFactor[]
+    Lpath = path_length(lattice)
     for e in lattice.elements
-        if e isa RFCavity
-            push!(factors, e)
-        else
-            push!(factors, get!(() -> dragt_finn_factor(element_lie_map(e, lattice.ref); name = e.name), cache, e))
-        end
+        push!(factors, get!(() -> dragt_finn_factor(element_lie_map(e, lattice.ref, Lpath); name = e.name), cache, e))
     end
     return factors
 end
@@ -85,12 +87,12 @@ apply_factor(F::LieFactor, z) = (w = apply_nonlinear(F, z); [sum(F.R[i, j] * w[j
     track(factors, z; turns = 1, ref = nothing, path_length = 0.0) -> Vector
 
 Track a canonical point `z` for `turns` turns. Lie factors use [`apply_factor`](@ref);
-`RFCavity` entries use [`rf_kick`](@ref).
+Every element (RF included) is a Lie factor; `ref`/`path_length` are kept for compatibility and ignored.
 """
 function track(factors, z; turns::Int = 1, ref = nothing, path_length = 0.0)
     w = collect(z)
     for n in 1:turns, F in factors
-        w = F isa LieFactor ? apply_factor(F, w) : rf_kick(w, F, ref, path_length)
+        w = apply_factor(F, w)
     end
     return w
 end
@@ -105,11 +107,11 @@ with `method` in polynomial arithmetic, starting from the identity. Truncated
 to `order`. This is a check of the Lie map, not the production route.
 """
 function taylor_map_element(e::AbstractElement, ref::RefParticle; ds = 0.01,
-                            method::ODEMethod = RK4(), order::Int = MAP_ORDER)
+                            method::ODEMethod = RK4(), order::Int = MAP_ORDER, path_length::Real = 0.0)
     e isa Marker && return collect(Z)
-    e isa RFCavity && error("RF not included in the Taylor map")
-    L = elem_length(e)
-    V = hamiltonian_field(hamiltonian(e, ref))
+    thin = e isa RFCavity && e.L == 0
+    L = thin ? 1.0 : elem_length(e)
+    V = hamiltonian_field(thin ? rf_potential(e, ref, path_length) : hamiltonian(e, ref, path_length))
     n = max(4, ceil(Int, L / ds))
     f = (z, s) -> [evaluate(V[i], z) for i in 1:6]
     r = integrate_fixed(f, collect(Z), 0.0, L, n; method)
@@ -122,7 +124,7 @@ end
 [`taylor_map_element`](@ref) for every element of `lattice`, cached per (element, p0, ds).
 """
 element_maps(lattice::Lattice; ds = 0.01) =
-    [get!(() -> taylor_map_element(e, lattice.ref; ds = ds), _TMCACHE, (e, lattice.ref.p0_MeV, ds)) for e in lattice.elements]
+    [get!(() -> taylor_map_element(e, lattice.ref; ds = ds, path_length = path_length(lattice)), _TMCACHE, (e, lattice.ref.p0_MeV, path_length(lattice), ds)) for e in lattice.elements]
 
 """
     ring_taylor_map(lattice; ds = 0.01) -> Vector{TaylorN}

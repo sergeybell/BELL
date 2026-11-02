@@ -160,7 +160,7 @@ function dispersion_along(lattice::Lattice, D1, D2)
     s = 0.0
     along = (s = [0.0], D = [D1[1]], Dp = [D1[2]], D2 = [D2[1]], D2p = [D2[2]])
     for e in lattice.elements
-        Me = element_lie_map(e, lattice.ref)
+        Me = e isa RFCavity ? element_lie_map(Drift(e.name, e.L), lattice.ref) : element_lie_map(e, lattice.ref)
         z = [truncate_to(evaluate(m, z), 2) for m in Me]
         s += elem_length(e)
         push!(along.s, s)
@@ -177,7 +177,7 @@ One-turn Lie factor, its polynomial, and the readings of that polynomial.
 """
 function observables(lattice::Lattice)
     Lpath = path_length(lattice)
-    F = ring_lie_factor(lattice)
+    F = ring_lie_factor(magnetic_lattice(lattice))
     M = factor_to_map(F)
     po = periodic_optics(F.R, lattice.ref, Lpath)
     pe = path_expansion(M, lattice.ref, Lpath)
@@ -244,8 +244,7 @@ function chromaticity_series(M::AbstractVector{<:DA}; iters::Integer = M[1].sp.n
     (x = qx, y = qy, xi_x = xx, xi_y = xy, orbit = u, nmax = N - 1)
 end
 function chromaticity_series(lattice::Lattice, N::Integer; cache::Bool = true)
-    l2 = Lattice(lattice.name, AbstractElement[e for e in lattice.elements if !(e isa RFCavity)], lattice.ref, lattice.harmonic)
-    chromaticity_series(one_turn_map_da(l2, N; cache = cache))
+    chromaticity_series(one_turn_map_da(magnetic_lattice(lattice), N; cache = cache))
 end
 
 end # module
