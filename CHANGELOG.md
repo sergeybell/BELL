@@ -17,8 +17,11 @@
 ### Added
 
 - Тесты разложены по файлам `test/test_*.jl`: round-trip структуры и координат, регрессия оптики `magnetic_2` по `benchmarks/twiss/bell/results.csv`, проверка Aqua.
+- `test/test_physics_consistency.jl`: `element_field` совпадает с `S ∇H` того же гамильтониана на DA порядков 5 и 6 и с численным градиентом на `Float64`.
 
 ### Changed
+
+- `hamiltonian(e, ref, z)` считает тот же s-гамильтониан на числах, `TaylorN` и DA. `hamiltonian(e, ref)` по-прежнему возвращает полином Lie-пути.
 
 ### Fixed
 

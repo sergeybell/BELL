@@ -1,12 +1,14 @@
 # =============================================================================
-# hamiltonians.jl - s-Hamiltonian of every element (Lie path only)
+# hamiltonians.jl - s-Hamiltonian of every element
 # =============================================================================
 #
 # Author: Kolokolchikov Sergey Dmitrievich <sergey.bell13@gmail.com>
 #
-# Polynomial H truncated at JET_ORDER for the Lie / Dragt–Finn path.
-# Field ODEs for Float64 / DA tracking live in da/fields.jl and do not
-# call this module.
+# One formula per element. hamiltonian(e, ref) is that formula on Z, returned
+# as a TaylorN polynomial (JET_ORDER, constant removed) for the Lie path.
+# hamiltonian(e, ref, z) evaluates the same expression on a 6-vector z
+# (numbers, TaylorN or DA). Field ODEs live in da/fields.jl and do not call
+# this module.
 # =============================================================================
 module Hamiltonians
 
@@ -22,17 +24,21 @@ function _clean(H::TaylorN, e)
     return H
 end
 
-function _parts(ref)
-    x, px, y, py, l, d = Z
+"Drop the constant and warn on linear terms only for the Lie-path polynomial."
+_finish(H::TaylorN, e::AbstractElement) = _clean(H, e)
+_finish(H, ::AbstractElement) = H
+
+function _parts(z, ref::RefParticle)
+    x, px, y, py, _, d = z
     ps = sqrt((1 + d)^2 - px^2 - py^2)
-    return x, y, d, ps, energy_term(d, ref)
+    return x, y, ps, energy_term(d, ref)
 end
 
 @doc raw"""
     hamiltonian(e::AbstractElement, ref::RefParticle) -> TaylorN
+    hamiltonian(e::AbstractElement, ref::RefParticle, z::AbstractVector)
 
-s-Hamiltonian of element `e` in canonical variables ``z = (x, p_x, y, p_y, l, \delta)``, as a
-polynomial of degree [`JET_ORDER`](@ref) = 4 (constant term dropped).
+s-Hamiltonian of element `e` in canonical variables ``z = (x, p_x, y, p_y, l, \delta)``.
 
 With ``p_s = \sqrt{(1+\delta)^2 - p_x^2 - p_y^2}`` and [`energy_term`](@ref):
 
@@ -44,28 +50,41 @@ With ``p_s = \sqrt{(1+\delta)^2 - p_x^2 - p_y^2}`` and [`energy_term`](@ref):
 | `SBend` | ``\mathrm{energy\_term}(\delta) - (1+hx)p_s + hx + \tfrac{h^2x^2}{2} + \tfrac{k_1}{2}(x^2 - y^2)`` |
 | `Marker` | ``0`` (thin `RFCavity`: error, it is a kick) |
 
-The exact expressions are evaluated in `TaylorN` arithmetic. The constant is
-removed, and linear terms warn that the reference orbit is not a solution.
+`z` is a 6-vector of numbers, `TaylorN` or DA; `H` has the same scalar type.
+Without `z`, the Lie path evaluates the formula on [`Z`](@ref) and returns a
+polynomial of degree [`JET_ORDER`](@ref) = 4. Only that polynomial has its
+constant removed; linear terms warn that the reference orbit is not a solution.
 """
-hamiltonian(e::Drift, ref::RefParticle) = (p = _parts(ref); _clean(p[5] - p[4], e))
-
-function hamiltonian(e::Quadrupole, ref::RefParticle)
-    x, y, d, ps, en = _parts(ref)
-    _clean(en - ps + e.k1 / 2 * (x^2 - y^2), e)
+function hamiltonian(e::Drift, ref::RefParticle, z::AbstractVector)
+    _, _, ps, en = _parts(z, ref)
+    return _finish(en - ps, e)
 end
 
-function hamiltonian(e::Sextupole, ref::RefParticle)
-    x, y, d, ps, en = _parts(ref)
-    _clean(en - ps + e.k2 / 6 * (x^3 - 3x * y^2), e)
+function hamiltonian(e::Quadrupole, ref::RefParticle, z::AbstractVector)
+    x, y, ps, en = _parts(z, ref)
+    return _finish(en - ps + e.k1 / 2 * (x^2 - y^2), e)
 end
 
-function hamiltonian(e::SBend, ref::RefParticle)
-    x, y, d, ps, en = _parts(ref)
+function hamiltonian(e::Sextupole, ref::RefParticle, z::AbstractVector)
+    x, y, ps, en = _parts(z, ref)
+    return _finish(en - ps + e.k2 / 6 * (x^3 - 3x * y^2), e)
+end
+
+function hamiltonian(e::SBend, ref::RefParticle, z::AbstractVector)
+    x, y, ps, en = _parts(z, ref)
     h = curvature(e)
-    _clean(en - (1 + h * x) * ps + h * x + h^2 * x^2 / 2 + e.k1 / 2 * (x^2 - y^2), e)
+    return _finish(en - (1 + h * x) * ps + h * x + h^2 * x^2 / 2 + e.k1 / 2 * (x^2 - y^2), e)
 end
 
-hamiltonian(e::Marker, ref::RefParticle) = zero(Z[1])
+hamiltonian(e::Marker, ref::RefParticle, z::AbstractVector) = _finish(zero(z[1]), e)
+hamiltonian(e::RFCavity, ref::RefParticle, ::AbstractVector) =
+    error("hamiltonian(::RFCavity, ref, path_length): the RF frequency needs the path length")
+
+hamiltonian(e::Drift, ref::RefParticle) = hamiltonian(e, ref, Z)
+hamiltonian(e::Quadrupole, ref::RefParticle) = hamiltonian(e, ref, Z)
+hamiltonian(e::Sextupole, ref::RefParticle) = hamiltonian(e, ref, Z)
+hamiltonian(e::SBend, ref::RefParticle) = hamiltonian(e, ref, Z)
+hamiltonian(e::Marker, ref::RefParticle) = hamiltonian(e, ref, Z)
 hamiltonian(e::RFCavity, ref::RefParticle) =
     error("hamiltonian(::RFCavity, ref, path_length): the RF frequency needs the path length")
 hamiltonian(e::AbstractElement, ref::RefParticle, path_length::Real) = hamiltonian(e, ref)
@@ -106,16 +125,21 @@ end
 
 @doc raw"""
     hamiltonian(cav::RFCavity, ref, path_length) -> TaylorN
+    hamiltonian(cav::RFCavity, ref, path_length, z) -> scalar
 
 Thick cavity (``L > 0``): ``H = \mathrm{energy\_term}(\delta) - p_s + G/L`` with
-``G`` = [`rf_potential`](@ref). For ``\sin\varphi_s \ne 0`` ``H`` has a linear
-term in ``l`` (net acceleration of the reference); see `dev/rf_acceleration`.
+``G`` = [`rf_potential`](@ref) at `z` (default [`Z`](@ref)). For ``\sin\varphi_s \ne 0``
+the TaylorN polynomial has a linear term in ``l`` (net acceleration of the
+reference); see `dev/rf_acceleration`. A thin cavity (``L = 0``) has no
+continuous Hamiltonian.
 """
-function hamiltonian(e::RFCavity, ref::RefParticle, path_length::Real)
+function hamiltonian(e::RFCavity, ref::RefParticle, path_length::Real, z::AbstractVector)
     e.L > 0 || error("thin RFCavity: use rf_potential (map exp(-:G:)), not hamiltonian")
-    x, y, d, ps, en = _parts(ref)
-    _clean(en - ps + rf_potential(e, ref, path_length) / e.L, e)
+    _, _, ps, en = _parts(z, ref)
+    return _finish(en - ps + rf_potential(e, ref, path_length; z = z) / e.L, e)
 end
+
+hamiltonian(e::RFCavity, ref::RefParticle, path_length::Real) = hamiltonian(e, ref, path_length, Z)
 
 
 
