@@ -20,22 +20,34 @@ export build_factors, apply_factor, track, element_lie_map, ring_lie_factor,
 const _MCACHE = Dict{Any,Any}()
 
 """
-    element_lie_map(e, ref; order = MAP_ORDER) -> Vector{TaylorN}
+    element_lie_map(e, ref, path_length = 0; order = MAP_ORDER) -> Vector{TaylorN}
 
 Map exp(−L :H:) z of one element ([`lie_map`](@ref) of its [`hamiltonian`](@ref)),
-truncated to `order`; identity for markers. Cached per (element, p0, order).
+truncated to `order`. A [`Marker`](@ref) is the identity. A thin [`RFCavity`](@ref)
+(`L == 0`) is the Lie map of [`rf_potential`](@ref); a thick cavity uses its
+s-Hamiltonian over `L`. Cached per (element, p0, path length for an RF cavity, order).
 """
-element_lie_map(e::AbstractElement, ref::RefParticle, path_length::Real = 0.0; order::Int = MAP_ORDER) =
-    get!(_MCACHE, (e, ref.p0_MeV, e isa RFCavity ? Float64(path_length) : 0.0, order)) do
-        if e isa Marker
-            collect(Z)
-        elseif e isa RFCavity && e.L == 0
-            G = rf_potential(e, ref, path_length)
-            lie_map(G - constant_term(G), 1.0; order)       # thin limit: exp(-:G:) = rf_kick
-        else
-            lie_map(hamiltonian(e, ref, path_length), elem_length(e); order)
-        end
+function element_lie_map(e::Marker, ref::RefParticle, path_length::Real = 0.0; order::Int = MAP_ORDER)
+    return get!(_MCACHE, (e, ref.p0_MeV, 0.0, order)) do
+        collect(Z)
     end
+end
+
+function element_lie_map(e::RFCavity, ref::RefParticle, path_length::Real = 0.0; order::Int = MAP_ORDER)
+    return get!(_MCACHE, (e, ref.p0_MeV, Float64(path_length), order)) do
+        if e.L == 0
+            G = rf_potential(e, ref, path_length)
+            return lie_map(G - constant_term(G), 1.0; order)       # thin limit: exp(-:G:) = rf_kick
+        end
+        return lie_map(hamiltonian(e, ref, path_length), elem_length(e); order)
+    end
+end
+
+function element_lie_map(e::AbstractElement, ref::RefParticle, path_length::Real = 0.0; order::Int = MAP_ORDER)
+    return get!(_MCACHE, (e, ref.p0_MeV, 0.0, order)) do
+        lie_map(hamiltonian(e, ref, path_length), elem_length(e); order)
+    end
+end
 
 """
     ring_lie_factor(lattice; name = lattice.name) -> LieFactor
@@ -84,14 +96,14 @@ Track one point through a factor: w = N3(P4(z)), then R·w.
 apply_factor(F::LieFactor, z) = (w = apply_nonlinear(F, z); [sum(F.R[i, j] * w[j] for j in 1:6) for i in 1:6])
 
 """
-    track(factors, z; turns = 1, ref = nothing, path_length = 0.0) -> Vector
+    track(factors, z; turns = 1) -> Vector
 
-Track a canonical point `z` for `turns` turns. Lie factors use [`apply_factor`](@ref);
-Every element (RF included) is a Lie factor; `ref`/`path_length` are kept for compatibility and ignored.
+Track a canonical point `z` for `turns` turns. Every element, including RF, is a
+Lie factor applied with [`apply_factor`](@ref).
 """
-function track(factors, z; turns::Int = 1, ref = nothing, path_length = 0.0)
+function track(factors, z; turns::Int = 1)
     w = collect(z)
-    for n in 1:turns, F in factors
+    for _ in 1:turns, F in factors
         w = apply_factor(F, w)
     end
     return w
@@ -99,23 +111,37 @@ end
 
 const _TMCACHE = Dict{Any,Any}()
 
-"""
-    taylor_map_element(e, ref; ds = 0.01, method = RK4(), order = MAP_ORDER) -> Vector{TaylorN}
-
-Taylor map of one element: integrate ``dz/ds = S\\nabla H`` of [`hamiltonian`](@ref)
-with `method` in polynomial arithmetic, starting from the identity. Truncated
-to `order`. This is a check of the Lie map, not the production route.
-"""
-function taylor_map_element(e::AbstractElement, ref::RefParticle; ds = 0.01,
-                            method::ODEMethod = RK4(), order::Int = MAP_ORDER, path_length::Real = 0.0)
-    e isa Marker && return collect(Z)
-    thin = e isa RFCavity && e.L == 0
-    L = thin ? 1.0 : elem_length(e)
-    V = hamiltonian_field(thin ? rf_potential(e, ref, path_length) : hamiltonian(e, ref, path_length))
+function _taylor_flow(V, L::Real; ds, method, order)
     n = max(4, ceil(Int, L / ds))
     f = (z, s) -> [evaluate(V[i], z) for i in 1:6]
     r = integrate_fixed(f, collect(Z), 0.0, L, n; method)
     return [truncate_to(zi, order) for zi in r.z]
+end
+
+"""
+    taylor_map_element(e, ref; ds = 0.01, method = RK4(), order = MAP_ORDER, path_length = 0) -> Vector{TaylorN}
+
+Taylor map of one element: integrate ``dz/ds = S\\nabla H`` of [`hamiltonian`](@ref)
+with `method` in polynomial arithmetic, starting from the identity. Truncated
+to `order`. A marker is the identity; a thin RF cavity integrates [`rf_potential`](@ref)
+over a unit interval. This is a check of the Lie map, not the production route.
+"""
+function taylor_map_element(e::Marker, ref::RefParticle; ds = 0.01,
+                            method::ODEMethod = RK4(), order::Int = MAP_ORDER, path_length::Real = 0.0)
+    return collect(Z)
+end
+
+function taylor_map_element(e::RFCavity, ref::RefParticle; ds = 0.01,
+                            method::ODEMethod = RK4(), order::Int = MAP_ORDER, path_length::Real = 0.0)
+    if e.L == 0
+        return _taylor_flow(hamiltonian_field(rf_potential(e, ref, path_length)), 1.0; ds, method, order)
+    end
+    return _taylor_flow(hamiltonian_field(hamiltonian(e, ref, path_length)), elem_length(e); ds, method, order)
+end
+
+function taylor_map_element(e::AbstractElement, ref::RefParticle; ds = 0.01,
+                            method::ODEMethod = RK4(), order::Int = MAP_ORDER, path_length::Real = 0.0)
+    return _taylor_flow(hamiltonian_field(hamiltonian(e, ref, path_length)), elem_length(e); ds, method, order)
 end
 
 """

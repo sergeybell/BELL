@@ -1,17 +1,16 @@
 # =============================================================================
-# lie_series.jl - Poisson brackets, Lie operators and Lie-series flows on DA
+# lie_series.jl - canonical pairs and the DA symplecticity defect
 #   (included into module DiffAlgebra; pure mathematics, no accelerator concepts)
 # =============================================================================
 #
 # WHAT
 #   canonical_pairs(nv)          default canonical pairs (1,2), (3,4), ...
-#   poisson_bracket(f, g)        [f, g] = sum_k df/dq_k dg/dp_k - df/dp_k dg/dq_k
 #   hamiltonian_vector_field(H)  F = S grad H, i.e. dz/ds = [z, H] = F(z)
-#   lie_series(H, g, t)          exp(t :H:) g = sum t^n/n! :H:^n g      (:H: g = [H, g])
-#   lie_flow(H, L)               the flow exp(-L :H:) z of H over L, all components,
-#                                summed to machine precision, with scaling-and-squaring
-#   change_order(a, sp)          re-embed a DA in a space of another order (truncate / pad)
-#   da_symplectic_error(M)          max coefficient of J^T S J - S, J = dM/dz (as DA)
+#   da_symplectic_error(M)       max coefficient of J^T S J - S, J = dM/dz (as DA)
+#
+# The series flow (poisson_bracket, lie_series, lie_flow, vector_field_flow,
+# change_order) had no callers in the package. The field / DA maps integrate
+# element_rhs; the Lie path integrates TaylorN Hamiltonians in LieAlgebra.
 # =============================================================================
 
 @doc raw"""
@@ -22,25 +21,6 @@ Default canonical pairs ``(q_k, p_k) = (2k-1, 2k)``, ``k = 1..\lfloor nv/2\rfloo
 parameters (their flow is the identity).
 """
 canonical_pairs(nv::Integer) = [(2k - 1, 2k) for k in 1:nv÷2]
-
-@doc raw"""
-    poisson_bracket(f, g; pairs = canonical_pairs(nv)) -> DA
-
-```math
-[f, g] = \sum_k \left(\frac{\partial f}{\partial q_k}\frac{\partial g}{\partial p_k}
-       - \frac{\partial f}{\partial p_k}\frac{\partial g}{\partial q_k}\right).
-```
-The Lie operator is ``{:}f{:}\,g = [f, g]``. In ``{}_ND_v`` each derivative loses the top order,
-so ``[f,g]`` is exact through order ``N-1`` in general, and through ``N`` when ``f`` (or ``g``)
-has no terms of degree ``< 2`` (see [`lie_flow`](@ref)).
-"""
-function poisson_bracket(f::DA, g::DA; pairs = canonical_pairs(f.sp.nv))
-    s = zero(f)
-    for (q, p) in pairs
-        s += deriv(f, q) * deriv(g, p) - deriv(f, p) * deriv(g, q)
-    end
-    s
-end
 
 @doc raw"""
     hamiltonian_vector_field(H; pairs) -> Vector{DA}
@@ -57,122 +37,6 @@ function hamiltonian_vector_field(H::DA; pairs = canonical_pairs(H.sp.nv))
     F
 end
 
-# D g = F . grad g  (only the nonzero components of F)
-_lie_D(F, idx, g) = (s = zero(g); for i in idx; s += F[i] * deriv(g, i); end; s)
-
-@doc raw"""
-    lie_series(H, g, t; pairs, tol = eps(), nmax = 200) -> DA
-
-```math
-e^{t{:}H{:}}\,g = \sum_{n\ge 0}\frac{t^n}{n!}{:}H{:}^n g, \qquad {:}H{:}\,g = [H, g],
-```
-terms ``u_n = \tfrac{t}{n}{:}H{:}\,u_{n-1}`` summed until two consecutive terms satisfy
-``\|u_n\| \le \text{tol}\,\|\text{sum}\|`` (coefficient norm) or a term vanishes identically.
-With ``t = -L`` this is the value of ``g`` after the flow of ``H`` over the length ``L``.
-No scaling is applied here; see [`lie_flow`](@ref).
-"""
-function lie_series(H::DA, g::DA, t::Real; pairs = canonical_pairs(H.sp.nv), tol = eps(), nmax = 200)
-    F = hamiltonian_vector_field(H; pairs = pairs)
-    r, _ = _lie_sum(F, _nzcomp(F), g, -t, tol, nmax)
-    r
-end
-_nzcomp(F) = [i for i in eachindex(F) if !iszero(F[i].c)]
-function _lie_sum(F, idx, g, L, tol, nmax)
-    acc = g; u = g; small = 0
-    for n in 1:nmax
-        u = (L / n) * _lie_D(F, idx, u)
-        acc += u
-        nu = coeffnorm(u)
-        nu == 0 && return acc, n
-        small = nu <= tol * coeffnorm(acc) ? small + 1 : 0
-        small >= 2 && return acc, n
-    end
-    return acc, -1                      # not converged
-end
-
-@doc raw"""
-    lie_flow(H, L; pairs, tol = eps(), nmax = 60, nsquare = :auto) -> Vector{DA}
-
-Transfer map of the s-independent Hamiltonian ``H`` over the length ``L``:
-```math
-\mathcal M = e^{-L{:}H{:}}\,z = \sum_{n\ge0}\frac{(-L)^n}{n!}{:}H{:}^n z
-           = \sum_{n\ge0}\frac{L^n}{n!}(F\cdot\nabla)^n z, \qquad F = S\nabla H,
-```
-for every component of ``z`` (parameters are left unchanged), summed to machine precision.
-
-**Exactness.** If ``H`` has no linear terms (the reference orbit is a solution, ``F(0) = 0``),
-``F\cdot\nabla`` does not lower the degree, so every term is exact in ``{}_ND_v`` except the
-top degree ``N``, whose coefficients would need the degree-``N+1`` part of ``H``. **Build ``H``
-in a space of order ``N+1`` and keep the result through order ``N``** ([`change_order`](@ref));
-then the map is exact through ``N`` up to roundoff. A warning is issued if ``F(0) \ne 0``.
-
-**Scaling and squaring.** The series converges like ``e^{L\rho}``, ``\rho = \|\partial F/\partial z(0)\|``.
-With `nsquare = :auto`, ``k`` is chosen by [`vector_field_flow`](@ref) (``L\rho/2^k \le 3``) and, if the series has
-not converged in `nmax` terms, ``k`` is increased; the map for ``L/2^k`` is then squared
-``k`` times, ``\mathcal M_L = (\mathcal M_{L/2^k})^{\circ 2^k}`` (exact: the flow is a one-parameter group).
-Pass an integer to force ``k``.
-"""
-lie_flow(H::DA, L::Real; pairs = canonical_pairs(H.sp.nv), kw...) =
-    vector_field_flow(hamiltonian_vector_field(H; pairs = pairs), L; kw...)
-
-@doc raw"""
-    vector_field_flow(F, L; tol = eps(), nmax = 60, nsquare = :auto, threshold = 3.0) -> Vector{DA}
-
-Flow of the autonomous system ``z' = F(z)`` over ``L``: ``\sum_n \frac{L^n}{n!}(F\cdot\nabla)^n z`` for all
-components (the engine of [`lie_flow`](@ref), where ``F = S\nabla H``).
-
-**Order bookkeeping.** If ``F(0) = 0`` and ``F`` is correct through order ``N`` (e.g. ``F = S\nabla H``
-with ``H`` built at order ``N+1`` and then [`change_order`](@ref) to ``N``), the series summed in
-``{}_ND_v`` is exact through ``N``: the degree-``N`` part of ``F_i\,\partial_i g`` needs only ``F``
-through ``N`` and ``g`` through ``N``. This is cheaper than summing in ``{}_{N+1}D_v``.
-
-**Scaling and squaring.** ``\rho = \|\partial F/\partial z(0)\|_\infty``; if ``L\rho >`` `threshold`
-(default 3: the largest term of the series is then at most ~4.5 times the result, i.e. less than one digit
-of cancellation) the series is summed for ``L/2^k``, ``k = \lceil\log_2(L\rho/\text{threshold})\rceil``,
-and the map is squared ``k`` times; ``k`` is increased if the series does not converge in `nmax` terms.
-"""
-function vector_field_flow(F::AbstractVector{<:DA}, L::Real; tol = eps(), nmax::Integer = 60,
-                           nsquare = :auto, threshold::Real = 3.0)
-    sp = F[1].sp; idx = _nzcomp(F)
-    maximum(abs(F[i].c[1]) for i in eachindex(F)) > 1e-13 * max(1.0, maximum(coeffnorm, F)) &&
-        @warn "lie_flow: F(0) != 0 (H has linear terms); the top order of the map is not exact"
-    A = [F[i].c[1+j] for i in 1:sp.nv, j in 1:sp.nv]
-    rho = opnorm(A, Inf)
-    k = nsquare === :auto ? max(0, ceil(Int, log2(max(abs(L) * rho, 1e-300) / threshold))) : Int(nsquare)
-    X = identity_map(sp)
-    while true
-        h = L / 2^k; M = similar(X); ok = true
-        for i in 1:sp.nv
-            M[i], n = _lie_sum(F, idx, X[i], h, tol, nmax)
-            n < 0 && (ok = false; break)
-        end
-        if ok || nsquare !== :auto || k > 40
-            ok || @warn "lie_flow: series not converged (nsquare = $k)"
-            for _ in 1:k
-                M = compose(M, M)
-            end
-            return M
-        end
-        k += 1
-    end
-end
-
-@doc raw"""
-    change_order(a, sp) -> DA
-
-The DA `a` re-embedded in the space `sp` (same number of variables, any order): monomials of
-degree ``> \text{order}(sp)`` are dropped, missing ones are zero.
-"""
-function change_order(a::DA, sp::DASpace)
-    sp.nv == a.sp.nv || throw(ArgumentError("change_order: different number of variables"))
-    c = zeros(eltype(a.c), nmonomials(sp))
-    for m in 1:nmonomials(sp)
-        sp.deg[m] > a.sp.no && break
-        c[m] = coefficient(a, view(sp.exps, :, m))
-    end
-    DA(sp, c)
-end
-
 @doc raw"""
     da_symplectic_error(M; pairs = canonical_pairs(nv)) -> Float64
 
@@ -180,6 +44,9 @@ end
 ``\alpha`` (orders ``0 \dots N-1``), where ``J_{ij} = \partial M_i/\partial z_j`` as DA and ``S`` is
 the symplectic form of `pairs` (parameter rows/columns are excluded). Zero (up to roundoff)
 for a map that is symplectic through order ``N`` — this tests all orders, not only the linear part.
+
+This is the DA method of `symplectic_error` (`Bell.Symplectic`), which is the single check
+for a numeric Jacobian, a `TaylorN` map, a DA map, or a tracking step.
 """
 function da_symplectic_error(M::AbstractVector{<:DA}; pairs = canonical_pairs(M[1].sp.nv))
     idx = vcat([[q, p] for (q, p) in pairs]...); n = length(idx)

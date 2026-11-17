@@ -171,15 +171,37 @@ kind_string(::Sextupole) = "Sextupole"
 kind_string(::RFCavity) = "RFCavity"
 kind_string(::Marker) = "Marker"
 
-function Base.show(io::IO, e::AbstractElement)
-    s = "$(kind_string(e))($(e.name), L=$(elem_length(e)) m"
-    e isa SBend && (s *= ", angle=$(e.angle) rad, k1=$(e.k1)")
-    e isa SBend && any(!iszero, (e.e1, e.e2, e.gap, e.fint)) &&
+_show_open(e::AbstractElement) = "$(kind_string(e))($(e.name), L=$(elem_length(e)) m"
+
+function Base.show(io::IO, e::Drift)
+    print(io, _show_open(e), ")")
+end
+
+function Base.show(io::IO, e::Marker)
+    print(io, _show_open(e), ")")
+end
+
+function Base.show(io::IO, e::SBend)
+    s = _show_open(e) * ", angle=$(e.angle) rad, k1=$(e.k1)"
+    any(!iszero, (e.e1, e.e2, e.gap, e.fint)) &&
         (s *= ", e1=$(e.e1), e2=$(e.e2), gap=$(e.gap), fint=$(e.fint)")
-    e isa Quadrupole && (s *= ", k1=$(e.k1) 1/m^2")
-    e isa Sextupole && (s *= ", k2=$(e.k2) 1/m^3")
-    e isa RFCavity && (s *= ", V=$(e.voltage_MV) MV, h=$(e.harmonic), phi_s=$(e.phi_s)")
     print(io, s, ")")
+end
+
+function Base.show(io::IO, e::Quadrupole)
+    print(io, _show_open(e), ", k1=$(e.k1) 1/m^2)")
+end
+
+function Base.show(io::IO, e::Sextupole)
+    print(io, _show_open(e), ", k2=$(e.k2) 1/m^3)")
+end
+
+function Base.show(io::IO, e::RFCavity)
+    print(io, _show_open(e), ", V=$(e.voltage_MV) MV, h=$(e.harmonic), phi_s=$(e.phi_s))")
+end
+
+function Base.show(io::IO, e::AbstractElement)
+    print(io, _show_open(e), ")")
 end
 
 end # module

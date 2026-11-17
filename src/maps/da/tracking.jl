@@ -29,18 +29,27 @@ map_space(N::Integer) = get!(() -> DASpace(6, N), _SPACES, (6, Int(N)))
     element_da_map(e, ref, N; method = DormandPrince853(), tol = 1e-14, nsteps = nothing) -> Vector{DA}
 
 Transfer map of element `e` to order ``N`` by integrating the field equations of
-motion on DA initial conditions ``z(0) =`` identity jet. Thin [`RFCavity`](@ref):
-use [`rf_kick`](@ref) on DA variables. `SBend`: body only (no edge angles).
+motion on DA initial conditions ``z(0) =`` identity jet. A [`Marker`](@ref) is the
+identity. An [`RFCavity`](@ref) needs `path_length`: thin uses [`rf_kick`](@ref),
+thick is drift/kick/drift. `SBend`: body only (no edge angles).
 """
+function element_da_map(e::Marker, ref::RefParticle, N::Integer;
+                        method::ODEMethod = DormandPrince853(), tol = 1e-14,
+                        nsteps::Union{Nothing,Int} = nothing, path_length = nothing, ds = 0.01)
+    return identity_map(map_space(N))
+end
+
+function element_da_map(e::RFCavity, ref::RefParticle, N::Integer;
+                        method::ODEMethod = DormandPrince853(), tol = 1e-14,
+                        nsteps::Union{Nothing,Int} = nothing, path_length = nothing, ds = 0.01)
+    path_length === nothing && error("element_da_map(::RFCavity): pass path_length")
+    return exact_track_element(collect(da_vars(map_space(N))), e, ref, path_length; ds = ds)
+end
+
 function element_da_map(e::AbstractElement, ref::RefParticle, N::Integer;
                         method::ODEMethod = DormandPrince853(), tol = 1e-14,
                         nsteps::Union{Nothing,Int} = nothing, path_length = nothing, ds = 0.01)
-    if e isa RFCavity
-        path_length === nothing && error("element_da_map(::RFCavity): pass path_length")
-        return exact_track_element(collect(da_vars(map_space(N))), e, ref, path_length; ds = ds)
-    end
     sp = map_space(N)
-    e isa Marker && return identity_map(sp)
     L = elem_length(e)
     L == 0 && return identity_map(sp)
     z0 = collect(da_vars(sp))

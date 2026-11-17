@@ -75,15 +75,24 @@ function unique_elements(lattice::Lattice)
     return seen
 end
 
+# Thin RF drops out; a thick cavity becomes a drift of the same length.
+strip_rf(e::RFCavity) = e.L == 0 ? nothing : Drift(e.name, e.L)
+strip_rf(e::AbstractElement) = e
+
 """
     magnetic_lattice(lattice) -> Lattice
 
 Same lattice without RF voltage: thin `RFCavity` removed, thick one replaced by a `Drift`
 of the same length (magnetic-ring readings).
 """
-magnetic_lattice(lattice::Lattice) = Lattice(lattice.name,
-    AbstractElement[e isa RFCavity ? Drift(e.name, e.L) : e for e in lattice.elements if !(e isa RFCavity && e.L == 0)],
-    lattice.ref, lattice.harmonic)
+function magnetic_lattice(lattice::Lattice)
+    elems = AbstractElement[]
+    for e in lattice.elements
+        kept = strip_rf(e)
+        kept === nothing || push!(elems, kept)
+    end
+    return Lattice(lattice.name, elems, lattice.ref, lattice.harmonic)
+end
 export magnetic_lattice
 
 """
@@ -441,31 +450,43 @@ end
 
 _fmt(x::Real) = @sprintf("%.16g", x)
 
-function _card_line(e::AbstractElement)
+function _card_line(e::Drift)
     nm = rpad(e.name, 8)
-    if e isa Drift
-        return @sprintf("%s %-12s L = %-20s", nm, "drift", _fmt(e.L))
-    elseif e isa SBend
-        s = @sprintf("%s %-12s L = %-20s angle = %-20s k1 = %s",
-                     nm, "sbend", _fmt(e.L), _fmt(e.angle), _fmt(e.k1))
-        for (k, v) in (("e1", e.e1), ("e2", e.e2), ("gap", e.gap), ("fint", e.fint))
-            iszero(v) || (s *= "  $k = $(_fmt(v))")
-        end
-        return s
-    elseif e isa Quadrupole
-        return @sprintf("%s %-12s L = %-20s k1 = %s", nm, "quadrupole", _fmt(e.L), _fmt(e.k1))
-    elseif e isa Sextupole
-        return @sprintf("%s %-12s L = %-20s k2 = %s", nm, "sextupole", _fmt(e.L), _fmt(e.k2))
-    elseif e isa RFCavity
-        return @sprintf("%s %-12s V = %-20s h = %-6d phi_s = %s",
-                        nm, "rfcavity", _fmt(e.voltage_MV), e.harmonic, _fmt(e.phi_s)) *
-(e.L == 0 ? "" : "  L = $(_fmt(e.L))")
-    elseif e isa Marker
-        return @sprintf("%-8s marker", e.name)
-    else
-        error("cannot write element $(typeof(e))")
-    end
+    return @sprintf("%s %-12s L = %-20s", nm, "drift", _fmt(e.L))
 end
+
+function _card_line(e::SBend)
+    nm = rpad(e.name, 8)
+    s = @sprintf("%s %-12s L = %-20s angle = %-20s k1 = %s",
+                 nm, "sbend", _fmt(e.L), _fmt(e.angle), _fmt(e.k1))
+    for (k, v) in (("e1", e.e1), ("e2", e.e2), ("gap", e.gap), ("fint", e.fint))
+        iszero(v) || (s *= "  $k = $(_fmt(v))")
+    end
+    return s
+end
+
+function _card_line(e::Quadrupole)
+    nm = rpad(e.name, 8)
+    return @sprintf("%s %-12s L = %-20s k1 = %s", nm, "quadrupole", _fmt(e.L), _fmt(e.k1))
+end
+
+function _card_line(e::Sextupole)
+    nm = rpad(e.name, 8)
+    return @sprintf("%s %-12s L = %-20s k2 = %s", nm, "sextupole", _fmt(e.L), _fmt(e.k2))
+end
+
+function _card_line(e::RFCavity)
+    nm = rpad(e.name, 8)
+    return @sprintf("%s %-12s V = %-20s h = %-6d phi_s = %s",
+                    nm, "rfcavity", _fmt(e.voltage_MV), e.harmonic, _fmt(e.phi_s)) *
+           (e.L == 0 ? "" : "  L = $(_fmt(e.L))")
+end
+
+function _card_line(e::Marker)
+    return @sprintf("%-8s marker", e.name)
+end
+
+_card_line(e::AbstractElement) = error("cannot write element $(typeof(e))")
 
 """
     write_structure(path, lattice; parameters = Dict(), extra_header = "") -> path

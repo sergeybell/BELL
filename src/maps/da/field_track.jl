@@ -41,36 +41,52 @@ function rf_kick(z, cav::RFCavity, ref::RefParticle, path_length::Real)
     return [x, px, y, py, l2, d2]
 end
 
+function _integrate_field(z, e, ref, n, method)
+    f = element_rhs(e, ref)
+    return integrate_fixed(f, collect(z), 0.0, elem_length(e), n; method).z
+end
+
 @doc raw"""
     exact_track_element(z, e, ref, path_length; ds = 0.1, method = ImplicitYoshida(4)) -> Vector
 
 Track a canonical point through one element with the field equations of motion
-([`element_rhs`](@ref Bell.Fields.element_rhs)). Thin [`RFCavity`](@ref) uses
-[`rf_kick`](@ref). Nothing is truncated as a polynomial; the cut is the step
+([`element_rhs`](@ref Bell.Fields.element_rhs)). A [`Marker`](@ref) is the identity.
+Thin [`RFCavity`](@ref) uses [`rf_kick`](@ref); a thick cavity is drift/kick/drift.
+A [`Drift`](@ref) is one step. Nothing is truncated as a polynomial; the cut is the step
 in ``s``.
 """
+function exact_track_element(z, ::Marker, ::RefParticle, ::Real;
+                             ds = 0.1, method::ODEMethod = ImplicitYoshida(4))
+    return collect(z)
+end
+
+function exact_track_element(z, e::RFCavity, ref::RefParticle, path_length::Real;
+                             ds = 0.1, method::ODEMethod = ImplicitYoshida(4))
+    e.L == 0 && return rf_kick(z, e, ref, path_length)
+    # thick: Strang splitting of H = H_drift + G/L (2nd order in ds)
+    n = max(1, ceil(Int, e.L / ds)); hs = e.L / n
+    kick = RFCavity(e.name, e.voltage_MV / n, e.harmonic, e.phi_s, 0.0)
+    fd = element_rhs(Drift(e.name, hs), ref)
+    w = collect(z)
+    for _ in 1:n
+        w = integrate_fixed(fd, w, 0.0, hs / 2, 1; method).z
+        w = rf_kick(w, kick, ref, path_length)
+        w = integrate_fixed(fd, w, 0.0, hs / 2, 1; method).z
+    end
+    return w
+end
+
+function exact_track_element(z, e::Drift, ref::RefParticle, path_length::Real;
+                             ds = 0.1, method::ODEMethod = ImplicitYoshida(4))
+    elem_length(e) == 0 && return collect(z)
+    return _integrate_field(z, e, ref, 1, method)
+end
+
 function exact_track_element(z, e::AbstractElement, ref::RefParticle, path_length::Real;
                              ds = 0.1, method::ODEMethod = ImplicitYoshida(4))
-    e isa Marker && return collect(z)
-    if e isa RFCavity
-        e.L == 0 && return rf_kick(z, e, ref, path_length)
-        # thick: Strang splitting of H = H_drift + G/L (2nd order in ds)
-        n = max(1, ceil(Int, e.L / ds)); hs = e.L / n
-        kick = RFCavity(e.name, e.voltage_MV / n, e.harmonic, e.phi_s, 0.0)
-        fd = element_rhs(Drift(e.name, hs), ref)
-        w = collect(z)
-        for _ in 1:n
-            w = integrate_fixed(fd, w, 0.0, hs / 2, 1; method).z
-            w = rf_kick(w, kick, ref, path_length)
-            w = integrate_fixed(fd, w, 0.0, hs / 2, 1; method).z
-        end
-        return w
-    end
     L = elem_length(e)
     L == 0 && return collect(z)
-    n = e isa Drift ? 1 : max(1, ceil(Int, L / ds))
-    f = element_rhs(e, ref)
-    return integrate_fixed(f, collect(z), 0.0, L, n; method).z
+    return _integrate_field(z, e, ref, max(1, ceil(Int, L / ds)), method)
 end
 
 """

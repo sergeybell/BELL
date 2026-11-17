@@ -34,7 +34,8 @@ relativistic kinematics in canonical ``z``. The same function evaluates on
 
 At low order the DA field map of a short magnet agrees with
 `lie_map(hamiltonian(e, ref), L)` to working precision; the codes do not share
-`H`. Symplecticity of a DA map is checked with [`da_symplectic_error`](@ref).
+`H`. Symplecticity of a Jacobian, a `TaylorN` map, a DA map, or a tracking step is
+[`symplectic_error`](@ref). The DA method of that check is [`da_symplectic_error`](@ref).
 
 ## Chromaticity
 

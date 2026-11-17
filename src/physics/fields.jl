@@ -62,12 +62,17 @@ end
 """
     element_rhs(e, ref) -> (z, s) -> dz/ds
 
-Right-hand side of [`element_field`](@ref) for element `e` (s-independent).
-Markers and thin `RFCavity` have no continuous field; use identity / `rf_kick`.
+Right-hand side of [`element_field`](@ref) for a magnet `e` (s-independent).
+[`Marker`](@ref) and [`RFCavity`](@ref) have no continuous field and throw
+`ArgumentError`.
 """
+element_rhs(::Marker, ::RefParticle) =
+    throw(ArgumentError("element_rhs: Marker has no continuous field"))
+
+element_rhs(::RFCavity, ::RefParticle) =
+    throw(ArgumentError("element_rhs: RFCavity has no continuous field"))
+
 function element_rhs(e::AbstractElement, ref::RefParticle)
-    (e isa Marker || e isa RFCavity) &&
-        error("element_rhs: $(typeof(e)) has no continuous field")
     h, k1, k2 = magnetic_parameters(e)
     return (z, s) -> element_field(z, ref, h, k1, k2)
 end

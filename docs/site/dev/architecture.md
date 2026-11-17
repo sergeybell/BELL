@@ -14,7 +14,7 @@ src/
   Bell.jl                 top module: include order + re-export
   math/                   pure mathematics
     DiffAlgebra.jl        DiffAlgebra        truncated series (pure maths)
-    lie_series.jl         (in DiffAlgebra)   Poisson / Lie series on DA
+    lie_series.jl         (in DiffAlgebra)   canonical pairs, Hamiltonian field, DA symplectic defect
     integrators/          Integrators        one file per ODE method
   core/                   shared by both stacks
     coordinates.jl        Coordinates        particle, reference, laboratory maps

@@ -23,10 +23,14 @@
 
 - `hamiltonian(e, ref, z)` считает тот же s-гамильтониан на числах, `TaylorN` и DA. `hamiltonian(e, ref)` по-прежнему возвращает полином Lie-пути.
 - `src/` разложен по слоям `math`, `core`, `io`, `physics`, `maps`, `analysis`. Имена модулей и публичный API не изменились.
+- Цепочки `isa` у `element_lie_map`, `taylor_map_element`, `element_da_map`, `exact_track_element`, `linear_matrix`, `element_rhs`, `Base.show` и `_card_line` заменены методами. `magnetic_lattice` отбирает RF через `strip_rf`. Поведение то же; `element_rhs` для `Marker` и `RFCavity` бросает `ArgumentError`.
+- `track(factors, z; turns)` больше не принимает игнорируемые `ref` и `path_length`. Симплектичность матрицы, карты `TaylorN`, карты DA и шага трекинга — одна функция `symplectic_error` (случай DA считает `da_symplectic_error`).
 
 ### Fixed
 
 ### Removed
+
+- Из `DiffAlgebra` удалены неиспользуемые `poisson_bracket`, `lie_series`, `lie_flow`, `vector_field_flow` и `change_order`. Оставлены `canonical_pairs`, `hamiltonian_vector_field` и `da_symplectic_error`.
 
 ## [0.17.0] - 2026-11-02
 

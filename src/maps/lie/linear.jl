@@ -7,7 +7,7 @@
 # The linear matrix of an element is R = exp(L S Hess H). That is the
 # algorithm; no textbook element formulas. Other readings of the same
 # linear map already exist: the matrix R of a Dragt-Finn factor, and
-# linear_part of a Lie-flow map.
+# linear_part of a polynomial map.
 #
 # Three functions, three jobs:
 #   periodic_optics  Twiss and linear dispersion of a one-turn matrix
@@ -51,11 +51,18 @@ round-off. No textbook element formulas are used. ``SA`` is cached per (element
 value, ``p_0``). Markers, thin RF and zero-length slices give the identity.
 
 The same linear map can also be read as the matrix `R` of a Dragt-Finn factor
-or as [`linear_part`](@ref Bell.DiffAlgebra.linear_part) of a Lie-flow map.
+or as [`linear_part`](@ref Bell.DiffAlgebra.linear_part) of a polynomial map.
 """
+function linear_matrix(::Marker, ::RefParticle, ::Real = 0.0)
+    return Matrix{Float64}(I, 6, 6)
+end
+
+function linear_matrix(e::RFCavity, ref::RefParticle, L::Real = elem_length(e))
+    return linear_matrix(Drift(e.name, L), ref, L)  # RF voltage not in linear optics
+end
+
 function linear_matrix(e::AbstractElement, ref::RefParticle, L::Real = elem_length(e))
-    (e isa Marker || L == 0) && return Matrix{Float64}(I, 6, 6)
-    e isa RFCavity && return linear_matrix(Drift(e.name, L), ref, L)  # RF voltage not in linear optics
+    L == 0 && return Matrix{Float64}(I, 6, 6)
     return exp(L * _SA(e, ref))
 end
 

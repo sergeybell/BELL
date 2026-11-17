@@ -9,7 +9,9 @@ Modules: `Tracking` (`src/tracking.jl`), `FieldTrack` (`src/field_track.jl`)
 
 Bell has four ways to move phase-space coordinates through elements. All of them
 are generic code: they run on `Float64` points and on `TaylorN` polynomials (the
-latter gives exact Jacobians for symplecticity checks).
+latter gives exact Jacobians for symplecticity checks). The check itself is one
+function, [`symplectic_error`](@ref): a numeric Jacobian, a `TaylorN` map, a DA map
+([`da_symplectic_error`](@ref)), or a tracking step at a point.
 
 | route | function | what is integrated | truncation | symplectic | used for |
 |:--|:--|:--|:--|:--|:--|
@@ -135,14 +137,14 @@ every element.
 ## 3. Lie-factor tracking (`Tracking`)
 
 [`build_factors`](@ref) turns each element into one [`LieFactor`](@ref)
-``(R, f_3, f_4)`` (see [Elements](elements.md)); a thin `RFCavity` stays in the
-list as the struct. [`track`](@ref):
+``(R, f_3, f_4)`` (see [Elements](elements.md)), RF cavities included
+(thin = ``\exp(-:G:)`` of [`rf_potential`](@ref)). [`track`](@ref) only applies
+those factors:
 
 ```
-track(factors, z; turns, ref, C):
+track(factors, z; turns = 1):
     for turn = 1 … turns, for F in factors (lattice order):
-        if F is LieFactor:  z = apply_factor(F, z)
-        else (RFCavity):    z = rf_kick(z, F, ref, C)     # exact thin kick, fixed ref
+        z = apply_factor(F, z)
 apply_factor(F, z):
     w = z
     if f4 ≠ 0:  w = _flow(field4, w)      # time-1 flow of −S∇f4  = e^{:f4:}

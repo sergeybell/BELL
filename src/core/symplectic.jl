@@ -19,13 +19,20 @@ using ..DiffAlgebra: DA, da_symplectic_error
 export symplectic_error, jacobian_of_map, jacobian_of_function
 
 """
-    symplectic_error(object) -> Float64
+    symplectic_error(J::AbstractMatrix) -> Float64
+    symplectic_error(M::AbstractVector{<:TaylorN}) -> Float64
+    symplectic_error(M::AbstractVector{<:DA}; kwargs...) -> Float64
     symplectic_error(f, z0) -> Float64
 
-Symplecticity defect ``\\max|J^T S J - S|``. The object is the thing being
-checked: a numeric Jacobian, a polynomial map, a DA map, or a tracking step
-`f` at point `z0`. Zero (up to round-off) for an exactly symplectic linear map.
-A truncated Taylor map is symplectic only through its retained degree.
+Single symplecticity check, ``\\max|J^T S J - S|``, for every object Bell tracks:
+
+- a numeric Jacobian;
+- a `TaylorN` map (maximum over coefficients through degree `MAP_ORDER - 1`);
+- a DA map, computed by [`da_symplectic_error`](@ref Bell.DiffAlgebra.da_symplectic_error);
+- a tracking step `f` at the point `z0` (Jacobian from [`jacobian_of_function`](@ref)).
+
+Zero (up to round-off) for an exactly symplectic linear map. A truncated series
+is symplectic only through its retained degree.
 """
 symplectic_error(J::AbstractMatrix) = maximum(abs, J' * SYMPLECTIC_S * J - SYMPLECTIC_S)
 
