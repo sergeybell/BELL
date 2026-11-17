@@ -1,0 +1,61 @@
+name: Bug report
+description: Дефект в коде, тестах или численном результате
+title: "fix: "
+labels:
+  - bug
+body:
+  - type: input
+    id: title
+    attributes:
+      label: Title
+      description: Короткая формулировка дефекта.
+      placeholder: Drift map disagrees with the exact track
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: Что сломано и при каких условиях.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Команды, решётка, порядок карты.
+      placeholder: |
+        1. julia --project=.
+        2. ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected
+      description: Какой результат должен быть.
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual
+      description: Какой результат получается на самом деле.
+    validations:
+      required: true
+  - type: input
+    id: julia_version
+    attributes:
+      label: Julia version
+      description: Вывод `julia --version`.
+      placeholder: julia version 1.10.5
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: OS
+      description: Операционная система и, если важно, архитектура.
+      placeholder: Windows 10 x64
+    validations:
+      required: true

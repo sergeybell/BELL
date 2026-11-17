@@ -1,0 +1,33 @@
+name: Physics task
+description: Физическая модель элемента или численная проверка
+title: "feat: "
+labels:
+  - physics
+body:
+  - type: textarea
+    id: goal
+    attributes:
+      label: Physics goal
+      description: Какой элемент, гамильтониан или наблюдаемая. Что должно получиться.
+    validations:
+      required: true
+  - type: textarea
+    id: references
+    attributes:
+      label: References
+      description: Формулы, статьи, COSY / OptiM / MAD-X, файлы решётки.
+      placeholder: |
+        - docs/site/dev/...
+        - Wolski / COSY procedure
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: Численные проверки — референс, допуск, какой тест это фиксирует.
+      placeholder: |
+        - thin RF map vs rf_kick, coefficients to 2e-15
+        - Q_s vs Smooth within 1.5e-5
+    validations:
+      required: true
