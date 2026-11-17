@@ -1,6 +1,10 @@
 [deps]
 Bell = "15ed3219-68f0-4cc9-8228-483d95d0d998"
 Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
+Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
 
 [sources]
 Bell = {path = ".."}
+
+[compat]
+Plots = "1"

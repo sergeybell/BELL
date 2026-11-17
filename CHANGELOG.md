@@ -21,6 +21,9 @@
 
 ### Changed
 
+- Публичные имена Bell перечислены явным `export` вместо цикла `@eval export`. Набор имён тот же; добавлена `clear_caches!()`.
+- Кэш карт DA (`_DACACHE`) включает элемент, `p0`, порядок, сам метод интегрирования, `tol` и `nsteps`. `clear_caches!()` очищает кэши карт Lie, DA и краевого поля.
+- Графики (`plot_twiss`, `plot_dispersion2`, `plot_chromatic`, `plot_acceleration`, `separatrix!`, `gif_ramp`, `gif_elements`) перенесены в расширение `BellPlotsExt`. Plots — слабая зависимость: ядро Bell её не требует, методы появляются после `using Plots`.
 - `hamiltonian(e, ref, z)` считает тот же s-гамильтониан на числах, `TaylorN` и DA. `hamiltonian(e, ref)` по-прежнему возвращает полином Lie-пути.
 - `src/` разложен по слоям `math`, `core`, `io`, `physics`, `maps`, `analysis`. Имена модулей и публичный API не изменились.
 - Цепочки `isa` у `element_lie_map`, `taylor_map_element`, `element_da_map`, `exact_track_element`, `linear_matrix`, `element_rhs`, `Base.show` и `_card_line` заменены методами. `magnetic_lattice` отбирает RF через `strip_rf`. Поведение то же; `element_rhs` для `Marker` и `RFCavity` бросает `ArgumentError`.

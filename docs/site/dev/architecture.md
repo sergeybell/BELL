@@ -22,6 +22,8 @@ src/
     structure.jl          Structure          Lattice, .bell parser/writer, magnetic_lattice
     symplectic.jl         Symplectic         symplecticity checks
     sextupole_families.jl SextupoleFamilies
+    caches.jl             (in Bell)          clear_caches!
+    plotting.jl           (in Bell)          plot_* names; methods in BellPlotsExt
   io/
     optim_converter.jl    OptimConverter     OptiM -> .bell
   physics/
@@ -42,7 +44,10 @@ src/
   longitudinal_models/    approximate models kept for comparison
     smooth.jl             Smooth             averaged (phi, delta)
     acceleration.jl       Acceleration       ramp: rf_kick + renormalize
-  optimizers/, plotting/
+  optimizers/
+    Optimizers.jl         Optimizers         derivative-free fitting
+ext/
+  BellPlotsExt.jl         BellPlotsExt       plot_*; loaded with Plots
 ```
 
 ## Dependency graph
@@ -56,6 +61,7 @@ Coordinates ─► Elements ─► Structure ─► OptimConverter
      └──► LieAlgebra ◄─────────┘
 DiffAlgebra, Integrators (pure mathematics)
 research/NormalForm (not re-exported)
+ext/BellPlotsExt (Plots; not a core dependency)
 ```
 
 ## Conventions

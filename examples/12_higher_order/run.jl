@@ -7,7 +7,7 @@
 #
 #   julia --project=examples examples/12_higher_order/run.jl
 
-using Bell, Printf, LinearAlgebra, TaylorSeries
+using Bell, Printf, LinearAlgebra, TaylorSeries, Plots
 
 include(joinpath(@__DIR__, "..", "common", "print_util.jl"))
 include(joinpath(@__DIR__, "..", "common", "reference_values.jl"))

@@ -61,13 +61,29 @@ function element_da_map(e::AbstractElement, ref::RefParticle, N::Integer;
     end
 end
 
-const _DACACHE = Dict{Any,Vector{DA{Float64}}}()
+# Key: element, p0, order, method value, tol, nsteps.
+# `path_length` and `ds` do not change a non-RF field map (RF is not cached).
+const _DACacheKey = Tuple{Any,Float64,Int,Any,Float64,Union{Nothing,Int}}
+const _DACACHE = Dict{_DACacheKey,Vector{DA{Float64}}}()
+
+function _da_cache_key(e, p0::Real, N::Integer, kw)
+    method = get(kw, :method, DormandPrince853())
+    tol = Float64(get(kw, :tol, 1e-14))
+    nsteps = get(kw, :nsteps, nothing)
+    nkey = nsteps isa Integer ? Int(nsteps) : nsteps
+    return (e, Float64(p0), Int(N), method, tol, nkey)::_DACacheKey
+end
 
 """
     element_da_maps(lattice, N; cache = true, kw...) -> Vector{Vector{DA}}
 
-[`element_da_map`](@ref) of every non-RF element; thin RF slots are skipped
-with a warning if present (compose RF separately via [`rf_kick`](@ref)).
+[`element_da_map`](@ref) of every element. An [`RFCavity`](@ref) is built with
+`path_length(lattice)` and is not cached. With `cache = true`, every other
+element is stored under `(element, p0, N, method, tol, nsteps)`. `method` is
+the integrator value, so two methods of one type with different parameters do
+not share an entry. `path_length` and `ds` do not change a non-RF field map
+and are not part of the key. A warning is given when an [`SBend`](@ref) has a
+nonzero edge angle: the map is the body only.
 """
 function element_da_maps(lattice::Lattice, N::Integer; cache::Bool = true, kw...)
     any(e -> e isa SBend && (e.e1 != 0 || e.e2 != 0), lattice.elements) &&
@@ -80,7 +96,7 @@ function element_da_maps(lattice::Lattice, N::Integer; cache::Bool = true, kw...
         end
         M = if cache
             get!(() -> element_da_map(e, lattice.ref, N; kw...), _DACACHE,
-                 (e, lattice.ref.p0_MeV, Int(N), typeof(get(kw, :method, DormandPrince853()))))
+                 _da_cache_key(e, lattice.ref.p0_MeV, N, kw))
         else
             element_da_map(e, lattice.ref, N; kw...)
         end

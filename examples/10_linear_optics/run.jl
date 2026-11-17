@@ -7,7 +7,7 @@
 #
 #   julia --project=examples examples/10_linear_optics/run.jl
 
-using Bell, Printf, LinearAlgebra
+using Bell, Printf, LinearAlgebra, Plots
 
 include(joinpath(@__DIR__, "..", "common", "print_util.jl"))
 include(joinpath(@__DIR__, "..", "common", "reference_values.jl"))

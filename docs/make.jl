@@ -1,5 +1,6 @@
 using Documenter
 using Bell
+using Plots # loads BellPlotsExt so plot_* methods exist while docs are built
 
 # Site sources live in docs/site. docs/src keeps the Markdown of the Beam Physics
 # Manual, which is published as the PDF (docs/make_pdf.jl), not as HTML pages.
@@ -48,7 +49,7 @@ const MODULES = [Bell, Bell.Coordinates, Bell.Elements, Bell.Structure, Bell.Lie
                  Bell.Hamiltonians, Bell.Fields, Bell.OptimConverter, Bell.Linear, Bell.Symplectic,
                  Bell.Tracking, Bell.MapReadings, Bell.Smooth,
                  Bell.FieldTrack, Bell.DATracking, Bell.Acceleration, Bell.NormalForm, Bell.Fringe,
-                 Bell.SextupoleFamilies, Bell.Plotting, Bell.Optimizers,
+                 Bell.SextupoleFamilies, Bell.Optimizers,
                  Bell.DiffAlgebra, Bell.Integrators]
 
 makedocs(sitename = "Bell",
