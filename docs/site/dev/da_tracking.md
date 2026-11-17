@@ -15,7 +15,7 @@ M  = element_da_map(Quadrupole("QF", 0.3, 1.5), ref, 7)   # Vector{DA}
 Mr = one_turn_map_da(lat, 5)
 ```
 
-## Physics (`src/da/fields.jl`)
+## Physics (`src/physics/fields.jl`)
 
 [`element_field`](@ref) writes ``dz/ds`` from hard-edge multipole strengths and
 relativistic kinematics in canonical ``z``. The same function evaluates on

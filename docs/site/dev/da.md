@@ -1,6 +1,6 @@
 # Differential algebra (`Bell.DiffAlgebra`)
 
-`src/da/DiffAlgebra.jl` is a self-contained truncated power-series algebra
+`src/math/DiffAlgebra.jl` is a self-contained truncated power-series algebra
 ``{}_nD_v`` (Berz, *Modern Map Methods*, ch. 2): the number of variables ``v`` and
 the order ``n`` are run-time parameters of a [`DASpace`](@ref Bell.DiffAlgebra.DASpace).
 It is independent of the accelerator code and of `Bell.DifferentialAlgebra`

@@ -1,5 +1,5 @@
 # =============================================================================
-# da/DiffAlgebra.jl - truncated power series algebra (differential algebra, DA)
+# math/DiffAlgebra.jl - truncated power series algebra (differential algebra, DA)
 # =============================================================================
 #
 # Author: Kolokolchikov Sergey Dmitrievich <sergey.bell13@gmail.com>

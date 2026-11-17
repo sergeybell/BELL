@@ -7,7 +7,7 @@ CurrentModule = Bell
 ## 1. Что реализовано
 
 `RFCavity(name, V, h, phi_s)` — тонкий (L = 0), `RFCavity(name, V, h, phi_s, L)` — толстый.
-Резонатор имеет s-гамильтониан, как все элементы (`src/lie/hamiltonians.jl`):
+Резонатор имеет s-гамильтониан, как все элементы (`src/physics/hamiltonians.jl`):
 
 ```math
 H = \mathrm{energy\_term}(\delta) - p_s + \frac{G}{L},\qquad

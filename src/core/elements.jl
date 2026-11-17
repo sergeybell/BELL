@@ -8,7 +8,7 @@
 #   Plain data types describing beam-line elements, in SI units and in the
 #   normalised strengths that enter the Hamiltonians / field ODEs.
 #   The field L is the element length in metres. Physics lives in
-#   hamiltonians.jl (Lie path) and da/fields.jl (field / DA path).
+#   hamiltonians.jl (Lie path) and physics/fields.jl (field / DA path).
 #   Sequence and Lattice live in structure.jl.
 #
 # =============================================================================

@@ -47,25 +47,25 @@ flowchart TD
 
 | File | Block | Role |
 |------|--------|------|
-| `src/coordinates.jl` | Coordinates | Particle, reference, canonical and laboratory coordinates |
-| `src/elements.jl` | Elements | Data types: drift, bend, quad, sext, thin RF, marker |
-| `src/structure.jl` | Structure | Lattice and structure file |
-| `src/hamiltonians.jl` | Hamiltonians | Polynomial `H` for the Lie path only |
-| `src/da/fields.jl` | Fields | Equations of motion `dz/ds` from multipole fields |
-| `src/lie_algebra.jl` | Lie algebra | Poisson bracket, Lie series, Dragt–Finn |
-| `src/tracking.jl` | Tracking | Lie factors of truncated `H`; thin RF via `rf_kick` |
-| `src/field_track.jl` | FieldTrack | Float64 tracking of field ODEs + `rf_kick` |
-| `src/da/tracking.jl` | DATracking | Same field ODEs on DA (any order N) |
-| `src/da/DiffAlgebra.jl` | DiffAlgebra | Truncated power series (pure maths) |
-| `src/smooth.jl` | Smooth | Averaged `(φ, δ)` — not 6D RF |
-| `src/acceleration.jl` | Acceleration | Ramp with thin `RFCavity` + `renormalize` |
+| `src/core/coordinates.jl` | Coordinates | Particle, reference, canonical and laboratory coordinates |
+| `src/core/elements.jl` | Elements | Data types: drift, bend, quad, sext, thin RF, marker |
+| `src/core/structure.jl` | Structure | Lattice and structure file |
+| `src/physics/hamiltonians.jl` | Hamiltonians | Polynomial `H` for the Lie path only |
+| `src/physics/fields.jl` | Fields | Equations of motion `dz/ds` from multipole fields |
+| `src/maps/lie/lie_algebra.jl` | Lie algebra | Poisson bracket, Lie series, Dragt–Finn |
+| `src/maps/lie/tracking.jl` | Tracking | Lie factors of truncated `H`; thin RF via `rf_kick` |
+| `src/maps/da/field_track.jl` | FieldTrack | Float64 tracking of field ODEs + `rf_kick` |
+| `src/maps/da/tracking.jl` | DATracking | Same field ODEs on DA (any order N) |
+| `src/math/DiffAlgebra.jl` | DiffAlgebra | Truncated power series (pure maths) |
+| `src/longitudinal_models/smooth.jl` | Smooth | Averaged `(φ, δ)` — not 6D RF |
+| `src/longitudinal_models/acceleration.jl` | Acceleration | Ramp with thin `RFCavity` + `renormalize` |
 
 ## Two stacks
 
 **Lie path.** Polynomial Hamiltonian → Dragt–Finn → `Tracking`.
 
 **Field / DA path.** Write `dz/ds = f(z)` from hard-edge fields
-(`da/fields.jl`), not from `H`. Evaluate on `Float64` (`FieldTrack`) or on DA
+(`physics/fields.jl`), not from `H`. Evaluate on `Float64` (`FieldTrack`) or on DA
 (`DATracking`) to any order `N`. Same thin `rf_kick`.
 
 ## Thin RF in 6D
