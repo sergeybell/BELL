@@ -16,11 +16,15 @@
 
 ### Added
 
+- `ParticleState` (канонический 6-вектор и слот спина, по умолчанию пустой) и `Beam` (набор таких частиц). Уравнение Томаса–Баргмана–Мишеля–Телегди не считается: спин только хранится.
+- `AbstractMap`, обёртки `LinearMap` и `DAMap` (`linear_part`, вызов как функция, `compose` для пары обёрток). `LieFactor` — тоже `AbstractMap`.
+- Трекеры `FieldTracker` (`exact_track_turn`), `LieTracker` (`track` по факторам `build_factors`) и `MapTracker` (однооборотная функция), плюс `track!` для `Beam` и для изменяемого 6-вектора. Старые функции трекинга остаются на месте.
 - Тесты разложены по файлам `test/test_*.jl`: round-trip структуры и координат, регрессия оптики `magnetic_2` по `benchmarks/twiss/bell/results.csv`, проверка Aqua.
 - `test/test_physics_consistency.jl`: `element_field` совпадает с `S ∇H` того же гамильтониана на DA порядков 5 и 6 и с численным градиентом на `Float64`.
 
 ### Changed
 
+- `LieFactor` является подтипом `AbstractMap`. Вызов `F(z)` делает то же, что `apply_factor(F, z)`.
 - Публичные имена Bell перечислены явным `export` вместо цикла `@eval export`. Набор имён тот же; добавлена `clear_caches!()`.
 - Кэш карт DA (`_DACACHE`) включает элемент, `p0`, порядок, сам метод интегрирования, `tol` и `nsteps`. `clear_caches!()` очищает кэши карт Lie, DA и краевого поля.
 - Графики (`plot_twiss`, `plot_dispersion2`, `plot_chromatic`, `plot_acceleration`, `separatrix!`, `gif_ramp`, `gif_elements`) перенесены в расширение `BellPlotsExt`. Plots — слабая зависимость: ядро Bell её не требует, методы появляются после `using Plots`.

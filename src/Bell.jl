@@ -15,6 +15,8 @@
 # A new `using ..X` follows that direction. Include order is the existing
 # load order: Hamiltonians and Symplectic stay after LieAlgebra, Fringe
 # after Tracking, SextupoleFamilies after MapReadings.
+# Map types are included before LieAlgebra so that LieFactor <: AbstractMap.
+# Beam state and trackers are included after FieldTrack and Tracking.
 # =============================================================================
 """
     Bell
@@ -30,6 +32,9 @@ Two independent physics stacks share elements, coordinates and integrators:
 Smooth `(φ, δ)` is a separate averaged model, not 6D RF tracking.
 `NormalForm` is research-only (`using Bell.NormalForm`).
 Plotting (`plot_twiss` and the other `plot_*` / `gif_*` names) loads with Plots.
+
+`ParticleState` and `Beam` hold canonical coordinates and an optional spin slot.
+`FieldTracker`, `LieTracker` and `MapTracker` call the two stacks above; they do not replace them.
 """
 module Bell
 
@@ -41,6 +46,7 @@ include("math/integrators/Integrators.jl")
 include("core/coordinates.jl")
 include("core/elements.jl")
 include("core/structure.jl")
+include("maps/abstract.jl")
 include("maps/lie/lie_algebra.jl")
 include("physics/hamiltonians.jl")
 include("physics/fields.jl")
@@ -49,6 +55,8 @@ include("maps/lie/linear.jl")
 include("core/symplectic.jl")
 include("maps/da/field_track.jl")
 include("maps/lie/tracking.jl")
+include("tracking/state.jl")
+include("tracking/trackers.jl")
 include("maps/da/tracking.jl")
 include("analysis/map_readings.jl")
 include("longitudinal_models/smooth.jl")
@@ -60,9 +68,10 @@ include("core/plotting.jl")
 include("optimizers/Optimizers.jl")
 include("maps/lie/normal_form.jl")
 
-using .Coordinates, .Elements, .Structure, .LieAlgebra, .Hamiltonians, .Fields,
-      .OptimConverter, .Linear, .Symplectic, .FieldTrack, .Tracking, .DATracking,
-      .MapReadings, .Smooth, .Acceleration, .Fringe, .SextupoleFamilies, .Optimizers
+using .Coordinates, .Elements, .Structure, .Maps, .LieAlgebra, .Hamiltonians, .Fields,
+      .OptimConverter, .Linear, .Symplectic, .FieldTrack, .Tracking, .BeamState, .Trackers,
+      .DATracking, .MapReadings, .Smooth, .Acceleration, .Fringe, .SextupoleFamilies,
+      .Optimizers
 
 function __init__()
     # Headless GR for the plotting extension. This has to run before Plots is
@@ -73,10 +82,11 @@ function __init__()
     return nothing
 end
 
-export AbstractElement, Drift, EdgeMap, EdgeModel, Enge, FringeMethod, FringeModel, FringeProfile,
-       GridSearch, HardEdge, JET_ORDER, Lattice, LieFactor, LinearRamp, LongitudinalParams,
-       MAP_ORDER, Magnus, Marker, NelderMead, NoEdge, OptiMFile, OptimizationResult, Optimizer,
-       Particle, Quadrupole, RFCavity, RandomStart, RefParticle, SBend, SEXT_FAMILIES, SPACE,
+export AbstractElement, AbstractMap, AbstractTracker, Beam, DAMap, Drift, EdgeMap, EdgeModel, Enge,
+       FieldTracker, FringeMethod, FringeModel, FringeProfile, GridSearch, HardEdge, JET_ORDER,
+       Lattice, LieFactor, LieTracker, LinearMap, LinearRamp, LongitudinalParams, MAP_ORDER, Magnus,
+       MapTracker, Marker, NelderMead, NoEdge, OptiMFile, OptimizationResult, Optimizer, Particle,
+       ParticleState, Quadrupole, RFCavity, RandomStart, RefParticle, SBend, SEXT_FAMILIES, SPACE,
        SYMPLECTIC_S, Sextupole, SoftEdge, Splitting, StructureFile, Tabulated, Tanh, TaylorIntegrate,
        VAR_NAMES, Z, accelerate, apply_factor, bucket_height, build_factors, c_light,
        canonical_to_laboratory, chromaticity, chromaticity_orders, chromaticity_series,
@@ -98,8 +108,8 @@ export AbstractElement, Drift, EdgeMap, EdgeModel, Enge, FringeMethod, FringeMod
        reference_from_kinetic, renormalize, response, revolution_frequency, rf_kick, rf_potential,
        rf_wavenumber, ring_lie_factor, ring_matrix, ring_metrics, ring_taylor_map, rotation_matrix_6,
        separatrix, separatrix!, set_cavity_phase, set_family_strengths, solve_A, solve_B,
-       symplectic_error, synchrotron_tune, taylor_map_element, total_bend_angle, track, truncate_to,
-       tunes_at_delta, turn_snapshots, unique_elements, velocity_expansion, velocity_ratio,
-       with_reference, write_structure
+       symplectic_error, synchrotron_tune, taylor_map_element, total_bend_angle, track, track!,
+       truncate_to, tunes_at_delta, turn_snapshots, unique_elements, velocity_expansion,
+       velocity_ratio, with_reference, write_structure
 
 end # module
