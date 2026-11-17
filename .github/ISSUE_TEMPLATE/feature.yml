@@ -1,0 +1,27 @@
+name: Feature
+description: Новая возможность пакета
+title: "feat: "
+labels:
+  - enhancement
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: Что нужно добавить. Имена типов и функций — как в коде.
+    validations:
+      required: true
+  - type: textarea
+    id: motivation
+    attributes:
+      label: Motivation
+      description: Зачем это пользователю решётки или разработчику.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: Когда задачу можно считать сделанной.
+    validations:
+      required: true
