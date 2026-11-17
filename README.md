@@ -26,4 +26,4 @@ lat = load_structure("examples/lattices/fodo.bell")
 
 * Physics manual: [`docs/src/index.md`](docs/src/index.md)
 * Docs site: [`docs/site/index.md`](docs/site/index.md); build HTML with `julia --project=docs docs/make.jl`
-* Version history: [`docs/CHANGELOG.md`](docs/CHANGELOG.md), details in [`docs/HISTORY.md`](docs/HISTORY.md)
+* Changelog: [`CHANGELOG.md`](CHANGELOG.md). Detailed notes through 0.17 stay in [`docs/HISTORY.md`](docs/HISTORY.md); the old index is [`docs/CHANGELOG.md`](docs/CHANGELOG.md)

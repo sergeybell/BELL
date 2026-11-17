@@ -1,7 +1,10 @@
 # CHANGELOG - Bell version index
 
-BELL - Beam Evolution in Accelerator Lattice. Short index of versions; the
-full notes are in [`HISTORY.md`](HISTORY.md). Dates are Moscow time (UTC+3).
+Canonical changelog from 0.17 onward: [`../CHANGELOG.md`](../CHANGELOG.md)
+(Keep a Changelog). This file is the short version index. Detailed notes stay
+in [`HISTORY.md`](HISTORY.md) (archive); do not delete that file.
+
+BELL - Beam Evolution in Accelerator Lattice. Dates are Moscow time (UTC+3).
 Sub-versions mark major additions only; fixes, reruns, docstrings and
 restructures are listed as notes inside the nearest version.
 
