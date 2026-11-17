@@ -2,8 +2,7 @@ using Documenter
 using Bell
 using Plots # loads BellPlotsExt so plot_* methods exist while docs are built
 
-# Site sources live in docs/site. docs/src keeps the Markdown of the Beam Physics
-# Manual, which is published as the PDF (docs/make_pdf.jl), not as HTML pages.
+# HTML site: docs/src (Documenter). PDF manuals: docs/manual via docs/make_pdf.jl.
 const PAGES = [
     "Home" => "index.md",
     "Physics Reference" => "physics.md",
@@ -55,7 +54,7 @@ const MODULES = [Bell, Bell.Coordinates, Bell.Elements, Bell.Structure, Bell.Lie
 makedocs(sitename = "Bell",
          modules = MODULES,
          root = @__DIR__,
-         source = "site",
+         source = "src",
          build = "build",
          format = Documenter.HTML(prettyurls = false, mathengine = Documenter.MathJax3()),
          pages = PAGES,

@@ -1,5 +1,5 @@
 # =============================================================================
-# docs/make_pdf.jl - PDF from docs/src Markdown (beam physics or programmer)
+# docs/make_pdf.jl - PDF from docs/manual Markdown (beam physics or programmer)
 # Usage: julia docs/make_pdf.jl              -> Beam Physics PDF
 #        julia docs/make_pdf.jl programmer   -> Programmer PDF
 # =============================================================================
@@ -34,7 +34,7 @@ function inline(s)
         end
     end; String(take!(out))
 end
-function convert_md(md; srcfile=joinpath(DOC, "src"))
+function convert_md(md; srcfile=joinpath(DOC, "manual"))
     L = split(replace(md, "\ufeff" => "", "\r" => ""), "\n")
     out = String[]; i = 1; list = ""
     closelist() = (list != "" && (push!(out, "\\end{$list}"); list = ""))
@@ -78,8 +78,8 @@ function convert_md(md; srcfile=joinpath(DOC, "src"))
         i += 1
     end; closelist(); join(out, "\n")
 end
-body = join([convert_md(read(joinpath(DOC, "src", p), String);
-                        srcfile = joinpath(DOC, "src", p)) for p in PAGES], "\n\\clearpage\n")
+body = join([convert_md(read(joinpath(DOC, "manual", p), String);
+                        srcfile = joinpath(DOC, "manual", p)) for p in PAGES], "\n\\clearpage\n")
 body = replace(body, r"(?<=\n)\*([^*$]+?)\*" => s"\\emph{\1}")
 tex = """
 \\documentclass[11pt,a4paper]{article}
