@@ -21,6 +21,7 @@ end
     include("test_integrators.jl")
     include("test_da_tracking.jl")
     include("test_lie.jl")
+    include("test_physics_consistency.jl")
     include("test_structure.jl")
     include("test_coordinates.jl")
     include("test_optics_regression.jl")
