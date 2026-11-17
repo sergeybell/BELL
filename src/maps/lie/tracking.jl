@@ -92,8 +92,11 @@ end
     apply_factor(F::LieFactor, z) -> Vector
 
 Track one point through a factor: w = N3(P4(z)), then R·w.
+`F(z)` is the same map.
 """
 apply_factor(F::LieFactor, z) = (w = apply_nonlinear(F, z); [sum(F.R[i, j] * w[j] for j in 1:6) for i in 1:6])
+
+(F::LieFactor)(z::AbstractVector) = apply_factor(F, z)
 
 """
     track(factors, z; turns = 1) -> Vector

@@ -24,6 +24,7 @@
 module LieAlgebra
 
 using TaylorSeries, LinearAlgebra
+using ..Maps: AbstractMap
 
 export SPACE, Z, JET_ORDER, MAP_ORDER, truncate_to, hom, maxabs, map_linear_part,
        poly_string, map_string, coeff, exponents_of_order,
@@ -238,6 +239,7 @@ compose_maps(A, B; order::Int = MAP_ORDER) = [truncate_to(evaluate(a, collect(B)
 
 Dragt-Finn factorised map M = R ∘ N3 ∘ P4, with N3 = exp(:f3:) z and P4 = exp(:f4:) z.
 Applied to coordinates: first P4, then N3, then the matrix R.
+This is an `AbstractMap`; calling `F(z)` is [`apply_factor`](@ref).
 
 # Fields
 - `name::String` – label (element or product name).
@@ -251,7 +253,7 @@ Applied to coordinates: first P4, then N3, then the matrix R.
 Each factor is exactly symplectic as a map (exponentials of Hamiltonian vector
 fields); only its generators are truncated.
 """
-struct LieFactor
+struct LieFactor <: AbstractMap
     name::String
     R::Matrix{Float64}
     f3::TaylorN{Float64}
