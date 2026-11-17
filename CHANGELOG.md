@@ -16,6 +16,8 @@
 
 ### Added
 
+- Тесты разложены по файлам `test/test_*.jl`: round-trip структуры и координат, регрессия оптики `magnetic_2` по `benchmarks/twiss/bell/results.csv`, проверка Aqua.
+
 ### Changed
 
 ### Fixed
