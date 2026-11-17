@@ -8,7 +8,7 @@
 #
 #   julia --project=examples examples/14_rf_acceleration/run.jl
 
-using Bell, Printf, LinearAlgebra, TaylorSeries, Random
+using Bell, Printf, LinearAlgebra, TaylorSeries, Random, Plots
 
 include(joinpath(@__DIR__, "..", "common", "print_util.jl"))
 include(joinpath(@__DIR__, "..", "common", "reference_values.jl"))

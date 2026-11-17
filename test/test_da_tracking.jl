@@ -78,4 +78,27 @@ using Bell.DiffAlgebra, Bell.Integrators
         zt = exact_track_turn(z0, lat; ds = 0.5)
         @test length(zt) == 6
     end
+    @testset "cache key is method, tol and nsteps" begin
+        e = Drift("Dcache", 0.25)
+        lat = Lattice("cache", AbstractElement[e], ref, 1)
+        A = element_da_maps(lat, 2; method = RK4(), tol = 1e-6, nsteps = 2)
+        A2 = element_da_maps(lat, 2; method = RK4(), tol = 1e-6, nsteps = 2)
+        B = element_da_maps(lat, 2; method = RK4(), tol = 1e-4, nsteps = 2)
+        C = element_da_maps(lat, 2; method = RK4(), tol = 1e-6, nsteps = 4)
+        D = element_da_maps(lat, 2; method = DormandPrince853(), tol = 1e-6, nsteps = 2)
+        E = element_da_maps(lat, 2; method = GraggBulirschStoer(4), tol = 1e-6, nsteps = 2)
+        F = element_da_maps(lat, 2; method = GraggBulirschStoer(6), tol = 1e-6, nsteps = 2)
+        @test A[1] === A2[1]
+        @test A[1] !== B[1]
+        @test A[1] !== C[1]
+        @test A[1] !== D[1]
+        @test E[1] !== F[1]
+        G = element_da_maps(lat, 2; method = DormandPrince853(), tol = 1e-6)
+        H = element_da_maps(lat, 2; method = DormandPrince853(), tol = 1e-8)
+        @test G[1] !== H[1]
+        clear_caches!()
+        A3 = element_da_maps(lat, 2; method = RK4(), tol = 1e-6, nsteps = 2)
+        @test A[1] !== A3[1]
+        @test linear_matrix(e, ref) == linear_matrix(e, ref)
+    end
 end
