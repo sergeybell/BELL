@@ -7,8 +7,8 @@ the list of assumptions — is described in the **Beam Physics Manual**:
 
 ```@raw html
 <p><a href="Bell_Beam_Physics_Manual.pdf"><strong>Bell_Beam_Physics_Manual.pdf</strong></a>
-(source: <code>docs/pdf/Bell_Beam_Physics_Manual.pdf</code>; rebuilt with
-<code>julia --project=docs docs/make_pdf.jl</code>)</p>
+(Markdown: <code>docs/manual/</code>; PDF: <code>docs/pdf/Bell_Beam_Physics_Manual.pdf</code>;
+rebuild with <code>julia --project=docs docs/make_pdf.jl</code>)</p>
 ```
 
 This site does not repeat that text. How the formulas are implemented is in the

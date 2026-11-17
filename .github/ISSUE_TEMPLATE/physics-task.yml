@@ -17,7 +17,7 @@ body:
       label: References
       description: Формулы, статьи, COSY / OptiM / MAD-X, файлы решётки.
       placeholder: |
-        - docs/site/dev/...
+        - docs/src/dev/...
         - Wolski / COSY procedure
     validations:
       required: true

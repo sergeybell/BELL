@@ -1,3 +1,5 @@
+> **Архив до v0.17 включительно.** Новые записи — в корневой [`CHANGELOG.md`](../CHANGELOG.md). Этот файл остаётся как есть и новыми версиями не пополняется.
+
 # HISTORY.md - version notes for Bell (was Julia/ring, LieRing)
 
 Local tags and commits live in `C:\GIT_REPOS\BELL` (never pushed by this
