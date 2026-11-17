@@ -7,7 +7,7 @@
 # One formula per element. hamiltonian(e, ref) is that formula on Z, returned
 # as a TaylorN polynomial (JET_ORDER, constant removed) for the Lie path.
 # hamiltonian(e, ref, z) evaluates the same expression on a 6-vector z
-# (numbers, TaylorN or DA). Field ODEs live in da/fields.jl and do not call
+# (numbers, TaylorN or DA). Field ODEs live in physics/fields.jl and do not call
 # this module.
 # =============================================================================
 module Hamiltonians

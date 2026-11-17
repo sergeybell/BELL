@@ -6,14 +6,14 @@ CurrentModule = Bell
 
 ## A new element type
 
-1. `src/elements.jl`: `struct NewElem <: AbstractElement` with `name::String`
+1. `src/core/elements.jl`: `struct NewElem <: AbstractElement` with `name::String`
    and, if it has length, `L::Float64`; add `kind_string(::NewElem)`.
-2. Lie path — `src/hamiltonians.jl`: `hamiltonian(e::NewElem, ref)`. Linear
+2. Lie path — `src/physics/hamiltonians.jl`: `hamiltonian(e::NewElem, ref)`. Linear
    matrix, Lie map and Dragt–Finn then follow (see [Elements](elements.md)).
-3. Field path — `src/da/fields.jl`: `magnetic_parameters` and/or a dedicated
+3. Field path — `src/physics/fields.jl`: `magnetic_parameters` and/or a dedicated
    branch of [`element_field`](@ref) / [`element_rhs`](@ref). `FieldTrack` and
    `DATracking` then use the same ODEs.
-4. `src/structure.jl`: the card in `_make_element` and `_card_line`.
+4. `src/core/structure.jl`: the card in `_make_element` and `_card_line`.
 5. A docstring; it appears in the API Reference via `@autodocs`.
 
 ## A new fringe model

@@ -22,6 +22,7 @@
 ### Changed
 
 - `hamiltonian(e, ref, z)` считает тот же s-гамильтониан на числах, `TaylorN` и DA. `hamiltonian(e, ref)` по-прежнему возвращает полином Lie-пути.
+- `src/` разложен по слоям `math`, `core`, `io`, `physics`, `maps`, `analysis`. Имена модулей и публичный API не изменились.
 
 ### Fixed
 

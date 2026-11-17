@@ -8,6 +8,12 @@
 # Loads every block in dependency order and re-exports public names.
 # A script only needs `using Bell`. NormalForm is included as research and
 # is not re-exported; load it with `using Bell.NormalForm`.
+#
+# Layers: math → core → io → physics → maps → analysis →
+# longitudinal_models → optimizers → plotting.
+# A new `using ..X` follows that direction. Include order is the existing
+# load order: Hamiltonians and Symplectic stay after LieAlgebra, Fringe
+# after Tracking, SextupoleFamilies after MapReadings.
 # =============================================================================
 """
     Bell
@@ -27,29 +33,29 @@ module Bell
 
 # pure-mathematics DiffAlgebra / Integrators are not re-exported into Bell
 # (generic names): `using Bell.DiffAlgebra`, `using Bell.Integrators`.
-include("da/DiffAlgebra.jl")
-include("integrators/Integrators.jl")
+include("math/DiffAlgebra.jl")
+include("math/integrators/Integrators.jl")
 
-include("common/coordinates.jl")
-include("common/elements.jl")
-include("common/structure.jl")
-include("lie/lie_algebra.jl")
-include("lie/hamiltonians.jl")
-include("da/fields.jl")
-include("common/optim_converter.jl")
-include("lie/linear.jl")
-include("common/symplectic.jl")
-include("da/field_track.jl")
-include("lie/tracking.jl")
-include("da/tracking.jl")
-include("common/map_readings.jl")
+include("core/coordinates.jl")
+include("core/elements.jl")
+include("core/structure.jl")
+include("maps/lie/lie_algebra.jl")
+include("physics/hamiltonians.jl")
+include("physics/fields.jl")
+include("io/optim_converter.jl")
+include("maps/lie/linear.jl")
+include("core/symplectic.jl")
+include("maps/da/field_track.jl")
+include("maps/lie/tracking.jl")
+include("maps/da/tracking.jl")
+include("analysis/map_readings.jl")
 include("longitudinal_models/smooth.jl")
 include("longitudinal_models/acceleration.jl")
-include("lie/fringe.jl")
-include("common/sextupole_families.jl")
+include("physics/fringe.jl")
+include("core/sextupole_families.jl")
 include("plotting/Plotting.jl")
 include("optimizers/Optimizers.jl")
-include("lie/normal_form.jl")
+include("maps/lie/normal_form.jl")
 
 using .Coordinates, .Elements, .Structure, .LieAlgebra, .Hamiltonians, .Fields,
       .OptimConverter, .Linear, .Symplectic, .FieldTrack, .Tracking, .DATracking,

@@ -1,6 +1,6 @@
 # ODE integrators (`Bell.Integrators`)
 
-`src/integrators/Integrators.jl` is a standalone collection of integrators, generic
+`src/math/integrators/Integrators.jl` is a standalone collection of integrators, generic
 over `Float64` and [`DA`](@ref Bell.DiffAlgebra.DA) state vectors. The method is a parameter:
 
 ```julia

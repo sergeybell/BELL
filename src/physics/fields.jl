@@ -1,5 +1,5 @@
 # =============================================================================
-# da/fields.jl - equations of motion from hard-edge multipole fields
+# physics/fields.jl - equations of motion from hard-edge multipole fields
 # =============================================================================
 #
 # Author: Kolokolchikov Sergey Dmitrievich <sergey.bell13@gmail.com>
@@ -7,8 +7,8 @@
 # Independent of the Lie / Hamiltonian path. Equations dz/ds are written from
 # hard-edge multipole fields and relativistic kinematics in canonical
 # coordinates z = (x, px, y, py, l, δ). The same f(z) evaluates on Float64 or
-# on DA numbers. Lives next to DiffAlgebra under src/da/; DiffAlgebra itself
-# stays pure mathematics (no elements).
+# on DA numbers. DiffAlgebra lives in src/math/ and stays pure mathematics
+# (no elements).
 # =============================================================================
 module Fields
 
