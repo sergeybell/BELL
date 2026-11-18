@@ -21,11 +21,11 @@
 - Трекеры `FieldTracker` (`exact_track_turn`), `LieTracker` (`track` по факторам `build_factors`) и `MapTracker` (однооборотная функция), плюс `track!` для `Beam` и для изменяемого 6-вектора. Старые функции трекинга остаются на месте.
 - Тесты разложены по файлам `test/test_*.jl`: round-trip структуры и координат, регрессия оптики `magnetic_2` по `benchmarks/twiss/bell/results.csv`, проверка Aqua.
 - `test/test_physics_consistency.jl`: `element_field` совпадает с `S ∇H` того же гамильтониана на DA порядков 5 и 6 и с численным градиентом на `Float64`.
-- README: установка через `Pkg.develop`, быстрый старт, запуск тестов, ссылки на `CONTRIBUTING.md`, `CHANGELOG.md` и сборку документации.
 - В начале `docs/HISTORY.md` указано, что это архив до v0.17, а новые записи ведутся в этом файле.
 
 ### Changed
 
+- README на английском и начинается с физики: s-гамильтониан элемента, уравнения `dz/ds = S ∇H`, переменные `z`, нормированные на референсную частицу. Установка — `Pkg.develop` клона; быстрые тесты — `Pkg.test()`, полные — с `BELL_FULL_TESTS=1`. Ссылки на `CONTRIBUTING.md` и `AGENTS.md`.
 - `LieFactor` является подтипом `AbstractMap`. Вызов `F(z)` делает то же, что `apply_factor(F, z)`.
 - HTML-документация собирается из одного дерева `docs/src`. Страницы сайта перенесены из `docs/site`. Markdown руководств PDF лежит в `docs/manual`.
 - Страница архитектуры описывает слои `math → core → io → physics → maps/{lie,da} → analysis → tracking interfaces → effects` (каталога `effects` ещё нет). Оба движка (Lie на TaylorSeries и DA на DiffAlgebra) остаются.
