@@ -1,3 +1,25 @@
+@testset "insert_cavity keeps the ring harmonic" begin
+    ref = reference_from_kinetic(deuteron, 10.0)
+    lat = Lattice("r", AbstractElement[Drift("D", 1.0), Marker("M")], ref, 3)
+    cav = RFCavity("RF", 0.1, 7, 0.0)
+    lat2, idx = insert_cavity(lat, cav; in_element = "D")
+    @test lat2.harmonic == 3
+    @test lat2.elements[idx] isa RFCavity
+    @test lat2.elements[idx].harmonic == 7
+    lat3, _ = insert_cavity(lat, cav; in_element = "D", harmonic = 9)
+    @test lat3.harmonic == 9
+    @test_throws ErrorException insert_cavity(lat, cav; in_element = "M")
+    @test_throws ErrorException insert_cavity(lat, cav; in_element = "missing")
+end
+
+@testset "sextupole bounds must match the lattice" begin
+    ref = reference_from_kinetic(deuteron, 10.0)
+    lat = Lattice("r", AbstractElement[Drift("D", 1.0)], ref, 1)
+    @test_throws ErrorException place_sextupole_families(lat, (bounds = Tuple{Float64,Float64,AbstractElement}[],))
+    other = (bounds = [(0.0, 1.0, Drift("other", 1.0))],)
+    @test_throws ErrorException place_sextupole_families(lat, other)
+end
+
 @testset "convert_optim close_ring" begin
     opt = tempname() * ".opt"
     write(opt, "OptiM\nEnergy[MeV]=270   Mass[MeV]=1875.612945\nbegin lattice. Number of periods=1\n" *

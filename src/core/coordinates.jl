@@ -18,7 +18,7 @@ module Coordinates
 
 export c_light, Particle, deuteron, proton, electron, RefParticle, reference_from_kinetic,
        index_x, index_px, index_y, index_py, index_l, index_delta, VAR_NAMES, laboratory_names,
-       energy_term, velocity_ratio, canonical_to_laboratory, laboratory_to_canonical,
+       SYMPLECTIC_S, energy_term, velocity_ratio, canonical_to_laboratory, laboratory_to_canonical,
        revolution_frequency, describe_reference
 
 """
@@ -46,6 +46,21 @@ the variables `Z[1..6]` of the polynomial space.
 @doc "Index of py in a 6-vector (= 4). See [`index_x`](@ref)." index_py
 @doc "Index of l (path-length / time-of-flight variable) in a 6-vector (= 5). See [`index_x`](@ref)." index_l
 @doc "Index of δ = Δp/p0 in a 6-vector (= 6). See [`index_x`](@ref)." index_delta
+
+"""
+    SYMPLECTIC_S :: Matrix{Float64} (6×6)
+
+Symplectic unit matrix in the ordering (x, px, y, py, l, δ): block-diagonal
+with blocks [0 1; −1 0]. Hamilton's equations: dz/ds = S ∇H.
+A matrix M is symplectic iff Mᵀ S M = S (see `symplectic_error`).
+"""
+const SYMPLECTIC_S = let S = zeros(6, 6)
+    for k in 1:3
+        S[2k - 1, 2k] = 1.0
+        S[2k, 2k - 1] = -1.0
+    end
+    S
+end
 @doc """
     VAR_NAMES :: Vector{String} = ["x", "px", "y", "py", "l", "delta"]
 
@@ -145,6 +160,7 @@ function reference_from_kinetic(p::Particle, Ekin_MeV::Real; mass_MeV::Real = p.
     bg    = sqrt(gamma^2 - 1)
     beta  = bg / gamma
     p0    = mass_MeV * bg
+    # brho uses the signed charge (decision on the sign convention is deferred).
     brho  = p0 * 1e6 / c_light / p.charge
     return RefParticle(p, mass_MeV, Ekin_MeV, gamma, beta, bg, p0, brho)
 end

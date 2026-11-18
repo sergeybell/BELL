@@ -25,7 +25,7 @@ _jac(M, z) = [evaluate(differentiate(M[i], j), z) for i in 1:6, j in 1:6]
 
 Transverse closed orbit u = (x, px, y, py) of a one-turn polynomial `M` at
 fixed δ. Newton iteration on M_{1:4}(u, 0, δ) = u with the exact Jacobian of
-the polynomial, at most `iters` steps, stop at |Δu| < 1e-16. This is the
+the polynomial, at most `iters` steps, stop at |Δu| < 1e-12. This is the
 fixed point of an already-built map. Building the map is the expensive step.
 `periodic_optics` is the linear Twiss of a matrix; this function is the
 off-momentum fixed point of a nonlinear map. Integer tunes are accumulated
@@ -39,7 +39,7 @@ function closed_orbit(M, d::Real; iters = 30)
         J = _jac(M, z)[1:4, 1:4] - I
         du = -J \ F
         u .+= du
-        maximum(abs, du) < 1e-16 && break
+        maximum(abs, du) < 1e-12 && break
     end
     return u
 end

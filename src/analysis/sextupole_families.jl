@@ -1,5 +1,5 @@
 # =============================================================================
-# sextupole_families.jl - optional placement and fitting of sextupole families
+# analysis/sextupole_families.jl - optional placement and fitting of sextupole families
 # =============================================================================
 #
 # Author: Kolokolchikov Sergey Dmitrievich <sergey.bell13@gmail.com>
@@ -9,8 +9,8 @@
 # =============================================================================
 module SextupoleFamilies
 
-using LinearAlgebra, TaylorSeries
-using ..Coordinates, ..Elements, ..Structure, ..LieAlgebra, ..MapReadings
+using LinearAlgebra
+using ..Coordinates, ..Elements, ..Structure, ..MapReadings
 
 export SEXT_FAMILIES, place_sextupole_families, set_family_strengths,
        ring_metrics, response, solve_A, solve_B
@@ -23,7 +23,21 @@ const SEXT_FAMILIES = ["SXD", "SXB", "SYB"]
 Insert a zero-strength sextupole of family SXD / SXB / SYB into the nearest
 short drift slot of every D_x / β_x / β_y maximum ([`find_optics_maxima`](@ref)).
 """
+function _check_optics_bounds(lattice::Lattice, opt)
+    bounds = opt.bounds
+    n = length(lattice.elements)
+    length(bounds) == n ||
+        error("place_sextupole_families: $(length(bounds)) optics bounds for $n lattice elements")
+    for i in 1:n
+        e = bounds[i][3]
+        isequal(e, lattice.elements[i]) ||
+            error("place_sextupole_families: bounds[$i] is $(e.name), lattice.elements[$i] is $(lattice.elements[i].name)")
+    end
+    return nothing
+end
+
 function place_sextupole_families(lattice::Lattice, opt; kw...)
+    _check_optics_bounds(lattice, opt)
     maxima = find_optics_maxima(opt; kw...)
     fam_of = Dict("D_x" => "SXD", "beta_x" => "SXB", "beta_y" => "SYB")
     assigned = Dict{Int,String}()

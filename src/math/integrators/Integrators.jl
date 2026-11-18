@@ -21,7 +21,7 @@ using ..DiffAlgebra: DA, coeffnorm
 
 export ODEMethod, RK4, DormandPrince5, DormandPrince853, GraggBulirschStoer,
        ImplicitMidpoint, ImplicitYoshida, implicit_midpoint, implicit_yoshida_weights,
-       integrate, integrate_fixed, errnorm, method_order,
+       integrate, integrate_fixed, errnorm, is_adaptive, method_order,
        SplitFlows, SplittingMethod, Leapfrog, Yoshida, ForestRuth, splitting_weights
 
 "Supertype of the ODE methods of [`integrate`](@ref)."
@@ -30,13 +30,32 @@ abstract type ODEMethod end
 @doc raw"""
     errnorm(x)
 
-Magnitude used by the step control: ``|x|`` for numbers; for a DA the coefficient norm
-``\max_\alpha |x_\alpha|`` (all Taylor coefficients are controlled, not only the constant part).
+Magnitude used by the step control and by the implicit-midpoint residual.
+
+- a real number: ``|x|``;
+- a DA: the coefficient norm ``\max_\alpha |x_\alpha|`` (every Taylor coefficient,
+  not only the constant part);
+- another `Number` that stores `.coeffs` (a truncated series): the same maximum
+  over coefficients. `abs` on that series follows only the constant term.
+
 Pass `norm = x -> abs(constant_part(x))` to [`integrate`](@ref) to control only the
 reference trajectory.
 """
-errnorm(x::Number) = abs(x)
+errnorm(x::Real) = abs(x)
 errnorm(x::DA) = coeffnorm(x)
+function errnorm(x::Number)
+    hasproperty(x, :coeffs) || return abs(x)
+    return _coeff_magnitude(x)
+end
+_coeff_magnitude(x::Real) = abs(x)
+function _coeff_magnitude(x)
+    hasproperty(x, :coeffs) || return abs(x)
+    m = 0.0
+    for c in x.coeffs
+        m = max(m, _coeff_magnitude(c))
+    end
+    return m
+end
 
 _axpy(z, h, k) = [z[i] + h * k[i] for i in eachindex(z)]
 _lin(z, h, cs, ks) = [z[i] + h * sum(cs[j] * ks[j][i] for j in eachindex(cs) if !iszero(cs[j]); init = zero(z[i])) for i in eachindex(z)]
@@ -50,6 +69,22 @@ include("gragg_bulirsch_stoer.jl")
 include("implicit_midpoint.jl")
 include("yoshida.jl")
 
+"""
+    is_adaptive(method::ODEMethod) -> Bool
+
+`true` when `method` carries an embedded local-error estimate and
+[`integrate`](@ref) may choose the step. The default is `false`
+(fixed step: pass `h` or `nsteps`). Adaptive methods:
+[`DormandPrince5`](@ref), [`DormandPrince853`](@ref), [`GraggBulirschStoer`](@ref).
+"""
+is_adaptive(::ODEMethod) = false
+is_adaptive(::DormandPrince5) = true
+is_adaptive(::DormandPrince853) = true
+is_adaptive(::GraggBulirschStoer) = true
+
+_step_guess(::ODEMethod, span) = 1e-2 * span
+_step_guess(::GraggBulirschStoer, span) = span / 4
+
 @doc raw"""
     integrate(f, z0, s0, s1; method = DormandPrince5(), tol = 1e-12, rtol = tol, h = nothing,
               nsteps = nothing, h0 = nothing, hmax = abs(s1 - s0), maxsteps = 10^6,
@@ -58,9 +93,11 @@ include("yoshida.jl")
 Integrate ``dz/ds = f(z, s)`` from ``s_0`` to ``s_1``; `z0` is a vector of any number type
 (`Float64`, [`DA`](@ref), ...), `f(z, s)` returns a vector of the same length.
 
-- Fixed step: give `h` or `nsteps` (or use a method with no error estimate:
-  `RK4()`, `ImplicitMidpoint()`, `ImplicitYoshida()`).
-- Adaptive (DormandPrince5, GraggBulirschStoer): local error per step
+- Fixed step: give `h` or `nsteps`, or use a method with
+  [`is_adaptive`](@ref)`(method) == false` (`RK4()`, `ImplicitMidpoint()`,
+  `ImplicitYoshida()`, splitting methods).
+- Adaptive ([`is_adaptive`](@ref): DormandPrince5, DormandPrince853,
+  GraggBulirschStoer): local error per step
   ``\mathrm{err} = \max_i \|e_i\| / (\mathrm{tol} + \mathrm{rtol}\,\|z_i\|)`` with
   ``\|\cdot\|`` = `norm` (for DA: coefficient norm, see [`errnorm`](@ref)); the step is
   accepted if ``\mathrm{err} \le 1`` and the next step is
@@ -72,15 +109,15 @@ function integrate(f, z0::AbstractVector, s0::Real, s1::Real; method::ODEMethod 
                    hmax = abs(s1 - s0), maxsteps::Integer = 10^6, norm = errnorm)
     z = collect(z0)
     s1 == s0 && return (z = z, nsteps = 0, nrejected = 0, nfev = 0)
-    fixed = method isa RK4 || method isa ImplicitMidpoint || method isa ImplicitYoshida ||
-            h !== nothing || nsteps !== nothing
+    fixed = !is_adaptive(method) || h !== nothing || nsteps !== nothing
     if fixed
         n = nsteps !== nothing ? Int(nsteps) : h !== nothing ? max(1, ceil(Int, abs(s1 - s0) / h)) :
             error("$(typeof(method)) is fixed-step: give h or nsteps")
         return integrate_fixed(f, z, s0, s1, n; method)
     end
     dir = sign(s1 - s0); s = float(s0)
-    hc = h0 === nothing ? dir * min(abs(s1 - s0), method isa GraggBulirschStoer ? abs(s1 - s0) / 4 : 1e-2 * abs(s1 - s0)) : dir * abs(h0)
+    span = abs(s1 - s0)
+    hc = h0 === nothing ? dir * min(span, _step_guess(method, span)) : dir * abs(h0)
     q = _errexp(method)
     nacc = 0; nrej = 0; nf = 0
     while dir * (s1 - s) > 0

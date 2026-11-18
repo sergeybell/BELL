@@ -52,3 +52,18 @@ using TaylorSeries
     vprintf("  10 turns: |element factors - one-turn factor| = %.2e, |Lie - exact field| = %.2e\n", maximum(abs.(z10 - w)), maximum(abs.(z10 - zex)))
     @test maximum(abs.(z10 - zex)) < 1e-6
 end
+
+@testset "closed_orbit stops at 1e-12" begin
+    # Contracting transverse map: unique fixed point (0.2, 0, 0, 0), independent of δ.
+    M = [0.1 + 0.5 * Z[1], 0.3 * Z[2], 0.4 * Z[3], 0.2 * Z[4], Z[5], Z[6]]
+    u = closed_orbit(M, 1e-3)
+    @test isapprox(u[1], 0.2; atol = 1e-12)
+    @test norm(u[2:4]) < 1e-12
+end
+
+@testset "implicit midpoint on TaylorN" begin
+    h = 0.05
+    z1 = Bell.Integrators.implicit_midpoint((z, s) -> [-z[1]], [0.2 + Z[1]], 0.0, h)
+    exact = (1 - h / 2) / (1 + h / 2) * 0.2
+    @test abs(constant_term(z1[1]) - exact) < 1e-12
+end

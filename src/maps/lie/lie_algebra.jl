@@ -20,11 +20,13 @@ module LieAlgebra
 
 using TaylorSeries, LinearAlgebra
 using ..Maps: AbstractMap
+using ..Coordinates: SYMPLECTIC_S
+import ..Symplectic
 
 export SPACE, Z, JET_ORDER, MAP_ORDER, truncate_to, hom, maxabs, map_linear_part,
        poly_string, map_string, coeff, exponents_of_order,
        poisson, lie_exp, lie_map, LieFactor, dragt_finn_factor, concatenate,
-       factor_to_map, compose_maps, SYMPLECTIC_S, identity_factor,
+       factor_to_map, compose_maps, identity_factor,
        pull_generator, product_factors, rotation_matrix_6
 
 
@@ -159,19 +161,7 @@ end
 const position_indices = (1, 3, 5)
 const momentum_indices = (2, 4, 6)
 
-"""
-    SYMPLECTIC_S :: Matrix{Float64} (6×6)
-
-Symplectic unit matrix in the ordering (x, px, y, py, l, δ): block-diagonal
-with blocks [0 1; −1 0]. Hamilton's equations: dz/ds = S ∇H.
-A matrix M is symplectic iff Mᵀ S M = S (see `symplectic_error`).
-"""
-const SYMPLECTIC_S = let S = zeros(6, 6)
-    for k in 1:3
-        S[2k-1, 2k] = 1.0; S[2k, 2k-1] = -1.0
-    end
-    S
-end
+# SYMPLECTIC_S is the coordinate pairing, defined in Coordinates.
 
 """
     poisson(f, g) -> TaylorN
@@ -391,6 +381,31 @@ function factor_to_map(F::LieFactor; order::Int = MAP_ORDER)
     P4 = [truncate_to(lie_exp(F.f4, Z[j]), order) for j in 1:6]
     N = compose_maps(N3, P4; order)
     return [truncate_to(sum(F.R[i, j] * N[j] for j in 1:6), order) for i in 1:6]
+end
+
+# TaylorN symplecticity lives next to the polynomial algebra. Core only holds S and the numeric / DA checks.
+function Symplectic.symplectic_error(M::AbstractVector{<:TaylorN})
+    J = [differentiate(M[i], j) for i in 1:6, j in 1:6]
+    err = 0.0
+    for a in 1:6, b in 1:6
+        s = zero(M[1])
+        for i in 1:6, j in 1:6
+            SYMPLECTIC_S[i, j] == 0 && continue
+            s += SYMPLECTIC_S[i, j] * (J[i, a] * J[j, b])
+        end
+        err = max(err, maxabs(truncate_to(s - SYMPLECTIC_S[a, b], MAP_ORDER - 1)))
+    end
+    return err
+end
+
+function Symplectic.jacobian_of_map(M, z0::AbstractVector)
+    return [evaluate(differentiate(M[i], j), collect(float.(z0))) for i in 1:6, j in 1:6]
+end
+
+function Symplectic.jacobian_of_function(f, z0::AbstractVector)
+    zt = [z0[i] + Z[i] for i in 1:6]
+    out = f(zt)
+    return [constant_term(differentiate(out[i], j)) for i in 1:6, j in 1:6]
 end
 
 end # module

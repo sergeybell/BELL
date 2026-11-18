@@ -1,17 +1,17 @@
 # =============================================================================
-# optim_converter.jl - write a Bell structure file from an OptiM .opt
+# optim_converter.jl - write a Bell structure file from a .opt lattice file
 # =============================================================================
 #
 # Author: Kolokolchikov Sergey Dmitrievich <sergey.bell13@gmail.com>
 #
 # WHAT
-#   convert_optim(opt_path, structure_path) reads an OptiM lattice file and
+#   convert_optim(opt_path, structure_path) reads a .opt lattice file and
 #   writes a Bell structure file.  It does not assemble a Lattice: that is
 #   load_structure's job.
-#   Element type follows the OptiM naming rule (first letter):
+#   Element type follows the file's first-letter rule:
 #     O... drift, B... bend, Q... quadrupole, S... sextupole.
 #   Lengths cm -> m, fields kG -> T, gradients to normalised k1, k2 using
-#   B rho from the header kinetic energy and the CODATA particle mass.
+#   B rho from the header kinetic energy and the particle mass.
 #
 # =============================================================================
 module OptimConverter
@@ -23,16 +23,16 @@ export OptiMFile, convert_optim
 """
     OptiMFile
 
-Result of converting an OptiM `.opt` file ([`convert_optim`](@ref)).
+Result of converting a `.opt` lattice file ([`convert_optim`](@ref)).
 
 # Fields
 - `path::String` – the source `.opt` file; `structure_path::String` – written `.bell` file.
-- `variables::Dict{String,Float64}` – OptiM variables (dollar-prefixed names) after evaluation.
+- `variables::Dict{String,Float64}` – dollar-prefixed variables after evaluation.
 - `energy_MeV::Float64`, `mass_MeV::Float64` – kinetic energy and mass from the header.
 - `initial::Dict{String,Float64}` – initial Twiss values given in the file.
 - `nperiods_file::Int` – number of periods declared; `nrepeat_used::Int` – repetitions written to the ring.
 - `sequence::Vector{String}` – element names of one period.
-- `definitions::Dict{String,Dict{String,Float64}}` – raw element parameters (OptiM units).
+- `definitions::Dict{String,Dict{String,Float64}}` – raw element parameters (source-file units).
 - `warnings::Vector{String}` – everything that was ignored or guessed.
 
 # Conversion rules
@@ -41,7 +41,7 @@ Q = quadrupole, S = sextupole (other letters are reported in `warnings`).
 Units: L [cm] → m (/100); bend field B [kG] → T (/10), angle = L·B/(Bρ);
 gradient G [kG/cm] → T/m (×10), k1 = G/(Bρ); sextupole S [kG/cm²] → T/m² (×1000),
 k2 = S/(Bρ). A B-element with B = G = 0 becomes a drift; `Tilt` is ignored (warning).
-Bρ is computed from the header energy and the CODATA mass of `particle`
+Bρ is computed from the header energy and the mass of `particle`
 (the header `Mass` is recorded but not used). Periods: if the listed sequence
 already bends by 360° it is used once, else it is repeated `Number of periods`
 times when that closes the ring (otherwise used once with a warning).
@@ -60,7 +60,18 @@ struct OptiMFile
     warnings::Vector{String}
 end
 
-const NUM = r"^[-+]?(\d+\.?\d*|\.\d+)([eE][-+]?\d+)?$"
+const NUM = Structure._NUMBER_LITERAL
+
+function _must_capture(text, re, what)
+    m = match(re, text)
+    m === nothing && error("$what not found")
+    cap = m.captures[1]
+    cap === nothing && error("$what not found")
+    return cap
+end
+
+_scale_bend(e::SBend, f) = SBend(e.name, e.L, e.angle * f, e.k1, e.e1, e.e2, e.gap, e.fint)
+_scale_bend(e::AbstractElement, _) = e
 
 function _value(s::AbstractString, vars, warnings)
     s = strip(s)
@@ -76,7 +87,7 @@ function _value(s::AbstractString, vars, warnings)
     return 0.0
 end
 
-strip_comment(l) = (i = findfirst('#', l); i === nothing ? l : l[1:prevind(l, i)])
+strip_comment(l) = Structure._strip_comment(l)
 
 function _parse_optim_raw(path::AbstractString; particle::Particle = deuteron, close_ring::Bool = true)
     lines = readlines(path)
@@ -101,10 +112,12 @@ function _parse_optim_raw(path::AbstractString; particle::Particle = deuteron, c
     end
 
     text_after = join(lines[i_optim:end], "\n")
-    energy = parse(Float64, match(r"Energy\[MeV\]\s*=\s*([-\d.eE+]+)", text_after).captures[1])
-    mass   = parse(Float64, match(r"Mass\[MeV\]\s*=\s*([-\d.eE+]+)", text_after).captures[1])
+    energy = parse(Float64, _must_capture(text_after, r"Energy\[MeV\]\s*=\s*([-\d.eE+]+)", "Energy[MeV]"))
+    mass   = parse(Float64, _must_capture(text_after, r"Mass\[MeV\]\s*=\s*([-\d.eE+]+)", "Mass[MeV]"))
     i_beg = findfirst(l -> occursin("begin lattice", l), lines)
     i_end = findfirst(l -> occursin("end lattice", l), lines)
+    i_beg === nothing && error("no 'begin lattice' line found in $path")
+    i_end === nothing && error("no 'end lattice' line found in $path")
     initial = Dict{String,Float64}()
     for l in lines[i_optim+1:i_beg-1], m in eachmatch(r"([A-Za-z_]+(\[[^\]]*\])?)\s*=\s*([-+\d.eE]+)", l)
         initial[m.captures[1]] = parse(Float64, m.captures[3])
@@ -119,6 +132,8 @@ function _parse_optim_raw(path::AbstractString; particle::Particle = deuteron, c
 
     i_lb = findfirst(l -> startswith(strip(l), "begin list"), lines)
     i_le = findfirst(l -> startswith(strip(l), "end list"), lines)
+    i_lb === nothing && error("no 'begin list' line found in $path")
+    i_le === nothing && error("no 'end list' line found in $path")
     defs = Dict{String,Dict{String,Float64}}()
     for l in lines[i_lb+1:i_le-1]
         t = strip(strip_comment(l))
@@ -157,7 +172,7 @@ function _parse_optim_raw(path::AbstractString; particle::Particle = deuteron, c
     end
     cache = Dict(nm => make(nm) for nm in unique(seq))
     once = [cache[nm] for nm in seq]
-    ang = sum(e -> e isa SBend ? e.angle : 0.0, once)
+    ang = total_bend_angle(once)
     nrep = 1
     if abs(ang - 2pi) < deg2rad(1.0)
         nper != 1 && push!(warnings, "file says 'Number of periods=$nper' but the listed sequence already bends by " *
@@ -169,12 +184,12 @@ function _parse_optim_raw(path::AbstractString; particle::Particle = deuteron, c
         push!(warnings, "total bend angle $(rad2deg(ang)) deg (x$nper periods) is not 360 deg; using sequence once")
         nrep = 1
     end
-    # close the ring exactly: OptiM gives B with ~9 digits, so sum(L*B/Brho) misses 2 pi by ~1e-8
+    # close the ring exactly: the bend field is stored with ~9 digits, so sum(L*B/Brho) misses 2 pi by ~1e-8
     tot = ang * nrep
     if close_ring && tot != 2pi && abs(tot - 2pi) < 1e-6 * 2pi
         f = 2pi / tot
-        for (nm, e) in collect(cache)
-            e isa SBend && (cache[nm] = SBend(e.name, e.L, e.angle * f, e.k1, e.e1, e.e2, e.gap, e.fint))
+        for nm in keys(cache)
+            cache[nm] = _scale_bend(cache[nm], f)
         end
         once = [cache[nm] for nm in seq]
         push!(warnings, "close_ring: bend angles scaled by 1 + $(f - 1) so that the total is exactly 2 pi")
@@ -193,20 +208,19 @@ end
 """
     convert_optim(opt_path, structure_path; particle = deuteron, close_ring = true) -> OptiMFile
 
-Read an OptiM lattice file, write an equivalent Bell structure file to
+Read a `.opt` lattice file, write an equivalent Bell structure file to
 `structure_path`, and return conversion metadata ([`OptiMFile`](@ref)).
-The `Lattice` is obtained afterwards with `load_structure(structure_path)`;
-Bell itself never reads OptiM files at run time.
+The `Lattice` is obtained afterwards with `load_structure(structure_path)`.
 
 `close_ring = true`: if the total bend angle of the ring differs from 2 pi by less than 1e-6
-relative (OptiM stores the bend field with ~9 digits, so sum(L B / B rho) misses 2 pi by ~1e-8), all
+relative (the bend field is stored with ~9 digits, so sum(L B / B rho) misses 2 pi by ~1e-8), all
 bend angles are scaled by one common factor so that the total is exactly 2 pi (e.g. 16 bends of
 exactly pi/8); a warning records the factor. `close_ring = false` keeps L B / B rho.
 """
 function convert_optim(opt_path::AbstractString, structure_path::AbstractString;
                        particle::Particle = deuteron, close_ring::Bool = true)
     meta = _parse_optim_raw(opt_path; particle, close_ring)
-    extra = "# converted from $(meta.path)\n# OptiM header Mass = $(meta.mass_MeV) MeV (not used; CODATA particle mass)"
+    extra = "# converted from $(meta.path)\n# header Mass = $(meta.mass_MeV) MeV (not used; particle mass from the species)"
     write_structure(structure_path, meta.lattice; extra_header = extra)
     return OptiMFile(meta.path, String(structure_path), meta.variables, meta.energy_MeV, meta.mass_MeV,
                      meta.initial, meta.nperiods_file, meta.nrepeat_used, meta.sequence,

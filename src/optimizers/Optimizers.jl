@@ -83,7 +83,7 @@ restarts raise the chance of finding a better basin when the objective is
 multimodal.
 
 # Arguments
-- `n` – number of random starts;
+- `n` – number of random starts, at least 1;
 - `lower`, `upper` – vectors of the same length (box bounds);
 - `local_method` – local solver (default [`NelderMead`](@ref));
 - `rng` – random number generator.
@@ -97,6 +97,7 @@ struct RandomStart <: Optimizer
 end
 function RandomStart(n::Integer; lower, upper, local_method::NelderMead = NelderMead(),
                      rng::AbstractRNG = Random.default_rng())
+    n >= 1 || error("RandomStart: n must be >= 1")
     lo = collect(Float64, lower); up = collect(Float64, upper)
     length(lo) == length(up) || error("RandomStart: lower and upper must have the same length")
     all(lo .<= up) || error("RandomStart: need lower .<= upper")
@@ -106,17 +107,29 @@ end
 """
     GridSearch(points; polish = true, local_method = NelderMead())
 
-Evaluate the objective at every vector in `points`. If `polish` is true, run
-[`NelderMead`](@ref) from the best grid point. Useful when a coarse lattice of
-candidates is already known (parameter scan).
+Evaluate the objective at every vector in `points`. Every point must have the
+same length. If `polish` is true, run [`NelderMead`](@ref) from the best grid
+point. Useful when a coarse set of candidates is already known (parameter scan).
 """
 struct GridSearch <: Optimizer
     points::Vector{Vector{Float64}}
     polish::Bool
     local_method::NelderMead
 end
-GridSearch(points; polish::Bool = true, local_method::NelderMead = NelderMead()) =
-    GridSearch([collect(Float64, p) for p in points], polish, local_method)
+function _check_grid_dims(points)
+    isempty(points) && return nothing
+    n = length(points[1])
+    for (i, p) in enumerate(points)
+        length(p) == n || error("GridSearch: point $i has length $(length(p)); expected $n")
+    end
+    return nothing
+end
+
+function GridSearch(points; polish::Bool = true, local_method::NelderMead = NelderMead())
+    pts = [collect(Float64, p) for p in points]
+    _check_grid_dims(pts)
+    return GridSearch(pts, polish, local_method)
+end
 
 # ----- Nelder–Mead core -------------------------------------------------------
 
@@ -214,6 +227,7 @@ MultiStart: `method.n` random starts in `[lower, upper]`, local Nelder–Mead
 from each; return the best [`OptimizationResult`](@ref).
 """
 function optimize(method::RandomStart, objective)
+    method.n >= 1 || error("RandomStart: n must be >= 1")
     dim = length(method.lower)
     best = OptimizationResult(copy(method.lower), Inf, false, 0, "no start")
     total_eval = 0
@@ -239,6 +253,7 @@ Nelder–Mead.
 """
 function optimize(method::GridSearch, objective)
     isempty(method.points) && error("GridSearch: empty points")
+    _check_grid_dims(method.points)
     n_eval = 0
     best_x = copy(method.points[1])
     best_f = Inf
