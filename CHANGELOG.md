@@ -15,8 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Notes from 0.1.0 through 0.17.0 are condensed in this file. Each later change cites its pull request. ([#28])
-- `CONTRIBUTING.md` and `AGENTS.md`: a user-visible pull request adds an entry under `[Unreleased]` with its pull request number. `version` in `Project.toml` is bumped, and `[Unreleased]` is renamed, only in a release pull request. ([#28])
+- Notes from 0.1.0 through 0.17.0 are condensed in this file. Each later change cites its pull request. ([#32], [#28])
+- `CONTRIBUTING.md` and `AGENTS.md`: a user-visible pull request adds an entry under `[Unreleased]` with its pull request number. `version` in `Project.toml` is bumped, and `[Unreleased]` is renamed, only in a release pull request. ([#32], [#28])
 - `AGENTS.md` describes the Hamiltonian model, the `src/` layers, the coordinate conventions, and how to check a result. `CONTRIBUTING.md` is the workflow only: one issue, a branch from `main`, fast tests, and a squash-merge. ([#27], [#19])
 - The optics regression does not read `benchmarks/`. Its reference numbers are copied into `test/test_optics_regression.jl` from a real run recorded in `benchmarks/twiss/bell/results.csv`. The checks and tolerances are unchanged, and the test still runs only when `BELL_FULL_TESTS=1`. ([#25], [#16])
 - The Hénon–Heiles integrator study moved from `test/integrator_study.jl` and `test/output/` to `benchmarks/integrator_study/`. It is run by hand and is not part of `Pkg.test()`. ([#25], [#16])
@@ -27,7 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
-- `docs/HISTORY.md` and the version index `docs/CHANGELOG.md`. ([#28])
+- `docs/HISTORY.md` and the version index `docs/CHANGELOG.md`. ([#32], [#28])
 
 ## [0.19.0] - 2026-11-17
 
@@ -289,3 +289,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [#26]: https://github.com/sergeybell/BELL/pull/26
 [#27]: https://github.com/sergeybell/BELL/pull/27
 [#28]: https://github.com/sergeybell/BELL/issues/28
+[#32]: https://github.com/sergeybell/BELL/pull/32
