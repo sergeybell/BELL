@@ -1,6 +1,7 @@
-# test/integrator_study.jl - comparison of Bell.Integrators methods on the Henon-Heiles system
+# benchmarks/integrator_study/integrator_study.jl - comparison of Bell.Integrators methods on the Henon-Heiles system
 #   H = (px^2 + py^2)/2 + (x^2 + y^2)/2 + x^2 y - y^3/3,   split H = T(p) [drift] + V(q) [nonlinear kick]
-# Run:  julia --project=. test/integrator_study.jl     -> prints table, writes test/output/integrator_study.md
+# Run:  julia --project=. benchmarks/integrator_study/integrator_study.jl
+#       prints the table and writes benchmarks/integrator_study/output/integrator_study.md
 using LinearAlgebra, Printf
 using Bell, Bell.DiffAlgebra, Bell.Integrators
 
