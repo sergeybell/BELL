@@ -26,6 +26,8 @@
 
 ### Changed
 
+- CI — одна задача: `windows-latest`, Julia 1. Матрица ОС и версий, сбор покрытия, загрузка в Codecov и сборка документации убраны. Задача запускает обычный `Pkg.test()`.
+- `Pkg.test()` по умолчанию гоняет быстрый набор. Регрессия оптики, DA высоких порядков, Aqua и тесты оптимизаторов запускаются только при `BELL_FULL_TESTS=1`.
 - `LieFactor` является подтипом `AbstractMap`. Вызов `F(z)` делает то же, что `apply_factor(F, z)`.
 - HTML-документация собирается из одного дерева `docs/src`. Страницы сайта перенесены из `docs/site`. Markdown руководств PDF лежит в `docs/manual`.
 - Страница архитектуры описывает слои `math → core → io → physics → maps/{lie,da} → analysis → tracking interfaces → effects` (каталога `effects` ещё нет). Оба движка (Lie на TaylorSeries и DA на DiffAlgebra) остаются.

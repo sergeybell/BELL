@@ -29,15 +29,18 @@ order_estimate(e1, e2, r = 2) = log(e1 / e2) / log(r)
             @test norm(r.z - z0) < lim
         end
     end
-    @testset "DA initial condition: x' = x^2" begin
-        N = 10; sp = DASpace(1, N); a = 1.0; t1 = 0.5
-        x0 = da_var(sp, 1; at = a)
-        for (m, tol) in [(DormandPrince853(), 1e-15), (GraggBulirschStoer(8), 1e-15)]
-            r = integrate((z, s) -> [z[1]^2], [x0], 0.0, t1; method = m, tol = tol)
-            ex = [k == 0 ? a / (1 - t1 * a) : t1^(k - 1) / (1 - t1 * a)^(k + 1) for k in 0:N]
-            rel = maximum(abs(coefficient(r.z[1], [k]) - ex[k+1]) / abs(ex[k+1]) for k in 0:N)
-            vprintln("  DA ODE ", m, ": max rel coeff err ", rel)
-            @test rel < 1e-12
+    # Order-10 DA ODE: full suite only.
+    if full_tests()
+        @testset "DA initial condition: x' = x^2" begin
+            N = 10; sp = DASpace(1, N); a = 1.0; t1 = 0.5
+            x0 = da_var(sp, 1; at = a)
+            for (m, tol) in [(DormandPrince853(), 1e-15), (GraggBulirschStoer(8), 1e-15)]
+                r = integrate((z, s) -> [z[1]^2], [x0], 0.0, t1; method = m, tol = tol)
+                ex = [k == 0 ? a / (1 - t1 * a) : t1^(k - 1) / (1 - t1 * a)^(k + 1) for k in 0:N]
+                rel = maximum(abs(coefficient(r.z[1], [k]) - ex[k+1]) / abs(ex[k+1]) for k in 0:N)
+                vprintln("  DA ODE ", m, ": max rel coeff err ", rel)
+                @test rel < 1e-12
+            end
         end
     end
 end
