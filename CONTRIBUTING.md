@@ -1,83 +1,54 @@
-# Участие в разработке Bell
+# Contributing to Bell
 
-Bell — пакет Julia для симплектического моделирования пучка в ускорительной решётке.
-Ниже — процесс для людей. Правила для AI-агентов — в [`AGENTS.md`](AGENTS.md).
+Workflow for a change to this repository. What the code is, and the rules for agents, are in [`AGENTS.md`](AGENTS.md).
 
-## GitHub Flow
+## Workflow
 
-Цепочка одна: **Issue → branch → PR → CI green → squash-merge → main**.
+One issue, one branch, one pull request.
 
-1. Откройте Issue (bug, feature или physics-task) либо возьмите уже открытый.
-2. Ветка от актуального `main`.
-3. Один pull request закрывает этот Issue.
-4. CI зелёный: тесты и сборка документации.
-5. В `main` изменения попадают только через squash-merge.
+1. Open an issue, or take an open one.
+2. Branch from current `main`. The name is `<type>/<short-description>`, for example `fix/drift-hamiltonian`.
+3. Open a pull request that closes that issue.
+4. The fast tests are green.
+5. Squash-merge into `main`.
 
-## Branch naming
-
-Префикс ветки — тип задачи:
-
-| префикс | когда |
-| --- | --- |
-| `feat/` | новая возможность |
-| `fix/` | исправление |
-| `refactor/` | то же поведение, другая структура кода |
-| `test/` | только тесты |
-| `docs/` | только документация |
-| `chore/` | инфраструктура, CI, шаблоны |
-
-Пример: `feat/thick-rf-map`, `fix/drift-hamiltonian`.
+`main` receives squash-merges only.
 
 ## Conventional Commits
 
-Заголовок коммита:
+Commits follow [Conventional Commits 1.0.0](https://www.conventionalcommits.org/en/v1.0.0/).
 
 ```text
-<type>: <краткое описание>
+<type>[optional scope][optional !]: <description>
 ```
 
-Типы те же, что у веток: `feat`, `fix`, `refactor`, `docs`, `test`, `chore`.
-В теле коммита пишите зачем, а не список файлов.
+Types: `feat`, `fix`, `refactor`, `docs`, `test`, `chore`, `perf`, `ci`, `build`.
 
-Squash-merge оставляет в `main` один коммит на PR, поэтому заголовок PR —
-тоже conventional commit.
+A breaking change is marked with `!` after the type (and the scope, if there is one), or with a `BREAKING CHANGE:` footer.
 
-## Squash-merge
-
-- В `main` сливается только squash-merge. Merge-коммиты и rebase-merge не используем.
-- Один PR = одна задача = один Issue.
-- Несвязанные правки раскладывайте по разным PR.
+Squash-merge keeps one commit on `main`, and that commit is the pull request title. The title is a conventional commit. The body says why.
 
 ## Tests
 
-Перед коммитом и перед PR:
+Fast tests, from the repository root:
 
 ```text
 julia --project=. -e "using Pkg; Pkg.test()"
 ```
 
-CI гоняет то же самое на Julia `1.10` и текущей стабильной Julia `1`,
-на `ubuntu-latest` и `windows-latest`.
+Full tests set `BELL_FULL_TESTS=1` and run the same command. In PowerShell:
 
-## Versioning
+```text
+$env:BELL_FULL_TESTS = "1"
+julia --project=. -e "using Pkg; Pkg.test()"
+```
 
-Не повышайте `version` в `Project.toml` в обычном PR.
-Версию меняют только в релизном PR, когда публикуется новая версия пакета.
+CI on a pull request runs the fast suite: Julia 1 on `windows-latest`.
 
-## CHANGELOG
+## Changelog and version
 
-Журнал ведётся по [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
-Канонический файл — [`CHANGELOG.md`](CHANGELOG.md) в корне репозитория.
+A user-visible change goes in [`CHANGELOG.md`](CHANGELOG.md) under `[Unreleased]`, in `Added`, `Changed`, `Fixed`, or `Removed`. The file follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Notes through v0.17 stay in [`docs/HISTORY.md`](docs/HISTORY.md); new entries go in `CHANGELOG.md`.
 
-В пользовательском PR допишите заметку в секцию `[Unreleased]`
-(`Added`, `Changed`, `Fixed` или `Removed`).
-Правку, которую не видит пользователь пакета (только CI или шаблоны),
-в секцию можно не писать.
+A change a package user does not see, such as CI or a template, needs no entry.
 
-Подробные заметки до версии 0.17 лежат в архиве [`docs/HISTORY.md`](docs/HISTORY.md).
-Архив не удаляем и не переписываем.
-
-## AI agents
-
-Grok, Cursor и другие агенты следуют [`AGENTS.md`](AGENTS.md):
-один сеанс — один Issue, одна ветка, один PR.
+`version` in `Project.toml` changes only in a release pull request.
