@@ -4,11 +4,11 @@
 #
 # Author: Kolokolchikov Sergey Dmitrievich <sergey.bell13@gmail.com>
 #
-# dz/ds = S ∇H for a Drift, Quadrupole, Sextupole, or SBend. Numbers and
-# TaylorN evaluate S ∇H at each stage. A DA jet builds that vector field once
-# and evaluates the polynomial on the current state. A Marker and L == 0 are
-# the identity. An RF cavity is not this flow. The field equations stay in
-# Fields for comparison and for tests.
+# dz/ds = S ∇H for a Drift, Quadrupole, Sextupole, SBend, or a thick RFCavity.
+# Numbers and TaylorN evaluate S ∇H at each stage. A DA jet builds that vector
+# field once and evaluates the polynomial on the current state. A Marker and a
+# magnet with L == 0 are the identity. A thin RF cavity is rejected. The field
+# equations stay in Fields for comparison and for tests.
 # =============================================================================
 module ElementFlow
 
@@ -27,17 +27,27 @@ end
 
 _da_state(z) = !isempty(z) && all(zi -> zi isa DA, z)
 
-function _da_rhs(e, ref, z0)
-    sp = z0[1].sp
-    all(zi -> zi.sp == sp, z0) ||
-        throw(ArgumentError("element_flow: DA components must share one space"))
-    spV = _field_space(sp.nv, sp.no + 1)
-    V = vector_field_on_identity(z -> hamiltonian(e, ref, z), spV; S = SYMPLECTIC_S)
-    return (z, s) -> compose(V, z)
+function _flow_rhs(H, z)
+    if _da_state(z)
+        sp = z[1].sp
+        all(zi -> zi.sp == sp, z) ||
+            throw(ArgumentError("element_flow: DA components must share one space"))
+        spV = _field_space(sp.nv, sp.no + 1)
+        V = vector_field_on_identity(H, spV; S = SYMPLECTIC_S)
+        return (w, s) -> compose(V, w)
+    end
+    return (w, s) -> symplectic_gradient(H, w; S = SYMPLECTIC_S)
 end
 
-function _state_rhs(e, ref)
-    return (z, s) -> symplectic_gradient(w -> hamiltonian(e, ref, w), z; S = SYMPLECTIC_S)
+function _integrate_flow(z, s0, s1, method, tol, nsteps, ds, H)
+    rhs = _flow_rhs(H, z)
+    n = _fixed_steps(s0, s1, nsteps, ds)
+    if n === nothing
+        is_adaptive(method) ||
+            throw(ArgumentError("$(typeof(method)) is fixed-step: pass nsteps or ds"))
+        return integrate(rhs, z, s0, s1; method = method, tol = tol).z
+    end
+    return integrate_fixed(rhs, z, s0, s1, n; method = method).z
 end
 
 function _fixed_steps(s0, s1, nsteps, ds)
@@ -57,11 +67,14 @@ end
                  method = DormandPrince853(), tol = 1e-14,
                  nsteps = nothing, ds = nothing, path_length = 0) -> Vector
 
-Integrate one magnet from its s-Hamiltonian, ``dz/ds = S\nabla H``, with
-[`SYMPLECTIC_S`](@ref) and [`hamiltonian`](@ref)`(e, ref, z)`.
+Integrate one element from its s-Hamiltonian, ``dz/ds = S\nabla H``, with
+[`SYMPLECTIC_S`](@ref). A magnet uses [`hamiltonian`](@ref)`(e, ref, z)`.
+A thick [`RFCavity`](@ref) uses [`hamiltonian`](@ref)`(e, ref, path_length, z)`
+and needs a positive `path_length`. A thin cavity is rejected: the map is
+[`rf_kick`](@ref) and the generator is [`rf_potential`](@ref).
 
 `z0` is a canonical 6-vector of numbers, `TaylorN`, or DA. A [`Marker`](@ref),
-an element of length 0, or a call with `s1 == s0`, returns a copy of `z0`.
+a magnet of length 0, or a call with `s1 == s0`, returns a copy of `z0`.
 
 On numbers and on `TaylorN` each stage evaluates
 [`symplectic_gradient`](@ref). On DA the polynomial vector field is built once
@@ -74,7 +87,7 @@ omitted, an adaptive method uses `tol` as the local error tolerance. A
 fixed-step method then needs `nsteps` or `ds`.
 
 `path_length` is accepted so callers can share keywords with the trackers.
-A magnetic Hamiltonian does not use it. An [`RFCavity`](@ref) is rejected.
+A magnetic Hamiltonian does not use it. A thick cavity does.
 """
 function element_flow(e::AbstractElement, ref::RefParticle, z0;
                       s0::Real = 0.0, s1::Real = elem_length(e),
@@ -83,14 +96,7 @@ function element_flow(e::AbstractElement, ref::RefParticle, z0;
                       ds::Union{Nothing,Real} = nothing, path_length::Real = 0.0)
     z = collect(z0)
     (elem_length(e) == 0 || s1 == s0) && return z
-    rhs = _da_state(z) ? _da_rhs(e, ref, z) : _state_rhs(e, ref)
-    n = _fixed_steps(s0, s1, nsteps, ds)
-    if n === nothing
-        is_adaptive(method) ||
-            throw(ArgumentError("$(typeof(method)) is fixed-step: pass nsteps or ds"))
-        return integrate(rhs, z, s0, s1; method = method, tol = tol).z
-    end
-    return integrate_fixed(rhs, z, s0, s1, n; method = method).z
+    return _integrate_flow(z, s0, s1, method, tol, nsteps, ds, w -> hamiltonian(e, ref, w))
 end
 
 function element_flow(::Marker, ::RefParticle, z0;
@@ -101,12 +107,19 @@ function element_flow(::Marker, ::RefParticle, z0;
     return collect(z0)
 end
 
-function element_flow(::RFCavity, ::RefParticle, ::Any;
-                      s0::Real = 0.0, s1::Real = 0.0,
+function element_flow(e::RFCavity, ref::RefParticle, z0;
+                      s0::Real = 0.0, s1::Real = elem_length(e),
                       method::ODEMethod = DormandPrince853(), tol::Real = 1e-14,
                       nsteps::Union{Nothing,Integer} = nothing,
                       ds::Union{Nothing,Real} = nothing, path_length::Real = 0.0)
-    throw(ArgumentError("element_flow does not integrate an RFCavity; use exact_track_element"))
+    e.L > 0 || throw(ArgumentError(
+        "element_flow does not integrate a thin RFCavity; use rf_kick or rf_potential"))
+    z = collect(z0)
+    s1 == s0 && return z
+    path_length > 0 || throw(ArgumentError(
+        "element_flow(::RFCavity) needs a positive path_length"))
+    return _integrate_flow(z, s0, s1, method, tol, nsteps, ds,
+                           w -> hamiltonian(e, ref, path_length, w))
 end
 
 end # module

@@ -8,9 +8,9 @@
 # Differential algebra is an algebra used to compute the map, not a second
 # physical model. A magnet is integrated from H by ElementFlow, on the identity
 # jet, to a chosen order. A Taylor map is symplectic only up to its truncation
-# order. The field equations remain for comparison and for tests. An RF cavity
-# still uses FieldTrack (thin kick, or drift/kick/drift). The Lie computation
-# uses the same H as Lie factors.
+# order. The field equations remain for comparison and for tests. A thin RF
+# cavity is the kick. A thick cavity integrates H and needs the path length.
+# The Lie computation uses the same H as Lie factors.
 # =============================================================================
 module DATracking
 
@@ -33,10 +33,11 @@ map_space(N::Integer) = get!(() -> DASpace(6, N), _SPACES, (6, Int(N)))
 @doc raw"""
     element_da_map(e, ref, N; method = DormandPrince853(), tol = 1e-14, nsteps = nothing) -> Vector{DA}
 
-Transfer map of element `e` to order ``N``. A magnet integrates ``dz/ds = S\\nabla H``
-([`element_flow`](@ref)) on the DA identity jet. A [`Marker`](@ref) is the
-identity. An [`RFCavity`](@ref) needs `path_length`: thin uses [`rf_kick`](@ref),
-thick is drift/kick/drift. `SBend`: body only (no edge angles).
+Transfer map of element `e` to order ``N``. A magnet and a thick
+[`RFCavity`](@ref) integrate ``dz/ds = S\\nabla H`` ([`element_flow`](@ref))
+on the DA identity jet. A [`Marker`](@ref) is the identity. A thin cavity
+is [`rf_kick`](@ref) on the DA variables. An [`RFCavity`](@ref) needs
+`path_length`. `SBend`: body only (no edge angles).
 """
 function element_da_map(e::Marker, ref::RefParticle, N::Integer;
                         method::ODEMethod = DormandPrince853(), tol = 1e-14,
@@ -48,7 +49,15 @@ function element_da_map(e::RFCavity, ref::RefParticle, N::Integer;
                         method::ODEMethod = DormandPrince853(), tol = 1e-14,
                         nsteps::Union{Nothing,Int} = nothing, path_length = nothing, ds = 0.01)
     path_length === nothing && error("element_da_map(::RFCavity): pass path_length")
-    return exact_track_element(collect(da_vars(map_space(N))), e, ref, path_length; ds = ds)
+    z0 = collect(da_vars(map_space(N)))
+    e.L == 0 && return rf_kick(z0, e, ref, path_length)
+    plen = Float64(path_length)
+    if nsteps === nothing
+        return element_flow(e, ref, z0; s1 = e.L, method = method, tol = tol, path_length = plen)
+    else
+        return element_flow(e, ref, z0; s1 = e.L, method = method, tol = tol,
+                            nsteps = nsteps, path_length = plen)
+    end
 end
 
 function element_da_map(e::AbstractElement, ref::RefParticle, N::Integer;
@@ -97,7 +106,8 @@ function element_da_maps(lattice::Lattice, N::Integer; cache::Bool = true, kw...
     out = Vector{DA{Float64}}[]
     for e in lattice.elements
         if e isa RFCavity
-            push!(out, element_da_map(e, lattice.ref, N; path_length = path_length(lattice)))
+            rfkw = merge(kw, (; path_length = path_length(lattice)))
+            push!(out, element_da_map(e, lattice.ref, N; rfkw...))
             continue
         end
         M = if cache
@@ -115,7 +125,7 @@ end
     one_turn_map_da(lattice, N; cache = true, kw...) -> Vector{DA}
 
 One-turn DA map at order N from composition of element maps.
-RF cavities are included (exact `rf_kick` / thick splitting); use `magnetic_lattice` for the magnetic ring.
+RF cavities are included (thin `rf_kick`, thick flow of `H`); use `magnetic_lattice` for the magnetic ring.
 """
 function one_turn_map_da(lattice::Lattice, N::Integer; cache::Bool = true, kw...)
     M = identity_map(map_space(N))

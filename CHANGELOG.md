@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- A thick `RFCavity` is integrated from its s-Hamiltonian, `dz/ds = S ∇H`, by `element_flow`. `exact_track_element`, `element_da_map`, and `taylor_map_element` use that flow. A thin cavity stays `rf_kick`, and `element_flow` rejects it. The field equations remain for comparison and for tests. ([#40], [#39])
 - `element_flow` integrates a magnet from its s-Hamiltonian, `dz/ds = S ∇H`. `exact_track_element`, `element_da_map`, and `taylor_map_element` use that flow for magnets. A marker stays the identity. An RF cavity stays a kick, or drift/kick/drift when it is thick. The field equations remain for comparison and for tests. ([#38], [#37])
 - `is_adaptive` selects ODE methods that carry an error estimate. `integrate` uses that trait. Implicit midpoint stops when `errnorm` of the update is within tolerance, including DA and other series. ([#33], [#29])
 - `SextupoleFamilies` lives in `src/analysis/`. `place_sextupole_families` checks that optics bounds match `lattice.elements` in length and order. ([#33], [#29])
