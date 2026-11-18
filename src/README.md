@@ -113,7 +113,6 @@ flowchart TB
   FieldTrack --> Coordinates
   FieldTrack --> Elements
   FieldTrack --> Structure
-  FieldTrack --> Fields
   FieldTrack --> Integrators
   FieldTrack --> ElementFlow
   DATracking --> DiffAlgebra
@@ -221,7 +220,7 @@ Files with no `using` / `import` of their own, because they are pulled in by `in
 
 **Model** is what we specify. The element Hamiltonian `H(e, ref, z)` lives in `Hamiltonians`. The field equations of motion are a second formulation kept for comparison; they live in `Fields`.
 
-**Computation** is how we compute, and it holds no physics of its own. `DiffAlgebra` and Taylor series (`LieAlgebra` on top of `TaylorSeries`) are algebras. `Integrators` are generic ODE methods. Both engines take a model as input. The Lie path takes the Hamiltonian. `ElementFlow` integrates a magnet from the same Hamiltonian, `dz/ds = S ∇H`, and `FieldTrack` / `DATracking` call that flow. The field equations remain the comparison formulation. A thick RF cavity still steps its drift halves with those equations.
+**Computation** is how we compute, and it holds no physics of its own. `DiffAlgebra` and Taylor series (`LieAlgebra` on top of `TaylorSeries`) are algebras. `Integrators` are generic ODE methods. Both engines take a model as input. The Lie path takes the Hamiltonian. `ElementFlow` integrates a magnet or a thick RF cavity from the same Hamiltonian, `dz/ds = S ∇H`, and `FieldTrack` / `DATracking` call that flow. A thin cavity stays a kick. The field equations remain the comparison formulation.
 
 `Fields` depends only on `Coordinates` and `Elements`. `Hamiltonians` also depends on `LieAlgebra`; that edge is in the violation list.
 
@@ -249,10 +248,10 @@ The engines import the lattice and the model:
 | `maps/lie/linear.jl` | `Linear` | `Coordinates`, `Elements`, `Structure`, `Hamiltonians`, `LieAlgebra` |
 | `maps/lie/tracking.jl` | `Tracking` | `Coordinates`, `Elements`, `Structure`, `Hamiltonians`, `LieAlgebra`, `Integrators`, `ElementFlow` |
 | `maps/element_flow.jl` | `ElementFlow` | `Coordinates`, `Elements`, `Hamiltonians`, `Integrators`, `DiffAlgebra` |
-| `maps/da/field_track.jl` | `FieldTrack` | `Coordinates`, `Elements`, `Structure`, `Fields`, `Integrators`, `ElementFlow` |
+| `maps/da/field_track.jl` | `FieldTrack` | `Coordinates`, `Elements`, `Structure`, `Integrators`, `ElementFlow` |
 | `maps/da/tracking.jl` | `DATracking` | `DiffAlgebra`, `Integrators`, `Coordinates`, `Elements`, `Structure`, `ElementFlow`, `FieldTrack` |
 
-Along the layer chain, `maps` sits to the right of `physics` and `core`, so the arrow points left. The intended split says an engine takes a model as input, so `Tracking → Hamiltonians`, `ElementFlow → Hamiltonians`, and `FieldTrack → Fields` are recorded as that input. A literal reading of "a computation module depends on elements or physics" would count the same files as violations. The table above follows the first reading.
+Along the layer chain, `maps` sits to the right of `physics` and `core`, so the arrow points left. The intended split says an engine takes a model as input, so `Tracking → Hamiltonians` and `ElementFlow → Hamiltonians` are recorded as that input. A literal reading of "a computation module depends on elements or physics" would count the same files as violations. The table above follows the first reading.
 
 `Fringe → Integrators` and `Fringe → Symplectic` point left: `physics` may depend on `math` and `core`. They are absent from the violations. `Fringe` itself calls an ODE method and the symplecticity check.
 
@@ -300,7 +299,7 @@ Every internal target in this table is an arrow on the diagram above. External t
 | `maps/lie/tracking.jl` | `Tracking` | `using` | `Coordinates`, `Elements`, `Structure`, `Hamiltonians`, `LieAlgebra`, `Integrators`, `ElementFlow` | |
 | `maps/element_flow.jl` | `ElementFlow` | `using` | `Coordinates`, `Elements`, `Hamiltonians`, `Integrators`, `DiffAlgebra` | |
 | `maps/element_flow.jl` | `ElementFlow` | `using` | `Coordinates` | |
-| `maps/da/field_track.jl` | `FieldTrack` | `using` | `Coordinates`, `Elements`, `Structure`, `Fields`, `Integrators`, `ElementFlow` | |
+| `maps/da/field_track.jl` | `FieldTrack` | `using` | `Coordinates`, `Elements`, `Structure`, `Integrators`, `ElementFlow` | |
 | `maps/da/tracking.jl` | `DATracking` | `using` | | `LinearAlgebra` |
 | `maps/da/tracking.jl` | `DATracking` | `using` | `DiffAlgebra`, `Integrators` | |
 | `maps/da/tracking.jl` | `DATracking` | `using` | `Coordinates`, `Elements`, `Structure`, `ElementFlow`, `FieldTrack` | |

@@ -138,9 +138,9 @@ end
 
 Taylor map of one element: integrate ``dz/ds = S\\nabla H`` of [`hamiltonian`](@ref)
 with `method` in polynomial arithmetic, starting from the identity. A magnet
-uses [`element_flow`](@ref). Truncated to `order`. A marker is the identity; a
-thin RF cavity integrates [`rf_potential`](@ref) over a unit interval. This is
-a check of the Lie map, not the production route.
+and a thick RF cavity use [`element_flow`](@ref). Truncated to `order`. A
+marker is the identity; a thin RF cavity integrates [`rf_potential`](@ref) over
+a unit interval. This is a check of the Lie map, not the production route.
 """
 function taylor_map_element(e::Marker, ref::RefParticle; ds = 0.01,
                             method::ODEMethod = RK4(), order::Int = MAP_ORDER, path_length::Real = 0.0)
@@ -152,7 +152,10 @@ function taylor_map_element(e::RFCavity, ref::RefParticle; ds = 0.01,
     if e.L == 0
         return _taylor_flow(hamiltonian_field(rf_potential(e, ref, path_length)), 1.0; ds, method, order)
     end
-    return _taylor_flow(hamiltonian_field(hamiltonian(e, ref, path_length)), elem_length(e); ds, method, order)
+    L = elem_length(e)
+    n = max(4, ceil(Int, L / ds))
+    zf = element_flow(e, ref, collect(Z); method = method, nsteps = n, path_length = path_length)
+    return [truncate_to(zi, order) for zi in zf]
 end
 
 function taylor_map_element(e::AbstractElement, ref::RefParticle; ds = 0.01,

@@ -36,10 +36,10 @@ exactly symplectic at any truncation when the factor is applied exactly. The
 current implementation carries generators `f3` and `f4` (map order 3); higher
 orders are algorithmically more expensive.
 
-Magnetic elements are integrated from `H`: `dz/ds = S ∇H`, on numbers, on
-differential algebra, and on Taylor series. The field equations remain for
-comparison and for tests. An RF cavity keeps its kick, or drift/kick/drift
-when the cavity is thick. The Lie computation uses `H` as Lie factors.
+Magnetic elements and a thick RF cavity are integrated from `H`: `dz/ds = S ∇H`,
+on numbers, on differential algebra, and on Taylor series. The field equations
+remain for comparison and for tests. A thin RF cavity keeps its kick. The Lie
+computation uses `H` as Lie factors.
 
 Smooth `(φ, δ)` is a separate averaged model, not 6D RF tracking.
 `NormalForm` is research-only (`using Bell.NormalForm`).

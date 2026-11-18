@@ -5,16 +5,15 @@
 # Author: Kolokolchikov Sergey Dmitrievich <sergey.bell13@gmail.com>
 #
 # The model of an element is its Hamiltonian H, and dz/ds = S ∇H.
-# A Drift and every other magnet go through ElementFlow, which integrates H.
+# A magnet and a thick RF cavity go through ElementFlow, which integrates H.
 # There is no polynomial truncation on a point: the cut is the step in s.
 # A Marker is the identity. A thin RF cavity applies closed-form formulas.
-# A thick cavity is drift/kick/drift; those drift halves still use the field
-# equations. The field equations remain for comparison and for tests. After a
-# kick on a ramp the reference is updated.
+# The field equations remain for comparison and for tests. After a kick on a
+# ramp the reference is updated.
 # =============================================================================
 module FieldTrack
 
-using ..Coordinates, ..Elements, ..Structure, ..Fields, ..Integrators, ..ElementFlow
+using ..Coordinates, ..Elements, ..Structure, ..Integrators, ..ElementFlow
 
 export exact_track_element, exact_track_turn, renormalize, rf_kick
 
@@ -47,11 +46,11 @@ end
 @doc raw"""
     exact_track_element(z, e, ref, path_length; ds = 0.1, method = ImplicitYoshida(4)) -> Vector
 
-Track a canonical point through one element. A magnet is [`element_flow`](@ref):
-``dz/ds = S\nabla H``. A [`Marker`](@ref) is the identity. Thin [`RFCavity`](@ref)
-uses [`rf_kick`](@ref); a thick cavity is drift/kick/drift, and those drift
-halves use the field equations. A [`Drift`](@ref) is one step of `method`.
-Nothing is truncated as a polynomial; the cut is the step in ``s``.
+Track a canonical point through one element. A magnet and a thick
+[`RFCavity`](@ref) are [`element_flow`](@ref): ``dz/ds = S\nabla H``.
+A [`Marker`](@ref) is the identity. A thin cavity uses [`rf_kick`](@ref).
+A [`Drift`](@ref) is one step of `method`. Nothing is truncated as a
+polynomial; the cut is the step in ``s``.
 """
 function exact_track_element(z, ::Marker, ::RefParticle, ::Real;
                              ds = 0.1, method::ODEMethod = ImplicitYoshida(4))
@@ -61,17 +60,8 @@ end
 function exact_track_element(z, e::RFCavity, ref::RefParticle, path_length::Real;
                              ds = 0.1, method::ODEMethod = ImplicitYoshida(4))
     e.L == 0 && return rf_kick(z, e, ref, path_length)
-    # thick: Strang splitting of H = H_drift + G/L (2nd order in ds)
-    n = max(1, ceil(Int, e.L / ds)); hs = e.L / n
-    kick = RFCavity(e.name, e.voltage_MV / n, e.harmonic, e.phi_s, 0.0)
-    fd = element_rhs(Drift(e.name, hs), ref)
-    w = collect(z)
-    for _ in 1:n
-        w = integrate_fixed(fd, w, 0.0, hs / 2, 1; method).z
-        w = rf_kick(w, kick, ref, path_length)
-        w = integrate_fixed(fd, w, 0.0, hs / 2, 1; method).z
-    end
-    return w
+    n = max(1, ceil(Int, e.L / ds))
+    return element_flow(e, ref, z; method = method, nsteps = n, path_length = path_length)
 end
 
 function exact_track_element(z, e::Drift, ref::RefParticle, path_length::Real;
@@ -90,8 +80,7 @@ end
 """
     exact_track_turn(z, lattice; ds = 0.1, method = ImplicitYoshida(4)) -> Vector
 
-One turn of [`exact_track_element`](@ref) through all elements (magnets and
-thin RF kicks).
+One turn of [`exact_track_element`](@ref) through every element.
 """
 function exact_track_turn(z, lattice::Lattice, ref::RefParticle = lattice.ref,
                           Lpath::Real = path_length(lattice); ds = 0.1,

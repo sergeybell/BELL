@@ -10,8 +10,8 @@
 # kinematics in canonical coordinates z = (x, px, y, py, l, δ). The same
 # right-hand side evaluates on numbers or on a series. Differential algebra
 # is an algebra used to compute, not a second physical model. Production
-# magnet maps integrate H. A thick RF cavity still steps its drift halves
-# with these equations.
+# maps integrate H, including a thick RF cavity. These equations stay for
+# comparison and for tests.
 # =============================================================================
 module Fields
 
