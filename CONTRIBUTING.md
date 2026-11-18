@@ -47,8 +47,8 @@ CI on a pull request runs the fast suite: Julia 1 on `windows-latest`.
 
 ## Changelog and version
 
-A user-visible change goes in [`CHANGELOG.md`](CHANGELOG.md) under `[Unreleased]`, in `Added`, `Changed`, `Fixed`, or `Removed`. The file follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Notes through v0.17 stay in [`docs/HISTORY.md`](docs/HISTORY.md); new entries go in `CHANGELOG.md`.
+A user-visible change goes in [`CHANGELOG.md`](CHANGELOG.md) under `[Unreleased]`, in `Added`, `Changed`, `Fixed`, or `Removed`. The entry cites the pull request number. The file follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 A change a package user does not see, such as CI or a template, needs no entry.
 
-`version` in `Project.toml` changes only in a release pull request.
+`version` in `Project.toml` changes only in a release pull request. That pull request renames `[Unreleased]` to the new version and date.

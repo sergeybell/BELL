@@ -18,5 +18,5 @@
 ## Checklist
 
 - [ ] Tests pass: `julia --project=. -e "using Pkg; Pkg.test()"`
-- [ ] `CHANGELOG.md` section `[Unreleased]` updated if the change is user-facing
-- [ ] No version bump in `Project.toml` unless this PR is a release
+- [ ] `CHANGELOG.md` section `[Unreleased]` updated, with the pull request number, if the change is user-facing
+- [ ] No version bump in `Project.toml`, and no rename of `[Unreleased]`, unless this PR is a release

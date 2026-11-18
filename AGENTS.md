@@ -77,8 +77,8 @@ julia --project=. -e "using Pkg; Pkg.test()"
 - Do not force-push, and do not rewrite the history of `main`.
 - Do not touch another person's uncommitted files.
 - Do not commit built PDFs.
-- Do not bump `version` in `Project.toml` outside a release pull request.
-- Record user-visible changes in `CHANGELOG.md` under `[Unreleased]`.
+- Do not bump `version` in `Project.toml` outside a release pull request. Only that pull request renames `[Unreleased]` to the new version and date.
+- Record user-visible changes in `CHANGELOG.md` under `[Unreleased]`, with the pull request number.
 - Use Conventional Commits, as specified in `CONTRIBUTING.md`.
 - Write the repository in English: source, documentation, issues, pull requests, and commits.
 - Do not mention other accelerator codes anywhere in the repository, issues, pull requests, or commits.
