@@ -1,20 +1,20 @@
 # =============================================================================
-# field_track.jl - 6D tracking with the field equations of motion
+# field_track.jl - 6D tracking of one element
 # =============================================================================
 #
 # Author: Kolokolchikov Sergey Dmitrievich <sergey.bell13@gmail.com>
 #
 # The model of an element is its Hamiltonian H, and dz/ds = S ∇H.
-# This computation integrates the field equations, an alternative formulation
-# kept for comparison. It does not use H. The Lie computation uses H, and the
-# two are not unified. Magnets are stepped in s by a chosen ODE method: there
-# is no polynomial truncation, and the cut is the step in s. A thin RF cavity
-# applies closed-form formulas in canonical coordinates. After a kick on a
-# ramp the reference is updated.
+# A Drift and every other magnet go through ElementFlow, which integrates H.
+# There is no polynomial truncation on a point: the cut is the step in s.
+# A Marker is the identity. A thin RF cavity applies closed-form formulas.
+# A thick cavity is drift/kick/drift; those drift halves still use the field
+# equations. The field equations remain for comparison and for tests. After a
+# kick on a ramp the reference is updated.
 # =============================================================================
 module FieldTrack
 
-using ..Coordinates, ..Elements, ..Structure, ..Fields, ..Integrators
+using ..Coordinates, ..Elements, ..Structure, ..Fields, ..Integrators, ..ElementFlow
 
 export exact_track_element, exact_track_turn, renormalize, rf_kick
 
@@ -44,19 +44,14 @@ function rf_kick(z, cav::RFCavity, ref::RefParticle, path_length::Real)
     return [x, px, y, py, l2, d2]
 end
 
-function _integrate_field(z, e, ref, n, method)
-    f = element_rhs(e, ref)
-    return integrate_fixed(f, collect(z), 0.0, elem_length(e), n; method).z
-end
-
 @doc raw"""
     exact_track_element(z, e, ref, path_length; ds = 0.1, method = ImplicitYoshida(4)) -> Vector
 
-Track a canonical point through one element with the field equations of motion
-([`element_rhs`](@ref Bell.Fields.element_rhs)). A [`Marker`](@ref) is the identity.
-Thin [`RFCavity`](@ref) uses [`rf_kick`](@ref); a thick cavity is drift/kick/drift.
-A [`Drift`](@ref) is one step. Nothing is truncated as a polynomial; the cut is the step
-in ``s``.
+Track a canonical point through one element. A magnet is [`element_flow`](@ref):
+``dz/ds = S\nabla H``. A [`Marker`](@ref) is the identity. Thin [`RFCavity`](@ref)
+uses [`rf_kick`](@ref); a thick cavity is drift/kick/drift, and those drift
+halves use the field equations. A [`Drift`](@ref) is one step of `method`.
+Nothing is truncated as a polynomial; the cut is the step in ``s``.
 """
 function exact_track_element(z, ::Marker, ::RefParticle, ::Real;
                              ds = 0.1, method::ODEMethod = ImplicitYoshida(4))
@@ -81,15 +76,15 @@ end
 
 function exact_track_element(z, e::Drift, ref::RefParticle, path_length::Real;
                              ds = 0.1, method::ODEMethod = ImplicitYoshida(4))
-    elem_length(e) == 0 && return collect(z)
-    return _integrate_field(z, e, ref, 1, method)
+    return element_flow(e, ref, z; method = method, nsteps = 1, path_length = path_length)
 end
 
 function exact_track_element(z, e::AbstractElement, ref::RefParticle, path_length::Real;
                              ds = 0.1, method::ODEMethod = ImplicitYoshida(4))
     L = elem_length(e)
     L == 0 && return collect(z)
-    return _integrate_field(z, e, ref, max(1, ceil(Int, L / ds)), method)
+    n = max(1, ceil(Int, L / ds))
+    return element_flow(e, ref, z; method = method, nsteps = n, path_length = path_length)
 end
 
 """

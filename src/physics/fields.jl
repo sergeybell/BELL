@@ -6,12 +6,12 @@
 #
 # The model of an element is its Hamiltonian H, and dz/ds = S ∇H.
 # The equations here are an alternative formulation of that motion, kept for
-# comparison: hard-edge multipole fields and relativistic kinematics in
-# canonical coordinates z = (x, px, y, py, l, δ). The same right-hand side
-# evaluates on numbers or on a series. Differential algebra is an algebra
-# used to compute, not a second physical model. The DA computation integrates
-# these field equations. It does not use H, and the two computations are not
-# unified.
+# comparison and for tests: hard-edge multipole fields and relativistic
+# kinematics in canonical coordinates z = (x, px, y, py, l, δ). The same
+# right-hand side evaluates on numbers or on a series. Differential algebra
+# is an algebra used to compute, not a second physical model. Production
+# magnet maps integrate H. A thick RF cavity still steps its drift halves
+# with these equations.
 # =============================================================================
 module Fields
 

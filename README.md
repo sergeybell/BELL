@@ -6,7 +6,7 @@
 
 Bell is the Hamiltonian dynamics of a charged particle in an accelerator lattice. The model of an element is its s-Hamiltonian `H`. The equations of motion `dz/ds = S ∇H` and the maps of the element are derived from `H`. The variables `z = (x, p_x, y, p_y, l, δ)` are normalised to the reference particle.
 
-The model is the Hamiltonian. The field equations of motion are an alternative formulation, kept for comparison. Computation holds no physics: differential algebra and Taylor series are algebras, and the integrators are generic. A Taylor map is symplectic only up to its truncation order. A Lie factor applied exactly stays symplectic at any truncation; the current factors carry generators `f3` and `f4`. Today the DA path integrates the field equations, and the Lie path uses `H`.
+The model is the Hamiltonian. The field equations of motion are an alternative formulation, kept for comparison and for tests. Computation holds no physics: differential algebra and Taylor series are algebras, and the integrators are generic. A Taylor map is symplectic only up to its truncation order. A Lie factor applied exactly stays symplectic at any truncation; the current factors carry generators `f3` and `f4`. Magnetic elements are integrated from `H` on the differential-algebra path and on the Lie path. An RF cavity keeps its kick.
 
 ## Installation
 

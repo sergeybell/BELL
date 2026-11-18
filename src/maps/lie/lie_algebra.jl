@@ -13,8 +13,8 @@
 # A Taylor map is symplectic only up to its truncation order. A Lie factor is
 # exactly symplectic at any truncation when the factor is applied exactly.
 # The product of factors drops Poisson brackets of degree 5 and higher, so the
-# stored generators stop at f4. The DA computation integrates the field
-# equations rather than H. The two computations are not unified.
+# stored generators stop at f4. Magnet maps on DA also integrate H. The field
+# equations remain for comparison and for tests.
 # =============================================================================
 module LieAlgebra
 

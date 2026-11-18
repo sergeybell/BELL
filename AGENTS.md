@@ -8,7 +8,7 @@ Bell (Beam Evolution in Accelerator Lattice) is a Julia package for the Hamilton
 
 The physics of an element is its s-Hamiltonian `H`, not a hand-written equation of motion. The equations `dz/ds = S ∇H` and the maps of the element are derived from `H`.
 
-The field equations of motion (`src/physics/fields.jl`) are an alternative formulation of that motion, kept for comparison. The DA path integrates those equations. The Lie path uses `H`.
+The field equations of motion (`src/physics/fields.jl`) are an alternative formulation of that motion, kept for comparison and for tests. Magnetic elements are integrated from `H`. An RF cavity keeps its kick, or drift/kick/drift when the cavity is thick. The Lie path uses `H` as Lie factors.
 
 The computation layer holds no physics. Differential algebra (`DiffAlgebra`) and Taylor series are algebras. The integrators in `src/math/integrators/` are generic ODE methods. The repository keeps both engines: the Lie path on TaylorSeries, and the DA path on DiffAlgebra. A Taylor map is symplectic only up to its truncation order. A Lie factor applied exactly stays symplectic at any truncation; the current factors carry generators `f3` and `f4`.
 
@@ -30,7 +30,7 @@ math → core → io → physics → maps → analysis → tracking → longitud
 | core | [`src/core`](src/core/README.md) | Coordinates, `RefParticle`, element data, sequences and `Lattice`, `symplectic_error`. |
 | io | [`src/io`](src/io/README.md) | A lattice-file reader that writes a Bell structure file. |
 | physics | [`src/physics`](src/physics/README.md) | The model: one s-Hamiltonian per element, the field equations kept for comparison, and the fringe model. |
-| maps | [`src/maps`](src/maps/README.md) | Map construction. [`lie`](src/maps/lie/README.md) applies Taylor series to `H`. [`da`](src/maps/da/README.md) integrates the field equations on numbers or on `DiffAlgebra`. |
+| maps | [`src/maps`](src/maps/README.md) | Map construction. [`lie`](src/maps/lie/README.md) applies Taylor series to `H`. [`element_flow.jl`](src/maps/element_flow.jl) integrates a magnet from `H`. [`da`](src/maps/da/README.md) tracks a point and builds the DA map from that flow. |
 | analysis | [`src/analysis`](src/analysis/README.md) | Readings of a map that is already built (closed orbit, dispersion, chromaticity, momentum compaction). It does not integrate the lattice. |
 | tracking | [`src/tracking`](src/tracking/README.md) | `ParticleState`, `Beam`, and trackers that call an existing engine. |
 | longitudinal_models | [`src/longitudinal_models`](src/longitudinal_models/README.md) | Averaged longitudinal models kept for comparison with the `RFCavity` Hamiltonian. |

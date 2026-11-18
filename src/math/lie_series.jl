@@ -8,9 +8,9 @@
 #   da_symplectic_error(M)       max coefficient of J^T S J - S, J = dM/dz (as DA)
 #
 # The series flow (poisson_bracket, lie_series, lie_flow, vector_field_flow,
-# change_order) and hamiltonian_vector_field had no callers. The field / DA
-# maps integrate element_rhs; the Lie path integrates TaylorN Hamiltonians
-# in LieAlgebra.
+# change_order) and hamiltonian_vector_field had no callers. Magnet maps
+# integrate S ∇H. The field equations remain for comparison. The Lie path
+# integrates TaylorN Hamiltonians in LieAlgebra.
 # =============================================================================
 
 # Default pairs (q_k, p_k) = (2k-1, 2k). Not part of the public API.
