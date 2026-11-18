@@ -27,7 +27,7 @@ length have a field `L` [m] (see [`elem_length`](@ref)).
 Physics lives elsewhere: `hamiltonian(e, ref)` (Hamiltonians),
 `element_field` (Fields), `linear_matrix(e, ref)` (Linear),
 `element_lie_map(e, ref)` (Tracking), `exact_track_element` (FieldTrack),
-`edge_map` (Fringe).
+`edge_map` (FringeMaps).
 
 Subtypes: [`Drift`](@ref), [`SBend`](@ref), [`Quadrupole`](@ref),
 [`Sextupole`](@ref), [`RFCavity`](@ref), [`Marker`](@ref).

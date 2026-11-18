@@ -54,6 +54,21 @@ _coeff_gap(A, B) = maximum(coeffnorm(A[i] - B[i]) for i in eachindex(A))
         end
     end
 
+    @testset "s-dependent Hamiltonian" begin
+        z0 = [0.2, 0.0, 0.0, 0.0, 0.0, 0.0]
+        H(z, s) = s * z[1]^2 / 2
+        zf = element_flow(H, z0; s0 = 0.0, s1 = 1.0, method = RK4(), nsteps = 4)
+        @test zf[1] ≈ 0.2 atol = 1e-12
+        @test zf[2] ≈ -0.1 atol = 1e-12
+        @test zf[3:6] ≈ zeros(4) atol = 1e-12
+
+        e = Quadrupole("Q", 0.3, 0.5)
+        z1 = [1e-3, -2e-4, 1.2e-3, 1e-4, 0.0, 1e-3]
+        Ha(z, s) = hamiltonian(e, ref, z)
+        @test element_flow(Ha, z1; s0 = 0.0, s1 = e.L, method = RK4(), nsteps = 6) ≈
+              element_flow(e, ref, z1; method = RK4(), nsteps = 6) atol = 1e-10
+    end
+
     @testset "DA map symplecticity at orders 4 and 5" begin
         for N in (4, 5), e in magnets
             M = element_da_map(e, ref, N; method = DormandPrince853(), tol = 1e-12)

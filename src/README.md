@@ -42,6 +42,7 @@ flowchart TB
     ElementFlow
     FieldTrack
     DATracking
+    FringeMaps
   end
   subgraph analysisL["analysis"]
     MapReadings
@@ -82,13 +83,17 @@ flowchart TB
   Fringe --> Coordinates
   Fringe --> Elements
   Fringe --> Structure
-  Fringe --> Hamiltonians
-  Fringe --> Symplectic
-  Fringe --> Integrators
-  Fringe -.-> LieAlgebra
-  Fringe -.-> Linear
-  Fringe -.-> Tracking
-  Fringe -.-> MapReadings
+  FringeMaps --> Coordinates
+  FringeMaps --> Elements
+  FringeMaps --> Structure
+  FringeMaps --> Hamiltonians
+  FringeMaps --> Fringe
+  FringeMaps --> LieAlgebra
+  FringeMaps --> Symplectic
+  FringeMaps --> Tracking
+  FringeMaps --> Integrators
+  FringeMaps --> ElementFlow
+  FringeMaps -.-> MapReadings
   Maps --> DiffAlgebra
   LieAlgebra --> Maps
   LieAlgebra --> Coordinates
@@ -154,7 +159,7 @@ flowchart TB
 Two statements repeat an edge that is already drawn and do not add a second arrow:
 
 - `maps/abstract.jl`: `using ..DiffAlgebra` and `import ..DiffAlgebra` are one arrow `Maps → DiffAlgebra`;
-- `physics/fringe.jl`: `using ..Tracking` and `import ..Tracking` are one arrow `Fringe → Tracking`;
+- `maps/lie/fringe_maps.jl`: `using ..Tracking` and `import ..Tracking` are one arrow `FringeMaps → Tracking`;
 - `maps/element_flow.jl`: `using ..Coordinates` and `using ..Coordinates: SYMPLECTIC_S` are one arrow `ElementFlow → Coordinates`.
 
 `Coordinates`, `Elements`, and `BeamState` import no other Bell module. `Optimizers` imports only `Random`. `DiffAlgebra` imports only `Printf`.
@@ -183,6 +188,7 @@ flowchart LR
   Bell --> Smooth
   Bell --> Acceleration
   Bell --> Fringe
+  Bell --> FringeMaps
   Bell --> SextupoleFamilies
   Bell --> Optimizers
 ```
@@ -199,7 +205,7 @@ These names stay outside the Bell module graph. `TaylorSeries` is a package depe
 | `Symplectic` | `core/symplectic.jl` | `LinearAlgebra` |
 | `SextupoleFamilies` | `analysis/sextupole_families.jl` | `LinearAlgebra` |
 | `Hamiltonians` | `physics/hamiltonians.jl` | `TaylorSeries` |
-| `Fringe` | `physics/fringe.jl` | `TaylorSeries`, `LinearAlgebra` |
+| `FringeMaps` | `maps/lie/fringe_maps.jl` | `TaylorSeries` |
 | `LieAlgebra` | `maps/lie/lie_algebra.jl` | `TaylorSeries`, `LinearAlgebra` |
 | `Linear` | `maps/lie/linear.jl` | `LinearAlgebra`, `TaylorSeries` |
 | `Tracking` | `maps/lie/tracking.jl` | `TaylorSeries`, `LinearAlgebra` |
@@ -220,7 +226,7 @@ Files with no `using` / `import` of their own, because they are pulled in by `in
 
 **Model** is what we specify. The element Hamiltonian `H(e, ref, z)` lives in `Hamiltonians`. The field equations of motion are a second formulation kept for comparison; they live in `Fields`.
 
-**Computation** is how we compute, and it holds no physics of its own. `DiffAlgebra` and Taylor series (`LieAlgebra` on top of `TaylorSeries`) are algebras. `Integrators` are generic ODE methods. Both engines take a model as input. The Lie path takes the Hamiltonian. `ElementFlow` integrates a magnet or a thick RF cavity from the same Hamiltonian, `dz/ds = S ∇H`, and `FieldTrack` / `DATracking` call that flow. A thin cavity stays a kick. The field equations remain the comparison formulation.
+**Computation** is how we compute, and it holds no physics of its own. `DiffAlgebra` and Taylor series (`LieAlgebra` on top of `TaylorSeries`) are algebras. `Integrators` are generic ODE methods. Both engines take a model as input. The Lie path takes the Hamiltonian. `ElementFlow` integrates a magnet, a thick RF cavity, or an explicit `H(z, s)`, from `dz/ds = S ∇H`, and `FieldTrack` / `DATracking` call that flow. A thin cavity stays a kick. The field equations remain the comparison formulation. `Fringe` is the edge model. `FringeMaps` builds the edge maps from it.
 
 `Fields` depends only on `Coordinates` and `Elements`. `Hamiltonians` also depends on `LieAlgebra`; that edge is in the violation list.
 
@@ -231,11 +237,8 @@ Each row answers two questions: the edge points at a layer further to the right,
 | File | Module | Depends on | What is wrong |
 | --- | --- | --- | --- |
 | `physics/hamiltonians.jl` | `Hamiltonians` | `LieAlgebra` | `physics` is left of `maps`. The Hamiltonian model depends on the Lie-path algebra (`Z`, `JET_ORDER`). |
-| `physics/fringe.jl` | `Fringe` | `LieAlgebra` | `physics` is left of `maps`. The edge model depends on the map algebra. |
-| `physics/fringe.jl` | `Fringe` | `Linear` | `physics` is left of `maps`. The edge model depends on the linear matrices. |
-| `physics/fringe.jl` | `Fringe` | `Tracking` | `physics` is left of `maps`. The edge model depends on Lie-map building. The same module is named in both `using` and `import`. |
-| `physics/fringe.jl` | `Fringe` | `MapReadings` | `physics` is left of `analysis`. The edge model depends on reading an already built map. |
-| `core/caches.jl` | `Bell` | `DATracking`, `Tracking`, `Linear`, `Fringe` | There is no `using`, so the diagram has no arrow. `clear_caches!`, in a file of the `core` layer, empties the private caches `_DACACHE`, `_SPACES`, `_MCACHE`, `_TMCACHE`, `_HCACHE`, and `_ECACHE`. |
+| `maps/lie/fringe_maps.jl` | `FringeMaps` | `MapReadings` | `maps` is left of `analysis`. `fringe_observables` reads a map that is already built. |
+| `core/caches.jl` | `Bell` | `DATracking`, `Tracking`, `Linear`, `FringeMaps` | There is no `using`, so the diagram has no arrow. `clear_caches!`, in a file of the `core` layer, empties the private caches `_DACACHE`, `_SPACES`, `_MCACHE`, `_TMCACHE`, `_HCACHE`, and `_ECACHE`. |
 
 ## Disputed classification
 
@@ -250,10 +253,11 @@ The engines import the lattice and the model:
 | `maps/element_flow.jl` | `ElementFlow` | `Coordinates`, `Elements`, `Hamiltonians`, `Integrators`, `DiffAlgebra` |
 | `maps/da/field_track.jl` | `FieldTrack` | `Coordinates`, `Elements`, `Structure`, `Integrators`, `ElementFlow` |
 | `maps/da/tracking.jl` | `DATracking` | `DiffAlgebra`, `Integrators`, `Coordinates`, `Elements`, `Structure`, `ElementFlow`, `FieldTrack` |
+| `maps/lie/fringe_maps.jl` | `FringeMaps` | `Coordinates`, `Elements`, `Structure`, `Hamiltonians`, `Fringe`, `LieAlgebra`, `Symplectic`, `Tracking`, `Integrators`, `ElementFlow` |
 
 Along the layer chain, `maps` sits to the right of `physics` and `core`, so the arrow points left. The intended split says an engine takes a model as input, so `Tracking → Hamiltonians` and `ElementFlow → Hamiltonians` are recorded as that input. A literal reading of "a computation module depends on elements or physics" would count the same files as violations. The table above follows the first reading.
 
-`Fringe → Integrators` and `Fringe → Symplectic` point left: `physics` may depend on `math` and `core`. They are absent from the violations. `Fringe` itself calls an ODE method and the symplecticity check.
+`Fringe` depends only on `Coordinates`, `Elements`, and `Structure`. Those arrows point left. `FringeMaps` takes that model as input. Its arrows toward `maps`, `physics`, `core`, and `math` point left and are absent from the violations. The arrow toward `MapReadings` points right and is in the table.
 
 `MapReadings` imports `Tracking` and `DATracking`. The header of `analysis/map_readings.jl` says the module does not integrate the lattice. The `analysis` layer sits to the right of `maps`, so the arrow points left.
 
@@ -267,7 +271,7 @@ Every internal target in this table is an arrow on the diagram above. External t
 
 | File | Module | Statement | Bell modules | External |
 | --- | --- | --- | --- | --- |
-| `Bell.jl` | `Bell` | `using` | `Coordinates`, `Elements`, `Structure`, `Maps`, `LieAlgebra`, `Hamiltonians`, `Fields`, `OptimConverter`, `Linear`, `Symplectic`, `ElementFlow`, `FieldTrack`, `Tracking`, `BeamState`, `Trackers`, `DATracking`, `MapReadings`, `Smooth`, `Acceleration`, `Fringe`, `SextupoleFamilies`, `Optimizers` | |
+| `Bell.jl` | `Bell` | `using` | `Coordinates`, `Elements`, `Structure`, `Maps`, `LieAlgebra`, `Hamiltonians`, `Fields`, `OptimConverter`, `Linear`, `Symplectic`, `ElementFlow`, `FieldTrack`, `Tracking`, `BeamState`, `Trackers`, `DATracking`, `MapReadings`, `Smooth`, `Acceleration`, `Fringe`, `FringeMaps`, `SextupoleFamilies`, `Optimizers` | |
 | `math/DiffAlgebra.jl` | `DiffAlgebra` | `using` | | `Printf` |
 | `math/integrators/Integrators.jl` | `Integrators` | `using` | | `LinearAlgebra` |
 | `math/integrators/Integrators.jl` | `Integrators` | `using` | `DiffAlgebra` | |
@@ -284,9 +288,10 @@ Every internal target in this table is an arrow on the diagram above. External t
 | `physics/hamiltonians.jl` | `Hamiltonians` | `using` | | `TaylorSeries` |
 | `physics/hamiltonians.jl` | `Hamiltonians` | `using` | `Coordinates`, `Elements`, `LieAlgebra` | |
 | `physics/fields.jl` | `Fields` | `using` | `Coordinates`, `Elements` | |
-| `physics/fringe.jl` | `Fringe` | `using` | | `TaylorSeries`, `LinearAlgebra` |
-| `physics/fringe.jl` | `Fringe` | `using` | `Coordinates`, `Elements`, `Structure`, `LieAlgebra`, `Hamiltonians`, `Linear`, `Symplectic`, `Tracking`, `MapReadings`, `Integrators` | |
-| `physics/fringe.jl` | `Fringe` | `import` | `Tracking` | |
+| `physics/fringe.jl` | `Fringe` | `using` | `Coordinates`, `Elements`, `Structure` | |
+| `maps/lie/fringe_maps.jl` | `FringeMaps` | `using` | | `TaylorSeries` |
+| `maps/lie/fringe_maps.jl` | `FringeMaps` | `using` | `Coordinates`, `Elements`, `Structure`, `LieAlgebra`, `Hamiltonians`, `Fringe`, `Symplectic`, `Tracking`, `MapReadings`, `Integrators`, `ElementFlow` | |
+| `maps/lie/fringe_maps.jl` | `FringeMaps` | `import` | `Tracking` | |
 | `maps/abstract.jl` | `Maps` | `using` | `DiffAlgebra` | |
 | `maps/abstract.jl` | `Maps` | `import` | `DiffAlgebra` | |
 | `maps/lie/lie_algebra.jl` | `LieAlgebra` | `using` | | `TaylorSeries`, `LinearAlgebra` |
