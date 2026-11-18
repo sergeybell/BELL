@@ -9,18 +9,24 @@
 # A script only needs `using Bell`. NormalForm is included as research and
 # is not re-exported; load it with `using Bell.NormalForm`.
 #
-# Layers: math → core → io → physics → maps → analysis →
-# longitudinal_models → optimizers. Plotting is ext/BellPlotsExt.jl
-# (weak dependency Plots), not a submodule.
-# A new `using ..X` follows that direction. Include order: Symplectic is
-# loaded before LieAlgebra so the TaylorN method of symplectic_error can
-# extend it (core does not import the map algebra). Hamiltonians stay after
-# LieAlgebra. ElementFlow stays after Hamiltonians and Integrators, and before
-# FieldTrack, Tracking, and DATracking. Fringe physics stays after Hamiltonians.
-# Fringe maps stay after MapReadings: fringe_observables reads a map that is
-# already built. SextupoleFamilies stays after MapReadings. Map types are
-# included before LieAlgebra so that LieFactor <: AbstractMap. Beam state and
-# trackers are included after FieldTrack and Tracking.
+# Layers: math → core → io → physics → maps → analysis → tracking →
+# longitudinal_models → optimizers → research. Plotting is
+# ext/BellPlotsExt.jl (weak dependency Plots), not a submodule.
+# A new `using ..X` follows that direction. Include order follows the chain
+# except where a `using` forces a file out of sequence:
+# - Symplectic is loaded before LieAlgebra so the TaylorN method of
+#   symplectic_error can extend it (core does not import the map algebra).
+# - Map types are included before LieAlgebra so that LieFactor <: AbstractMap.
+# - Hamiltonians stays after LieAlgebra. The Taylor entry uses Z and JET_ORDER.
+#   Fields and Fringe do not need that algebra and stay before it.
+# - ElementFlow stays after Hamiltonians and Integrators, and before
+#   FieldTrack, Tracking, and DATracking.
+# - FringeMaps stays after MapReadings: fringe_observables reads a map that
+#   is already built. SextupoleFamilies stays after MapReadings.
+# - Beam state and trackers stay after FieldTrack and Lie Tracking.
+# - clear_caches! is a registry in core/caches.jl. This module's __init__
+#   registers the map-cache emptiers after those modules exist.
+# - NormalForm is research, included last, and is not re-exported.
 # =============================================================================
 """
     Bell
@@ -60,32 +66,43 @@ include("core/coordinates.jl")
 include("core/elements.jl")
 include("core/structure.jl")
 include("core/symplectic.jl")
+include("core/caches.jl")
+include("core/plotting.jl")
+
+include("io/optim_converter.jl")
+
+include("physics/fields.jl")
+include("physics/fringe.jl")
+
 include("maps/abstract.jl")
 include("maps/lie/lie_algebra.jl")
 include("physics/hamiltonians.jl")
-include("physics/fields.jl")
-include("physics/fringe.jl")
-include("io/optim_converter.jl")
 include("maps/lie/linear.jl")
 include("maps/element_flow.jl")
 include("maps/da/field_track.jl")
 include("maps/lie/tracking.jl")
-include("tracking/state.jl")
-include("tracking/trackers.jl")
 include("maps/da/tracking.jl")
+
 include("analysis/map_readings.jl")
 include("maps/lie/fringe_maps.jl")
 include("analysis/sextupole_families.jl")
+
+include("tracking/state.jl")
+include("tracking/trackers.jl")
+
 include("longitudinal_models/smooth.jl")
 include("longitudinal_models/acceleration.jl")
-include("core/caches.jl")
-include("core/plotting.jl")
+
 include("optimizers/Optimizers.jl")
 include("maps/lie/normal_form.jl")
 
-using .Coordinates, .Elements, .Structure, .Maps, .LieAlgebra, .Hamiltonians, .Fields,
-      .OptimConverter, .Linear, .Symplectic, .ElementFlow, .FieldTrack, .Tracking, .BeamState, .Trackers,
-      .DATracking, .MapReadings, .Smooth, .Acceleration, .Fringe, .FringeMaps, .SextupoleFamilies,
+using .Coordinates, .Elements, .Structure, .Symplectic,
+      .OptimConverter,
+      .Fields, .Fringe, .Hamiltonians,
+      .Maps, .LieAlgebra, .Linear, .ElementFlow, .FieldTrack, .Tracking, .DATracking, .FringeMaps,
+      .MapReadings, .SextupoleFamilies,
+      .BeamState, .Trackers,
+      .Smooth, .Acceleration,
       .Optimizers
 
 function __init__()
@@ -94,6 +111,15 @@ function __init__()
     if !haskey(ENV, "GKSwstype")
         ENV["GKSwstype"] = "100"
     end
+    # The registry lives in core. The dictionaries live in the map modules,
+    # which exist only after the includes above.
+    empty!(_CACHE_EMPTIERS)
+    register_cache_empty!(() -> empty!(DATracking._DACACHE))
+    register_cache_empty!(() -> empty!(DATracking._SPACES))
+    register_cache_empty!(() -> empty!(Tracking._MCACHE))
+    register_cache_empty!(() -> empty!(Tracking._TMCACHE))
+    register_cache_empty!(() -> empty!(Linear._HCACHE))
+    register_cache_empty!(() -> empty!(FringeMaps._ECACHE))
     return nothing
 end
 

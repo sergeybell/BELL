@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `Bell.jl` includes files along math → core → io → physics → maps → analysis → tracking → longitudinal models → optimizers → research, except `Hamiltonians` after `LieAlgebra` and `FringeMaps` after `MapReadings`. `clear_caches!` is a registry in `core/caches.jl`; the facade registers the map caches when it loads. `dispersion_along` carries an RF cavity as a drift by method. The `MapReadings` header states which readings build a map. ([#45], [#43])
 - Fringe physics (edge types, profiles, `fringe_hamiltonian`, `FringeModel`) stays in `src/physics/fringe.jl` and does not build maps. Edge maps, the edge-map cache, and `fringe_observables` live in `src/maps/lie/fringe_maps.jl`. Family selection is by method. `fringe_hamiltonian(h0, F, Fp, ref, z)` evaluates the scalar Hamiltonian; the Lie path calls it on `Z`. `element_flow(H, z0; s0, s1)` integrates an s-dependent scalar `H(z, s)` by the dual symplectic gradient at each stage. `TaylorIntegrate` uses that flow. ([#42], [#41])
 - A thick `RFCavity` is integrated from its s-Hamiltonian, `dz/ds = S ∇H`, by `element_flow`. `exact_track_element`, `element_da_map`, and `taylor_map_element` use that flow. A thin cavity stays `rf_kick`, and `element_flow` rejects it. The field equations remain for comparison and for tests. ([#40], [#39])
 - `element_flow` integrates a magnet from its s-Hamiltonian, `dz/ds = S ∇H`. `exact_track_element`, `element_da_map`, and `taylor_map_element` use that flow for magnets. A marker stays the identity. An RF cavity stays a kick, or drift/kick/drift when it is thick. The field equations remain for comparison and for tests. ([#38], [#37])
@@ -45,6 +46,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
+- `NormalForm.evaluate_map` had no callers. The unused `_conj` helper is gone. `delta_on_torus` remains only as an error that points at `delta_eq_phase_condition`. ([#45], [#43])
 - Unused `StructureFile`. ([#33], [#29])
 - `hamiltonian_vector_field` had no callers and was removed. `da_symplectic_error` remains. ([#33], [#29])
 - Write-only soft-edge RK step counter `_RK_STEPS` (it was stored and never read). ([#34], [#30])

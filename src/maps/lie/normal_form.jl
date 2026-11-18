@@ -1,5 +1,5 @@
 # =============================================================================
-# research/normal_form.jl - 6D Lie normal form (research layer)
+# maps/lie/normal_form.jl - 6D Lie normal form (research layer)
 # =============================================================================
 #
 # Author: Kolokolchikov Sergey Dmitrievich <sergey.bell13@gmail.com>
@@ -19,7 +19,7 @@ using ..LieAlgebra, ..Coordinates, ..Elements, ..Structure, ..Tracking,
       ..MapReadings, ..Smooth, ..Linear
 
 export linear_normalizing_matrix, rotation_residual, nonlinear_normal_form,
-       evaluate_map, rf_kick_taylor, one_turn_map_rf, fixed_point_6d, center_map_at,
+       rf_kick_taylor, one_turn_map_rf, fixed_point_6d, center_map_at,
        NormalFormRF, normal_form_rf, delta_eq_nf, tunes_nf,
        delta_eq_phase_condition
 
@@ -58,13 +58,6 @@ function rotation_residual(R, po)
     end
     return res
 end
-
-"""
-    evaluate_map(M, z) -> Vector{Float64}
-
-Value of the polynomial map `M` at the numeric point `z`.
-"""
-evaluate_map(M, z) = [Float64(evaluate(M[i], z)) for i in 1:6]
 
 # ----- RF one-turn Taylor map ------------------------------------------------
 
@@ -244,9 +237,14 @@ function delta_eq_phase_condition(M, A, zstar, ref, path_length, h, beta_s;
     return deq
 end
 
-# Keep a thin wrapper name used by older call sites
-delta_on_torus(A, F3, zstar, Jx, Jy, Js; ntheta = 12) =
-    error("delta_on_torus replaced by delta_eq_phase_condition")
+"""
+    delta_on_torus(A, F3, zstar, Jx, Jy, Js; ntheta = 12)
+
+Removed. Equilibrium δ on the torus is [`delta_eq_phase_condition`](@ref).
+"""
+function delta_on_torus(A, F3, zstar, Jx, Jy, Js; ntheta::Integer = 12)
+    error("delta_on_torus was removed; use delta_eq_phase_condition")
+end
 
 # ----- public result type ----------------------------------------------------
 
@@ -511,7 +509,6 @@ struct NF6D
 end
 
 _lie_map_of(F) = [truncate_to(lie_exp(F, Z[i]), MAP_ORDER) for i in 1:6]
-_conj(Mx, F) = compose_maps(_lie_map_of(-F), compose_maps(Mx, _lie_map_of(F)))
 
 """
     one_turn_factor_rf(lattice, cav::RFCavity, ref, path_length) -> LieFactor

@@ -34,6 +34,7 @@ end
     include("test_fringe.jl")
     include("test_lie.jl")
     include("test_tracking_interfaces.jl")
+    include("test_trackers_e2e.jl")
     include("test_physics_consistency.jl")
     include("test_structure.jl")
     include("test_coordinates.jl")
