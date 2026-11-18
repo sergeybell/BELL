@@ -19,12 +19,15 @@
 #   a(x), compose        evaluation at a point (numbers or DA), composition
 #   inverse_map          inverse of a map with invertible linear part
 #   coefficient, constant_part, linear_part, truncate_da
+#   Dual                 value + ε·partial (dual.jl); phase_space_gradient, S ∇f
 # =============================================================================
 @doc raw"""
     DiffAlgebra
 
 Truncated power-series algebra `{}_nD_v`: `v` variables, order `n` (both run-time),
 arithmetic, intrinsics, `\partial`/`\partial^{-1}`, evaluation, composition and map inversion.
+[`Dual`](@ref) numbers and [`phase_space_gradient`](@ref) are the forward-mode gradient
+at a point.
 See the Developer's Guide page *Differential algebra*.
 """
 module DiffAlgebra
@@ -33,7 +36,8 @@ using Printf
 
 export DASpace, DA, da_var, da_vars, da_const, coefficient, constant_part, linear_part,
        truncate_da, deriv, antideriv, compose, inverse_map, identity_map, nmonomials,
-       monomial_exponents, coeffnorm, order, nvars, da_symplectic_error
+       monomial_exponents, coeffnorm, order, nvars, da_symplectic_error, Dual,
+       phase_space_gradient, symplectic_gradient, map_vector_field, vector_field_on_identity
 
 # ----------------------------------------------------------------------------- space
 @doc raw"""
@@ -497,6 +501,7 @@ function Base.show(io::IO, ::MIME"text/plain", a::DA)
     k == 0 && println(io, "  (zero)")
 end
 
+include("dual.jl")
 include("lie_series.jl")
 
 end # module
