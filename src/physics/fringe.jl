@@ -66,11 +66,13 @@ struct NoEdge <: EdgeModel end
 Thin hard-edge model at the magnet ends. The map is built in `FringeMaps`.
 
 # Fields
-- `order::Int` – 1: linear dipole-edge kick, ``K = -\tfrac{h\tan\varepsilon}{2}x^2 + \tfrac{h\tan\psi}{2}y^2``
+- `order::Int` – 1: linear dipole-edge generator
+  ``K = -\tfrac{h\tan\varepsilon}{2}x^2 + \tfrac{h\tan\psi}{2}y^2``
   (``p_x \mathrel{+}= h\tan\varepsilon\,x``, ``p_y \mathrel{-}= h\tan\psi\,y``) with
-  ``\psi = \varepsilon - hg\,\mathrm{FINT}(1+\sin^2\varepsilon)/\cos\varepsilon``;
-  2 or 3: nonlinear edge, the vertical term uses ``\tan(\psi \pm x')`` with the exact
-  ``x' = p_x/p_s``; ``K`` is kept to degree 3 (order 2) or 4 (order 3).
+  ``\psi = \varepsilon - hg\,\mathrm{FINT}(1+\sin^2\varepsilon)/\cos\varepsilon``.
+  Order 2 uses ``\tan(\psi \pm x')`` with ``x' = p_x/p_s`` and truncates ``K``
+  to degree 3. Order 3 and above keep that generator in the [`JET_ORDER`](@ref)
+  space (degree 4). Entrance uses ``\tan(\psi+x')``; exit uses ``\tan(\psi-x')``.
 - `gap`, `fint` – override the magnet's full gap [m] and FINT (`nothing` = use the magnet's).
 
 For a `Quadrupole` (order ≥ 2) the cubic hard-edge generator
@@ -160,10 +162,11 @@ Magnus(; n::Int = 10, order::Int = 4) = Magnus(n, order)
 """
     TaylorIntegrate(; tol = 1e-10, nmax = 512)
 
-Soft-edge integration of ``dz/ds = S\\nabla H(s)`` by [`element_flow`](@ref).
-Starts with 16 steps and doubles the step count until the map changes by less
-than `tol` (max coefficient) or `nmax` steps are reached. Not symplectic by
-construction; it is the reference for the other methods.
+Soft-edge integration of ``dz/ds = S\\nabla H(s)`` by [`element_flow`](@ref)
+with RK4. Starts with 16 steps and doubles the step count until the map
+changes by less than `tol` (max coefficient) or `nmax` steps are reached.
+Symplecticity holds only up to the local truncation of that integrator.
+It is the reference for the other methods.
 """
 struct TaylorIntegrate <: FringeMethod
     tol::Float64
@@ -347,18 +350,27 @@ end
 @doc raw"""
     fringe_hamiltonian(h0, F, Fp, ref, z; b1 = 0, b2 = 0, k1 = 0)
 
-Soft-edge s-Hamiltonian at field level `F` and slope `Fp` [1/m], evaluated on
-the canonical state `z` (numbers, `TaylorN`, or DA).
+Soft-edge s-Hamiltonian at field level `F` and slope `Fp` [1/m], on the
+canonical state `z` (numbers, `TaylorN`, or DA).
 
-`h0` is the body curvature. `h = h0 * F`. `k1` is the local normalised
-gradient. On a soft edge the caller passes the body gradient times `F`, so
-`F = 1` and `Fp = 0` reproduce the body Hamiltonian of an [`SBend`](@ref)
-(including its `k1`) and `F = 0` is a drift.
+``h = h_0 F`` and ``A_x = -y^2 h_0 F' \big/ \big(2(1+hx)\big)``. With
+``p_s = \sqrt{(1+\delta)^2 - (p_x - A_x)^2 - p_y^2}``:
+
+```math
+\begin{aligned}
+H = \mathrm{energy\_term}(\delta) &- (1+hx)\,p_s + hx + \tfrac{1}{2}h^2 x^2 \\
+&+ \tfrac{k_1+b_1}{2}(x^2-y^2) + h b_1\big(\tfrac{x^3}{3} - \tfrac{x y^2}{2}\big) \\
+&+ \tfrac{b_2}{6}(x^3 - 3xy^2).
+\end{aligned}
+```
+
+`k1` is the local normalised gradient. On a soft edge the caller passes the
+body gradient times `F`, so `F = 1` and `Fp = 0` reproduce the body Hamiltonian
+of an [`SBend`](@ref) (including its `k1`) and `F = 0` is a drift.
 
 `b1` and `b2` are the gradient and sextupole-like terms of a straight effective
 field boundary seen from the curved frame. They are not the design `k1`.
-The metric factor `(1 + h x)` puts `h b1 (x^3/3 - x y^2/2)` into `H`; without
-it the straight-boundary gradient leaves a spurious sextupole-like term.
+The metric factor `(1 + h x)` puts `h b1 (x^3/3 - x y^2/2)` into `H`.
 The Lie path evaluates this function on [`Z`](@ref).
 """
 function fringe_hamiltonian(h0::Real, F::Real, Fp::Real, ref::RefParticle, z::AbstractVector;

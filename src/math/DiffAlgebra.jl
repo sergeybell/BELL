@@ -28,7 +28,6 @@ Truncated power-series algebra `{}_nD_v`: `v` variables, order `n` (both run-tim
 arithmetic, intrinsics, `\partial`/`\partial^{-1}`, evaluation, composition and map inversion.
 [`Dual`](@ref) numbers and [`phase_space_gradient`](@ref) are the forward-mode gradient
 at a point.
-See the Developer's Guide page *Differential algebra*.
 """
 module DiffAlgebra
 

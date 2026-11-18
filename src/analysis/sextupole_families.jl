@@ -4,8 +4,7 @@
 #
 # Author: Kolokolchikov Sergey Dmitrievich <sergey.bell13@gmail.com>
 #
-# Not part of the lattice file or of the default model. Export names are kept
-# so existing callers still resolve.
+# Not part of the lattice file or of the default model.
 # =============================================================================
 module SextupoleFamilies
 

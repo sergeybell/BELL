@@ -1,16 +1,10 @@
 # =============================================================================
-# lie_series.jl - canonical pairs and the DA symplecticity defect
+# lie_series.jl - DA symplecticity defect
 #   (included into module DiffAlgebra; pure mathematics, no accelerator concepts)
 # =============================================================================
 #
-# WHAT
-#   canonical_pairs(nv)          internal default pairs (1,2), (3,4), ...
-#   da_symplectic_error(M)       max coefficient of J^T S J - S, J = dM/dz (as DA)
-#
-# The series flow (poisson_bracket, lie_series, lie_flow, vector_field_flow,
-# change_order) and hamiltonian_vector_field had no callers. Magnet maps
-# integrate S ∇H. The field equations remain for comparison. The Lie path
-# integrates TaylorN Hamiltonians in LieAlgebra.
+# canonical_pairs(nv)     internal default pairs (1, 2), (3, 4), ...
+# da_symplectic_error(M)  max coefficient of J^T S J - S, J = dM/dz (as DA)
 # =============================================================================
 
 # Default pairs (q_k, p_k) = (2k-1, 2k). Not part of the public API.

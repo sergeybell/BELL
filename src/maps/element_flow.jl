@@ -1,18 +1,18 @@
 # =============================================================================
-# element_flow.jl - one integration of a magnet from its s-Hamiltonian
+# element_flow.jl - integrate dz/ds = S ∇H
 # =============================================================================
 #
 # Author: Kolokolchikov Sergey Dmitrievich <sergey.bell13@gmail.com>
 #
-# dz/ds = S ∇H for a Drift, Quadrupole, Sextupole, SBend, or a thick RFCavity.
-# Numbers and TaylorN evaluate S ∇H at each stage. A DA jet builds that vector
-# field once and evaluates the polynomial on the current state. A Marker and a
-# magnet with L == 0 are the identity. A thin RF cavity is rejected. The field
+# Magnets and a thick RFCavity use the autonomous Hamiltonian. Numbers and
+# TaylorN evaluate S ∇H at each stage. A DA jet builds that vector field once
+# and evaluates the polynomial on the current state. A Marker and a magnet
+# with L == 0 are the identity. A thin RF cavity is rejected. The field
 # equations stay in Fields for comparison and for tests.
 #
 # element_flow(H, z0; s0, s1) integrates an explicit scalar H(z, s). Each stage
-# evaluates the dual symplectic gradient of w -> H(w, s). A soft edge uses that
-# path because the fringe Hamiltonian depends on s.
+# evaluates the dual symplectic gradient of w -> H(w, s), including on DA.
+# A soft edge uses that path because the fringe Hamiltonian depends on s.
 # =============================================================================
 module ElementFlow
 
@@ -76,25 +76,25 @@ end
     element_flow(H, z0; s0 = 0, s1, method = DormandPrince853(), tol = 1e-14,
                  nsteps = nothing, ds = nothing) -> Vector
 
-Integrate one element from its s-Hamiltonian, ``dz/ds = S\nabla H``, with
-[`SYMPLECTIC_S`](@ref). A magnet uses [`hamiltonian`](@ref)`(e, ref, z)`.
-A thick [`RFCavity`](@ref) uses [`hamiltonian`](@ref)`(e, ref, path_length, z)`
-and needs a positive `path_length`. A thin cavity is rejected: the map is
-[`rf_kick`](@ref) and the generator is [`rf_potential`](@ref).
+Integrate ``dz/ds = S\nabla H`` with [`SYMPLECTIC_S`](@ref).
+
+A magnet uses [`hamiltonian`](@ref)`(e, ref, z)`. A thick [`RFCavity`](@ref)
+uses [`hamiltonian`](@ref)`(e, ref, path_length, z)` and needs `path_length > 0`.
+A thin cavity is rejected: the map is [`rf_kick`](@ref), the generator is
+[`rf_potential`](@ref). A [`Marker`](@ref), a magnet of length 0, or `s1 == s0`
+returns a copy of `z0`.
 
 `element_flow(H, z0; s0, s1)` integrates a scalar `H(z, s)`. `s1` is required.
-Each stage evaluates [`symplectic_gradient`](@ref) of `w -> H(w, s)`, including
-on `TaylorN` and on DA. The magnet methods stay on the autonomous path: one
-DA vector field, built once.
+Each stage evaluates [`symplectic_gradient`](@ref) of `w -> H(w, s)` on numbers,
+on `TaylorN`, and on DA.
 
-`z0` is a canonical 6-vector of numbers, `TaylorN`, or DA. A [`Marker`](@ref),
-a magnet of length 0, or a call with `s1 == s0`, returns a copy of `z0`.
+On the autonomous element methods, numbers and `TaylorN` use that same gradient
+at each stage. A DA jet builds the polynomial vector field once with
+[`vector_field_on_identity`](@ref), in a space one order above `z0`, because
+[`deriv`](@ref) drops the top degree. The integrator evaluates that polynomial
+on the current jet.
 
-On numbers and on `TaylorN` each stage evaluates
-[`symplectic_gradient`](@ref). On DA the polynomial vector field is built once
-with [`vector_field_on_identity`](@ref), in a space one order above `z0`,
-because [`deriv`](@ref) drops the top degree. The integrator evaluates that
-polynomial on the current jet.
+`z0` is a canonical 6-vector of numbers, `TaylorN`, or DA.
 
 `nsteps` is a fixed step count. Otherwise `ds` is the step length. If both are
 omitted, an adaptive method uses `tol` as the local error tolerance. A

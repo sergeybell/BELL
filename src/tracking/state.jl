@@ -4,8 +4,8 @@
 #
 # Author: Kolokolchikov Sergey Dmitrievich <sergey.bell13@gmail.com>
 #
-# Phase-space points for later spin and IBS work. This is not the species
-# type Coordinates.Particle. Spin is stored only; nothing transports it.
+# ParticleState is a phase-space point. Coordinates.Particle is the species.
+# Spin is stored only; nothing transports it.
 # =============================================================================
 """
     BeamState

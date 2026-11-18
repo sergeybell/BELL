@@ -4,9 +4,9 @@
 #
 # Author: Kolokolchikov Sergey Dmitrievich <sergey.bell13@gmail.com>
 #
-# AbstractMap is the common supertype for later spin / IBS work.
+# AbstractMap is the common supertype for spin and IBS state that is only stored.
 # LieFactor subtypes it (declared in LieAlgebra, which is loaded next).
-# compose_maps (Taylor path) is a different function and is not renamed.
+# compose_maps is the Taylor composition.
 # linear_part and compose below are methods of the DiffAlgebra functions.
 # =============================================================================
 """
@@ -14,8 +14,8 @@
 
 Thin map objects: a 6×6 matrix and a vector of DA components.
 
-[`LieFactor`](@ref) is also an `AbstractMap`. It stays the Dragt–Finn object
-it already was; apply it with `apply_factor` or `F(z)`. Taylor composition
+[`LieFactor`](@ref) is also an `AbstractMap`. It is the Dragt–Finn object;
+apply it with `apply_factor` or `F(z)`. Taylor composition
 remains [`compose_maps`](@ref). DA composition remains `DiffAlgebra.compose`,
 with extra methods for these wrappers.
 """

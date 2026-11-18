@@ -12,7 +12,8 @@
 #
 # The dual partial differentiates the expression. deriv differentiates a jet
 # that is already truncated at degree N, so its degree-N part is zero. The two
-# agree through order N-1.
+# agree through order N-1, and at order N when f is a polynomial of degree
+# at most N.
 # =============================================================================
 
 @doc raw"""

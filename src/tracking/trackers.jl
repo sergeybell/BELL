@@ -42,9 +42,9 @@ abstract type AbstractTracker end
     FieldTracker(; ds = 0.1, method = ImplicitYoshida(4))
     FieldTracker(ds, method = ImplicitYoshida(4))
 
-Field tracker. [`track!`](@ref) calls [`exact_track_turn`](@ref) with this
-step `ds` and ODE `method`. The default method is the default of
-`exact_track_turn`. `ds` must be positive.
+[`track!`](@ref) calls [`exact_track_turn`](@ref) with step `ds` and ODE
+`method`. That turn integrates the element s-Hamiltonian. The default method
+is the default of `exact_track_turn`. `ds` must be positive.
 """
 struct FieldTracker{M<:ODEMethod} <: AbstractTracker
     ds::Float64

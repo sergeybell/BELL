@@ -35,17 +35,16 @@ const laboratory_names = ["x", "x'", "y", "y'", "phi", "delta"]
 @doc """
     index_x, index_px, index_y, index_py, index_l, index_delta :: Int  (= 1, 2, 3, 4, 5, 6)
 
-Indices of the coordinates in every 6-vector of Bell (canonical `z` and laboratory `u`):
-`z[index_x] = x`, `z[index_px] = px`, `z[index_y] = y`, `z[index_py] = py`,
-`z[index_l] = l`, `z[index_delta] = δ`.
-The same order is used for the rows/columns of all 6×6 matrices and for
-the variables `Z[1..6]` of the polynomial space.
+Indices of the canonical 6-vector `z = (x, p_x, y, p_y, l, δ)`:
+`p_x = P_x/p_0`, `δ = Δp/p_0`, `l = -v Δt` (positive `l` is an early arrival).
+The same order is used for laboratory vectors, for the rows and columns of
+6×6 matrices, and for the polynomial variables `Z[1..6]`.
 """ index_x
-@doc "Index of px in a 6-vector (= 2). See [`index_x`](@ref)." index_px
+@doc "Index of p_x = P_x/p_0 in a 6-vector (= 2). See [`index_x`](@ref)." index_px
 @doc "Index of y in a 6-vector (= 3). See [`index_x`](@ref)." index_y
-@doc "Index of py in a 6-vector (= 4). See [`index_x`](@ref)." index_py
-@doc "Index of l (path-length / time-of-flight variable) in a 6-vector (= 5). See [`index_x`](@ref)." index_l
-@doc "Index of δ = Δp/p0 in a 6-vector (= 6). See [`index_x`](@ref)." index_delta
+@doc "Index of p_y in a 6-vector (= 4). See [`index_x`](@ref)." index_py
+@doc "Index of l = −v Δt in a 6-vector (= 5). Positive l is an early arrival. See [`index_x`](@ref)." index_l
+@doc "Index of δ = Δp/p_0 in a 6-vector (= 6). See [`index_x`](@ref)." index_delta
 
 """
     SYMPLECTIC_S :: Matrix{Float64} (6×6)
@@ -146,8 +145,8 @@ end
     reference_from_kinetic(p::Particle, Ekin_MeV; mass_MeV = p.mass_MeV) -> RefParticle
 
 Reference particle of species `p` with kinetic energy `Ekin_MeV` [MeV].
-We study the reference particle: γ0 = 1 + Ekin/m, β0γ0 = √(γ0² − 1),
-β0 = β0γ0/γ0, p0c = m·β0γ0 [MeV], Bρ = p0c·10⁶/c/Z [T·m].
+γ0 = 1 + Ekin/m, β0γ0 = √(γ0² − 1), β0 = β0γ0/γ0, p0·c = m·β0γ0 [MeV],
+Bρ = (p0·c)·10⁶/(c·Z) [T·m], with Z the signed charge number.
 
 # Example
 ```julia
@@ -160,7 +159,7 @@ function reference_from_kinetic(p::Particle, Ekin_MeV::Real; mass_MeV::Real = p.
     bg    = sqrt(gamma^2 - 1)
     beta  = bg / gamma
     p0    = mass_MeV * bg
-    # brho uses the signed charge (decision on the sign convention is deferred).
+    # Bρ [T·m] = (p0·c [MeV]) · 1e6 / (c · Z); Z is the signed charge number.
     brho  = p0 * 1e6 / c_light / p.charge
     return RefParticle(p, mass_MeV, Ekin_MeV, gamma, beta, bg, p0, brho)
 end
@@ -177,8 +176,8 @@ reference orbit ``\mathrm{energy\_term}(0) = 0``.
 \frac{1}{\beta_0}\sqrt{(1+\delta)^2 + \frac{1}{\beta_0^2\gamma_0^2}} - \frac{1}{\beta_0^2}.
 ```
 
-and ``\partial(\mathrm{energy\_term})/\partial\delta = v(\delta)/v_0``. Generic: `δ` may be a number or a
-`TaylorN` polynomial (this is how every element Hamiltonian gets it).
+``\partial(\mathrm{energy\_term})/\partial\delta = v(\delta)/v_0``. `δ` may be a number, a
+`TaylorN`, or a DA.
 """
 energy_term(d, ref::RefParticle) = sqrt((1 + d)^2 + 1 / ref.betagamma^2) / ref.beta - 1 / ref.beta^2
 
@@ -191,8 +190,7 @@ Velocity relative to the reference velocity,
 \frac{v}{v_0} = \frac{1+\delta}{\beta_0\sqrt{(1+\delta)^2 + 1/(\beta_0\gamma_0)^2}}.
 ```
 
-Numbers or `TaylorN`. Used to convert ``l \leftrightarrow`` time of flight
-(``l = -v\,\Delta t``) and RF phase.
+Numbers, `TaylorN`, or DA. Used to convert ``l = -v\,\Delta t`` and the RF phase.
 """
 velocity_ratio(d, ref::RefParticle) = (1 + d) / sqrt((1 + d)^2 + 1 / ref.betagamma^2) / ref.beta
 
@@ -241,8 +239,8 @@ end
 """
     describe_reference(ref) -> String
 
-We study the reference particle. Multi-line summary of a [`RefParticle`](@ref)
-(species, mass, E_kin, γ0, β0, p0c, Bρ, 1/γ0²).
+Multi-line summary of a [`RefParticle`](@ref)
+(species, mass, kinetic energy, γ0, β0, p0·c, Bρ, 1/γ0²).
 """
 function describe_reference(ref::RefParticle)
     return """

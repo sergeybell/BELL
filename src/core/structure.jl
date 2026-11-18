@@ -34,7 +34,7 @@ A ring: ordered list of elements, reference particle and RF harmonic number.
 - `name::String` – lattice name (file base name for `load_structure`).
 - `elements::Vector{AbstractElement}` – the full ring in tracking order (sequences already expanded; repeated cells are the same element values).
 - `ref::RefParticle` – reference particle (energy at which all maps are built).
-- `harmonic::Int` – h used to define the RF phase φ = −h ω0 Δt in laboratory coordinates.
+- `harmonic::Int` – `h` in the laboratory phase `φ = −h ω0 Δt`. Positive `l` is an early arrival (`φ > 0`).
 
 Lattices are immutable; editing helpers ([`insert_cavity`](@ref),
 [`with_reference`](@ref), ...) return a new Lattice.

@@ -1,18 +1,13 @@
 # =============================================================================
 # acceleration.jl - ramping the reference energy with a thin RF cavity
-#
-# Approximate / expanded longitudinal model, kept for comparison.
-# The reference 6D RF model is the RFCavity s-Hamiltonian (src/physics/hamiltonians.jl)
-# and its exact thin limit rf_kick (src/maps/da/field_track.jl).
 # =============================================================================
 #
 # Author: Kolokolchikov Sergey Dmitrievich <sergey.bell13@gmail.com>
 #
-# accelerate tracks several particles in 6D with exact_track_element
-# (Fields ODEs + rf_kick). There is no polynomial-order cut; the cut
-# is the step ds. Particle 1 is the synchronous particle: after each
-# RFCavity, renormalize makes it the new reference. Smooth (φ, δ) is not
-# used here — it is a separate averaged model.
+# accelerate tracks particles with exact_track_element. Magnets are the flow
+# of H; a thin cavity is rf_kick. The cut is the step ds. Particle 1 is the
+# synchronous particle: after each RFCavity, renormalize makes it the new
+# reference. Smooth (φ, δ) is a separate averaged model and is not used here.
 # =============================================================================
 module Acceleration
 
