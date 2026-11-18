@@ -1,13 +1,16 @@
 # =============================================================================
-# field_track.jl - 6D tracking with field ODEs and thin RF kick
+# field_track.jl - 6D tracking with the field equations of motion
 # =============================================================================
 #
 # Author: Kolokolchikov Sergey Dmitrievich <sergey.bell13@gmail.com>
 #
-# Magnets: integrate Fields.element_rhs with a chosen ODE method (no polynomial
-# cut; the cut is the step in s). Thin RFCavity: rf_kick (closed-form formulas
-# in canonical z). renormalize updates the reference after a kick on a ramp.
-# Independent of Hamiltonians / Lie algebra.
+# The model of an element is its Hamiltonian H, and dz/ds = S ∇H.
+# This computation integrates the field equations, an alternative formulation
+# kept for comparison. It does not use H. The Lie computation uses H, and the
+# two are not unified. Magnets are stepped in s by a chosen ODE method: there
+# is no polynomial truncation, and the cut is the step in s. A thin RF cavity
+# applies closed-form formulas in canonical coordinates. After a kick on a
+# ramp the reference is updated.
 # =============================================================================
 module FieldTrack
 

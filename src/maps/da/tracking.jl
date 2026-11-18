@@ -1,11 +1,16 @@
 # =============================================================================
-# maps/da/tracking.jl - element maps by integrating field ODEs on DA
+# maps/da/tracking.jl - maps from the field equations on differential algebra
 # =============================================================================
 #
 # Author: Kolokolchikov Sergey Dmitrievich <sergey.bell13@gmail.com>
 #
-# Same equations as Fields / FieldTrack, integrated on DA variables to order N.
-# Does not build or call Hamiltonians. Lie-path maps stay in Tracking / LieAlgebra.
+# The model of an element is its Hamiltonian H, and dz/ds = S ∇H.
+# Differential algebra is an algebra used to compute the map, not a second
+# physical model. This computation integrates the field equations of motion,
+# the alternative formulation kept for comparison, on series initial
+# conditions to a chosen order. It does not use H. A Taylor map is symplectic
+# only up to its truncation order. The Lie computation uses H and is not
+# unified with this one.
 # =============================================================================
 module DATracking
 
