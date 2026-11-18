@@ -1,25 +1,20 @@
 # =============================================================================
-# lie_algebra.jl - truncated polynomial space, Poisson bracket, Dragt-Finn product
+# lie_algebra.jl - Taylor series, Poisson bracket, Dragt–Finn product
 # =============================================================================
 #
 # Author: Kolokolchikov Sergey Dmitrievich <sergey.bell13@gmail.com>
 #
-# WHAT
-#   Polynomial space in the 6 canonical variables (x, px, y, py, l, delta).
-#   Hamiltonians of this TaylorSeries path are kept to total degree JET_ORDER = 4;
-#   maps are cut at MAP_ORDER = 3 by default. That truncation is a property of
-#   this path, not of Bell. Arbitrary order uses DiffAlgebra and DATracking.
-#   concatenate drops Poisson brackets of degree >= 5, so the product of
-#   factors is not symmetric at this cut. rotation_matrix_6 is a rotation by
-#   phase advances (μx, μy, μs), not an element tilt.
-#   poisson, lie_exp, lie_map, LieFactor, dragt_finn_factor, concatenate,
-#   product_factors, factor_to_map.
-#
-# WHY
-#   The ring is a product of Lie transformations, not a substitution of
-#   truncated maps.  Each factor is symplectic; the truncated polynomial
-#   expansion of the product is symplectic only up to the dropped degree.
-#
+# The model of an element is its Hamiltonian H, and dz/ds = S ∇H.
+# Taylor series is an algebra used to compute, not a second physical model.
+# Polynomials use the six canonical variables (x, px, y, py, l, delta).
+# Hamiltonians are kept to total degree JET_ORDER = 4, and maps are cut at
+# MAP_ORDER = 3. The current factors carry generators f3 and f4 (map order 3).
+# Higher orders are algorithmically more expensive.
+# A Taylor map is symplectic only up to its truncation order. A Lie factor is
+# exactly symplectic at any truncation when the factor is applied exactly.
+# The product of factors drops Poisson brackets of degree 5 and higher, so the
+# stored generators stop at f4. The DA computation integrates the field
+# equations rather than H. The two computations are not unified.
 # =============================================================================
 module LieAlgebra
 
@@ -37,11 +32,13 @@ export SPACE, Z, JET_ORDER, MAP_ORDER, truncate_to, hom, maxabs, map_linear_part
 """
     JET_ORDER :: Int = 4
 
-Maximum total degree of every `TaylorN` polynomial on this path. Hamiltonians are
-expanded to this degree, so maps of degree [`MAP_ORDER`](@ref) = 3 are exact
-(a degree-4 H gives the cubic terms of the map). This is not a global limit of
-Bell: the field / DA path ([`DATracking`](@ref Bell.DATracking)) takes the order
-as an argument. Changing JET_ORDER changes the whole polynomial space ([`SPACE`](@ref)).
+Maximum total degree of every `TaylorN` polynomial in this computation.
+Hamiltonians are expanded to this degree, so maps of degree [`MAP_ORDER`](@ref) = 3
+are exact (a degree-4 `H` gives the cubic terms of the map). The current
+generators are `f3` and `f4`; higher orders are algorithmically more expensive.
+Changing `JET_ORDER` changes the whole polynomial space ([`SPACE`](@ref)).
+Taylor series computes the map of `H`. It is not a second physical model, and
+this degree is not a limit of the model.
 """
 const JET_ORDER = 4   # phase 2: H to order 4 -> maps exact to order 3
 """
@@ -220,8 +217,8 @@ end
 Transfer map of an element with s-independent Hamiltonian `H` over length `L` [m]:
 ``z \mapsto e^{-L{:}H{:}}z`` (component-wise), truncated to `order` (default
 [`MAP_ORDER`](@ref) = 3). Since ``dz/ds = [z, H] = -{:}H{:}\,z``, this is the
-exact flow of ``H`` to that order. Arbitrary order on the independent field path
-uses [`element_da_map`](@ref Bell.DATracking.element_da_map).
+flow of ``H`` through that order. The Taylor map is symplectic only up to the
+truncation. Higher orders are algorithmically more expensive.
 """
 lie_map(H::TaylorN, L::Real; order::Int = MAP_ORDER) = [truncate_to(lie_exp(-L * H, Z[i]), order) for i in 1:6]
 

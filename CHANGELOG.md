@@ -25,6 +25,7 @@ A short index of the same versions remains in
 
 ### Changed
 
+- Descriptions state one model: the element s-Hamiltonian `H`, with `dz/ds = S ∇H`. The field equations are an alternative formulation kept for comparison. Differential algebra and Taylor series are algebras used to compute, not a second physical model. A Taylor map is symplectic only up to its truncation order. A Lie factor applied exactly stays symplectic at any truncation; the current factors carry generators `f3` and `f4` (map order 3). The DA computation still integrates the field equations, and the Lie computation still uses `H`.
 - CI is a single job: `windows-latest`, Julia 1. The OS and version matrix, coverage collection, the Codecov upload, and the documentation build are removed. The job runs a plain `Pkg.test()`.
 - `Pkg.test()` runs the fast suite by default. The optics regression, high-order DA, Aqua, and the optimizer tests run only when `BELL_FULL_TESTS=1`.
 - The README is in English and opens with the physics: the element s-Hamiltonian, the equations `dz/ds = S ∇H`, and the variables `z` normalised to the reference particle. Install with `Pkg.develop` on a clone; fast tests are `Pkg.test()`, and full tests set `BELL_FULL_TESTS=1`. Links to `CONTRIBUTING.md` and `AGENTS.md`.
