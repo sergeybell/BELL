@@ -4,10 +4,9 @@
 CurrentModule = Bell
 ```
 
-Dependencies point only toward the layers on the left. Two computations stay
-in the tree: the Lie path on TaylorSeries, and the magnet flow on DiffAlgebra.
-Both take the s-Hamiltonian. Comparison with the field equations is done from
-the outside.
+Dependencies point only toward the layers on the left. Two physics engines stay
+in the tree and do not call each other: the Lie path on TaylorSeries and the
+field / DA path on DiffAlgebra. Comparison is done from the outside.
 
 ## Layers
 
@@ -20,10 +19,9 @@ math → core → io → physics → maps/{lie,da} → analysis → tracking int
 | math | `src/math` | `DiffAlgebra`, canonical Lie-series helpers, one file per ODE method in `Integrators`. Pure mathematics. |
 | core | `src/core` | particle and reference, element types, `Lattice` and the `.bell` file, symplecticity, sextupole families, caches, plot names |
 | io | `src/io` | `OptimConverter`: OptiM `.opt` → `.bell` |
-| physics | `src/physics` | one s-Hamiltonian per element, comparison field ODEs `dz/ds`, fringe models |
+| physics | `src/physics` | one s-Hamiltonian per element, field ODEs `dz/ds`, fringe models |
 | maps/lie | `src/maps/lie` | TaylorSeries Lie algebra, linear matrices, Lie-factor tracking, research `NormalForm` |
-| maps | `src/maps/element_flow.jl` | magnet flow `dz/ds = S ∇H` on numbers, Taylor series, or DA |
-| maps/da | `src/maps/da` | `FieldTrack` (Float64) and `DATracking` (DiffAlgebra, any order N), both from that flow for magnets |
+| maps/da | `src/maps/da` | `FieldTrack` (Float64) and `DATracking` (DiffAlgebra, any order N) |
 | analysis | `src/analysis` | readings of a one-turn object: closed orbit, chromaticity, momentum compaction |
 | tracking interfaces | public map and track names | `element_lie_map`, `taylor_map_element` (`maps/lie/tracking.jl`), `element_da_map` (`maps/da/tracking.jl`), `exact_track_element` (`maps/da/field_track.jl`), `track`. Callers use this boundary over both engines. |
 | effects | — | future. No directory yet. New physics that is not an element Hamiltonian lands here, and calls the tracking interfaces. |
@@ -72,15 +70,14 @@ src/
     fields.jl             Fields             dz/ds from multipole fields
     fringe.jl             Fringe             HardEdge / SoftEdge
   maps/
-    element_flow.jl       ElementFlow        dz/ds = S ∇H for a magnet
     lie/                  TaylorSeries Lie path
       lie_algebra.jl      LieAlgebra         polynomial space, Poisson, Lie factors
       linear.jl           Linear             linear matrices / optics
       tracking.jl         Tracking           Lie-factor tracking, Taylor map of H
       normal_form.jl      NormalForm         research (using Bell.NormalForm)
-    da/                   point track and DA maps from H
-      field_track.jl      FieldTrack         Float64 magnet flow, rf_kick, renormalize
-      tracking.jl         DATracking         magnet maps on DA (any order N)
+    da/                   DiffAlgebra field path
+      field_track.jl      FieldTrack         Float64 field ODEs, rf_kick, renormalize
+      tracking.jl         DATracking         field ODEs on DA (any order N)
   analysis/
     map_readings.jl       MapReadings        closed orbit, chromaticity, compaction
   longitudinal_models/    approximate models kept for comparison
@@ -99,9 +96,8 @@ math: DiffAlgebra, Integrators
         │
 core: Coordinates ─► Elements ─► Structure ─► io: OptimConverter
                       │              │
-                      │              ├─► physics: Hamiltonians ─► maps: ElementFlow ─► FieldTrack, DATracking
-                      │              │                         └─► maps/lie: Linear ─► Tracking
-                      │              └─► physics: Fields (comparison; thick-RF drift halves)
+                      │              ├─► physics: Hamiltonians ─► maps/lie: Linear ─► Tracking
+                      │              └─► physics: Fields ─► maps/da: FieldTrack, DATracking
                       └──► maps/lie: LieAlgebra
 analysis: MapReadings  (reads either one-turn object)
 tracking interfaces: element_lie_map, element_da_map, exact_track_element, track
@@ -131,8 +127,8 @@ updates `p0` after the synchronous kick.
  .opt ──convert_optim──► .bell ──load_structure──► Lattice
                                                     │
      Lie / TaylorSeries: hamiltonian(e, ref[, z]) ─► lie_map ─► Dragt–Finn ─► track
-     Magnet flow:        hamiltonian(e, ref, z) ─► element_flow ─► FieldTrack / DATracking
+     DA / DiffAlgebra:   element_field ─► FieldTrack (Float64) / DATracking (order N)
      tracking interfaces: element_*_map, exact_track_element, track
-     RF: rf_kick (thin) or drift/kick/drift; accelerate = FieldTrack + renormalize
+     RF: rf_kick (thin) or the thick Hamiltonian; accelerate = FieldTrack + renormalize
      effects: future, calls the tracking interfaces
 ```

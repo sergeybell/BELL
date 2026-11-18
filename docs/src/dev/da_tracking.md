@@ -1,13 +1,12 @@
-# Magnet maps on DA (`element_flow`, `Bell.DATracking`)
+# Field ODEs on DA (`Bell.Fields`, `Bell.DATracking`)
 
 ```@meta
 CurrentModule = Bell
 ```
 
-Element transfer maps of any order ``N`` by integrating the s-Hamiltonian,
-``dz/ds = S\nabla H``, on DA initial conditions ([`element_flow`](@ref)). The
-field equations stay available for comparison. This path does not call the
-Lie / Dragt–Finn stack.
+Element transfer maps of any order ``N`` by integrating the field equations of
+motion ([`element_field`](@ref)) on DA initial conditions. This path does **not**
+build a Hamiltonian in DA and does **not** call the Lie / Dragt–Finn stack.
 
 ```julia
 using Bell, Bell.DiffAlgebra
@@ -16,28 +15,26 @@ M  = element_da_map(Quadrupole("QF", 0.3, 1.5), ref, 7)   # Vector{DA}
 Mr = one_turn_map_da(lat, 5)
 ```
 
-## Physics
+## Physics (`src/physics/fields.jl`)
 
-[`hamiltonian`](@ref)`(e, ref, z)` is the s-Hamiltonian. [`element_flow`](@ref)
-builds ``S\nabla H`` once on a jet one order above the map, because `deriv`
-drops the top degree, and integrates that polynomial. [`element_field`](@ref)
-is the same motion written from the multipole strengths, kept for comparison
-and for tests. Thin RF is [`rf_kick`](@ref) (shared with `FieldTrack`).
+[`element_field`](@ref) writes ``dz/ds`` from hard-edge multipole strengths and
+relativistic kinematics in canonical ``z``. The same function evaluates on
+`Float64` or on DA. Thin RF is [`rf_kick`](@ref) (shared with `FieldTrack`).
 
 ## Tracking
 
 | call | role |
 |:--|:--|
 | [`map_space`](@ref)`(N)` | cached 6-variable DA space of order N |
-| [`element_da_map`](@ref)`(e, ref, N)` | integrate ``S\nabla H`` on the identity jet |
-| [`one_turn_map_da`](@ref)`(lat, N)` | compose element maps |
-| [`exact_track_element`](@ref) | the same magnetic flow on a Float64 point |
+| [`element_da_map`](@ref)`(e, ref, N)` | integrate field ODEs on the identity jet |
+| [`one_turn_map_da`](@ref)`(lat, N)` | compose element maps (drops thin RF) |
+| [`exact_track_element`](@ref) | same ODEs on a Float64 point |
 
 ## Relation to the Lie path
 
-At low order the DA map of a short magnet agrees with
-`lie_map(hamiltonian(e, ref), L)` to working precision. Both use `H`.
-Symplecticity of a Jacobian, a `TaylorN` map, a DA map, or a tracking step is
+At low order the DA field map of a short magnet agrees with
+`lie_map(hamiltonian(e, ref), L)` to working precision; the codes do not share
+`H`. Symplecticity of a Jacobian, a `TaylorN` map, a DA map, or a tracking step is
 [`symplectic_error`](@ref). The DA method of that check is [`da_symplectic_error`](@ref).
 
 ## Chromaticity
