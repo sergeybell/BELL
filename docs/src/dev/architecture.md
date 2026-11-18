@@ -41,8 +41,10 @@ Plots is a weak dependency. The names `plot_twiss`, `plot_dispersion2`,
 package extension `ext/BellPlotsExt.jl` and appear after `using Plots`.
 
 People follow `CONTRIBUTING.md`: one Issue, one branch, one pull request.
-Agents follow `AGENTS.md`. User-visible changes go to the root `CHANGELOG.md`.
-`docs/HISTORY.md` is the archive through v0.17.
+Agents follow `AGENTS.md`. A user-visible change is recorded in the root
+`CHANGELOG.md` under `[Unreleased]`, with the pull request number. `version`
+in `Project.toml` is bumped, and that section is renamed, only in a release
+pull request.
 
 ## Package layout
 
