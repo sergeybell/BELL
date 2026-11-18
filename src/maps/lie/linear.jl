@@ -29,9 +29,11 @@ H₂ = zᵀ A z / 2.
 """
 hessian(H::TaylorN) = [constant_term(differentiate(differentiate(H, i), j)) for i in 1:6, j in 1:6]
 
-const _HCACHE = Dict{Any,Matrix{Float64}}()
+# Element and the full reference particle. p0 alone collides when the mass differs.
+const _HCacheKey = Tuple{Any,RefParticle}
+const _HCACHE = Dict{_HCacheKey,Matrix{Float64}}()
 function _SA(e::AbstractElement, ref::RefParticle)
-    get!(_HCACHE, (e, ref.p0_MeV)) do
+    get!(_HCACHE, (e, ref)::_HCacheKey) do
         SYMPLECTIC_S * hessian(hamiltonian(e, ref))
     end
 end
@@ -47,8 +49,8 @@ R = \exp(L\,S A),\qquad A_{ij} = \left.\frac{\partial^2 H}{\partial z_i\,\partia
 ```
 where ``H`` = `hamiltonian(e, ref)` (only its quadratic part enters) and ``S`` =
 [`SYMPLECTIC_S`](@ref). ``SA`` is a Hamiltonian matrix, so ``R`` is symplectic up to
-round-off. No textbook element formulas are used. ``SA`` is cached per (element
-value, ``p_0``). Markers, thin RF and zero-length slices give the identity.
+round-off. No textbook element formulas are used. ``SA`` is cached per (element,
+reference particle). Markers, thin RF and zero-length slices give the identity.
 
 The same linear map can also be read as the matrix `R` of a Dragt-Finn factor
 or as [`linear_part`](@ref Bell.DiffAlgebra.linear_part) of a polynomial map.

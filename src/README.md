@@ -228,7 +228,7 @@ Each row answers two questions: the edge points at a layer further to the right,
 | `physics/fringe.jl` | `Fringe` | `Linear` | `physics` is left of `maps`. The edge model depends on the linear matrices. |
 | `physics/fringe.jl` | `Fringe` | `Tracking` | `physics` is left of `maps`. The edge model depends on Lie-map building. The same module is named in both `using` and `import`. |
 | `physics/fringe.jl` | `Fringe` | `MapReadings` | `physics` is left of `analysis`. The edge model depends on reading an already built map. |
-| `core/caches.jl` | `Bell` | `DATracking`, `Tracking`, `Linear`, `Fringe` | There is no `using`, so the diagram has no arrow. `clear_caches!`, in a file of the `core` layer, empties the private caches `_DACACHE`, `_SPACES`, `_MCACHE`, `_TMCACHE`, `_HCACHE`, `_RK_STEPS`, and `_ECACHE`. |
+| `core/caches.jl` | `Bell` | `DATracking`, `Tracking`, `Linear`, `Fringe` | There is no `using`, so the diagram has no arrow. `clear_caches!`, in a file of the `core` layer, empties the private caches `_DACACHE`, `_SPACES`, `_MCACHE`, `_TMCACHE`, `_HCACHE`, and `_ECACHE`. |
 
 ## Disputed classification
 

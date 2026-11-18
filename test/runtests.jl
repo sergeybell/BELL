@@ -32,6 +32,7 @@ end
     include("test_physics_consistency.jl")
     include("test_structure.jl")
     include("test_coordinates.jl")
+    include("test_cache_keys.jl")
     if full_tests()
         include("test_optics_regression.jl")
         include("test_optimizers.jl")

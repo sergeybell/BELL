@@ -481,8 +481,6 @@ function _rk4(E::_Edge, n, ref)
     return [truncate_to(zi, MAP_ORDER) for zi in r.z]
 end
 
-const _RK_STEPS = Dict{Any,Int}()
-
 function _soft(E::_Edge, m::TaylorIntegrate, ref)
     n = 16
     M = _rk4(E, n, ref)
@@ -492,7 +490,6 @@ function _soft(E::_Edge, m::TaylorIntegrate, ref)
         M, n = M2, 2n
         diff < m.tol && break
     end
-    _RK_STEPS[(E.h0, E.W, m)] = n
     return M
 end
 
@@ -515,7 +512,9 @@ end
 _soft_edge(e::AbstractElement, side, m::SoftEdge, ref) =
     error("SoftEdge is implemented for SBend only, not for $(kind_string(e)) $(e.name)")
 
-const _ECACHE = Dict{Any,Any}()
+# Parent, side, model key, full reference particle.
+const _ECacheKey = Tuple{Any,Symbol,Any,RefParticle}
+const _ECACHE = Dict{_ECacheKey,Vector{TaylorN{Float64}}}()
 
 # Cache key of an edge model: repr() for analytic models, plus the table contents for a
 # Tabulated profile (its repr is only "Tabulated(N points)", so two different tables of the
@@ -528,10 +527,10 @@ _model_key(m::EdgeModel) = m isa SoftEdge && m.profile isa Tabulated ?
 
 Polynomial map (order MAP_ORDER) of a thin edge item: identity for `NoEdge`, the
 hard-edge Lie map for `HardEdge`, or the composed soft-edge map for `SoftEdge`.
-Cached per (parent magnet, side, model, p0).
+Cached per (parent magnet, side, model, reference particle).
 """
 edge_map(E::EdgeMap, ref::RefParticle) =
-    get!(_ECACHE, (E.parent, E.side, _model_key(E.model), ref.p0_MeV)) do
+    get!(_ECACHE, (E.parent, E.side, _model_key(E.model), ref)::_ECacheKey) do
         E.model isa NoEdge && return collect(Z)
         E.model isa HardEdge && return _hard(E.parent, E.side, E.model, ref)
         return _soft_edge(E.parent, E.side, E.model, ref)

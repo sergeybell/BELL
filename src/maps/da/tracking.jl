@@ -66,17 +66,17 @@ function element_da_map(e::AbstractElement, ref::RefParticle, N::Integer;
     end
 end
 
-# Key: element, p0, order, method value, tol, nsteps.
+# Key: element, reference particle, order, method value, tol, nsteps.
 # `path_length` and `ds` do not change a non-RF field map (RF is not cached).
-const _DACacheKey = Tuple{Any,Float64,Int,Any,Float64,Union{Nothing,Int}}
+const _DACacheKey = Tuple{Any,RefParticle,Int,Any,Float64,Union{Nothing,Int}}
 const _DACACHE = Dict{_DACacheKey,Vector{DA{Float64}}}()
 
-function _da_cache_key(e, p0::Real, N::Integer, kw)
+function _da_cache_key(e, ref::RefParticle, N::Integer, kw)
     method = get(kw, :method, DormandPrince853())
     tol = Float64(get(kw, :tol, 1e-14))
     nsteps = get(kw, :nsteps, nothing)
     nkey = nsteps isa Integer ? Int(nsteps) : nsteps
-    return (e, Float64(p0), Int(N), method, tol, nkey)::_DACacheKey
+    return (e, ref, Int(N), method, tol, nkey)::_DACacheKey
 end
 
 """
@@ -84,7 +84,7 @@ end
 
 [`element_da_map`](@ref) of every element. An [`RFCavity`](@ref) is built with
 `path_length(lattice)` and is not cached. With `cache = true`, every other
-element is stored under `(element, p0, N, method, tol, nsteps)`. `method` is
+element is stored under `(element, reference particle, N, method, tol, nsteps)`. `method` is
 the integrator value, so two methods of one type with different parameters do
 not share an entry. `path_length` and `ds` do not change a non-RF field map
 and are not part of the key. A warning is given when an [`SBend`](@ref) has a
@@ -101,7 +101,7 @@ function element_da_maps(lattice::Lattice, N::Integer; cache::Bool = true, kw...
         end
         M = if cache
             get!(() -> element_da_map(e, lattice.ref, N; kw...), _DACACHE,
-                 _da_cache_key(e, lattice.ref.p0_MeV, N, kw))
+                 _da_cache_key(e, lattice.ref, N, kw))
         else
             element_da_map(e, lattice.ref, N; kw...)
         end

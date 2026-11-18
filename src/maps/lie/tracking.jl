@@ -25,7 +25,9 @@ using ..Coordinates, ..Elements, ..Structure, ..Hamiltonians, ..LieAlgebra, ..In
 export build_factors, apply_factor, track, element_lie_map, ring_lie_factor,
        taylor_map_element, element_maps, ring_taylor_map, laboratory_map
 
-const _MCACHE = Dict{Any,Any}()
+# Element, reference particle, path length (RF only; 0 otherwise), map order.
+const _MCacheKey = Tuple{Any,RefParticle,Float64,Int}
+const _MCACHE = Dict{_MCacheKey,Vector{TaylorN{Float64}}}()
 
 """
     element_lie_map(e, ref, path_length = 0; order = MAP_ORDER) -> Vector{TaylorN}
@@ -33,16 +35,16 @@ const _MCACHE = Dict{Any,Any}()
 Map exp(−L :H:) z of one element ([`lie_map`](@ref) of its [`hamiltonian`](@ref)),
 truncated to `order`. A [`Marker`](@ref) is the identity. A thin [`RFCavity`](@ref)
 (`L == 0`) is the Lie map of [`rf_potential`](@ref); a thick cavity uses its
-s-Hamiltonian over `L`. Cached per (element, p0, path length for an RF cavity, order).
+s-Hamiltonian over `L`. Cached per (element, reference particle, path length for an RF cavity, order).
 """
 function element_lie_map(e::Marker, ref::RefParticle, path_length::Real = 0.0; order::Int = MAP_ORDER)
-    return get!(_MCACHE, (e, ref.p0_MeV, 0.0, order)) do
+    return get!(_MCACHE, (e, ref, 0.0, order)::_MCacheKey) do
         collect(Z)
     end
 end
 
 function element_lie_map(e::RFCavity, ref::RefParticle, path_length::Real = 0.0; order::Int = MAP_ORDER)
-    return get!(_MCACHE, (e, ref.p0_MeV, Float64(path_length), order)) do
+    return get!(_MCACHE, (e, ref, Float64(path_length), order)::_MCacheKey) do
         if e.L == 0
             G = rf_potential(e, ref, path_length)
             return lie_map(G - constant_term(G), 1.0; order)       # thin limit: exp(-:G:) = rf_kick
@@ -52,7 +54,7 @@ function element_lie_map(e::RFCavity, ref::RefParticle, path_length::Real = 0.0;
 end
 
 function element_lie_map(e::AbstractElement, ref::RefParticle, path_length::Real = 0.0; order::Int = MAP_ORDER)
-    return get!(_MCACHE, (e, ref.p0_MeV, 0.0, order)) do
+    return get!(_MCACHE, (e, ref, 0.0, order)::_MCacheKey) do
         lie_map(hamiltonian(e, ref, path_length), elem_length(e); order)
     end
 end
@@ -120,7 +122,9 @@ function track(factors, z; turns::Int = 1)
     return w
 end
 
-const _TMCACHE = Dict{Any,Any}()
+# Element, reference particle, path length, slice step.
+const _TMCacheKey = Tuple{Any,RefParticle,Float64,Float64}
+const _TMCACHE = Dict{_TMCacheKey,Vector{TaylorN{Float64}}}()
 
 function _taylor_flow(V, L::Real; ds, method, order)
     n = max(4, ceil(Int, L / ds))
@@ -158,10 +162,15 @@ end
 """
     element_maps(lattice; ds = 0.01) -> Vector
 
-[`taylor_map_element`](@ref) for every element of `lattice`, cached per (element, p0, ds).
+[`taylor_map_element`](@ref) for every element of `lattice`, cached per
+(element, reference particle, path length, ds).
 """
-element_maps(lattice::Lattice; ds = 0.01) =
-    [get!(() -> taylor_map_element(e, lattice.ref; ds = ds, path_length = path_length(lattice)), _TMCACHE, (e, lattice.ref.p0_MeV, path_length(lattice), ds)) for e in lattice.elements]
+function element_maps(lattice::Lattice; ds = 0.01)
+    Lpath = path_length(lattice)
+    return [get!(() -> taylor_map_element(e, lattice.ref; ds = ds, path_length = Lpath),
+                 _TMCACHE, (e, lattice.ref, Float64(Lpath), Float64(ds))::_TMCacheKey)
+            for e in lattice.elements]
+end
 
 """
     ring_taylor_map(lattice; ds = 0.01) -> Vector{TaylorN}
