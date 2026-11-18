@@ -16,6 +16,7 @@ A short index of the same versions remains in
 
 ### Added
 
+- A short README in each source folder under `src/` (the dependency map in `src/README.md` is unchanged), in `ext/`, and in benchmark folders that did not have one. Each note says what is there, what it depends on, what uses it, and where new code of that kind goes.
 - `ParticleState` (a canonical 6-vector and a spin slot, empty by default) and `Beam` (a set of such particles). The Thomas–Bargmann–Michel–Telegdi equation is not evaluated: spin is only stored.
 - `AbstractMap`, the wrappers `LinearMap` and `DAMap` (`linear_part`, call as a function, `compose` for a pair of wrappers). `LieFactor` is an `AbstractMap` as well.
 - Trackers `FieldTracker` (`exact_track_turn`), `LieTracker` (`track` over the factors from `build_factors`), and `MapTracker` (a one-turn function), plus `track!` for a `Beam` and for a mutable 6-vector. The previous tracking functions stay in place.
