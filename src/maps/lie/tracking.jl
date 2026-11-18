@@ -14,8 +14,8 @@
 # is symplectic at any truncation. The current factors carry generators f3 and
 # f4 (map order 3); higher orders are algorithmically more expensive. A Taylor
 # map of the same H is symplectic only up to its truncation order and does not
-# store a copy of H. An RF cavity is mapped from its Hamiltonian, as any other
-# element.
+# store a copy of H. A thin RF cavity is the Lie map of rf_potential (the kick).
+# A thick cavity is the flow of its s-Hamiltonian over L.
 # =============================================================================
 module Tracking
 
@@ -62,8 +62,9 @@ end
 """
     ring_lie_factor(lattice; name = lattice.name) -> LieFactor
 
-One-turn Dragt-Finn factor of the magnetic ring: [`product_factors`](@ref) of
-[`build_factors`](@ref)(lattice), RF cavities included (use `magnetic_lattice` for the magnetic ring).
+One-turn Dragt-Finn factor: [`product_factors`](@ref) of
+[`build_factors`](@ref)`(lattice)`. RF cavities are included;
+[`magnetic_lattice`](@ref) drops them.
 """
 function ring_lie_factor(lattice::Lattice; name = lattice.name)
     return product_factors(LieFactor[F for F in build_factors(lattice)]; name)

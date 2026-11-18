@@ -31,13 +31,14 @@ Cached shared 6-variable DA space of order `N` for element maps
 map_space(N::Integer) = get!(() -> DASpace(6, N), _SPACES, (6, Int(N)))
 
 @doc raw"""
-    element_da_map(e, ref, N; method = DormandPrince853(), tol = 1e-14, nsteps = nothing) -> Vector{DA}
+    element_da_map(e, ref, N; method = DormandPrince853(), tol = 1e-14,
+                   nsteps = nothing, path_length = nothing) -> Vector{DA}
 
 Transfer map of element `e` to order ``N``. A magnet and a thick
 [`RFCavity`](@ref) integrate ``dz/ds = S\\nabla H`` ([`element_flow`](@ref))
 on the DA identity jet. A [`Marker`](@ref) is the identity. A thin cavity
 is [`rf_kick`](@ref) on the DA variables. An [`RFCavity`](@ref) needs
-`path_length`. `SBend`: body only (no edge angles).
+`path_length`. An [`SBend`](@ref) map is the body only (edge angles are omitted).
 """
 function element_da_map(e::Marker, ref::RefParticle, N::Integer;
                         method::ODEMethod = DormandPrince853(), tol = 1e-14,

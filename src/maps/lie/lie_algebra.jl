@@ -13,8 +13,8 @@
 # A Taylor map is symplectic only up to its truncation order. A Lie factor is
 # exactly symplectic at any truncation when the factor is applied exactly.
 # The product of factors drops Poisson brackets of degree 5 and higher, so the
-# stored generators stop at f4. Magnet maps on DA also integrate H. The field
-# equations remain for comparison and for tests.
+# stored generators stop at f4. Magnet maps and a thick cavity on DA also
+# integrate H. The field equations remain for comparison and for tests.
 # =============================================================================
 module LieAlgebra
 
@@ -42,7 +42,7 @@ Changing `JET_ORDER` changes the whole polynomial space ([`SPACE`](@ref)).
 Taylor series computes the map of `H`. It is not a second physical model, and
 this degree is not a limit of the model.
 """
-const JET_ORDER = 4   # phase 2: H to order 4 -> maps exact to order 3
+const JET_ORDER = 4   # H to degree 4; maps are exact through degree 3
 """
     MAP_ORDER :: Int = 3
 

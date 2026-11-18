@@ -5,8 +5,8 @@
 # Author: Kolokolchikov Sergey Dmitrievich <sergey.bell13@gmail.com>
 #
 # WHAT
-#   Plain data types describing beam-line elements, in SI units and in the
-#   normalised strengths that enter the Hamiltonians / field ODEs.
+#   Plain data for beam-line elements, in metres, radians, MeV, and T·m,
+#   and in the normalised strengths that enter the Hamiltonians.
 #   The field L is the element length in metres. Physics lives in
 #   hamiltonians.jl. physics/fields.jl is the comparison formulation.
 #   Sequence and Lattice live in structure.jl.
@@ -24,10 +24,10 @@ Supertype of all beam-line elements. Element types are plain immutable
 data (no physics). Every subtype has a `name::String`; elements with a
 length have a field `L` [m] (see [`elem_length`](@ref)).
 
-Physics lives elsewhere: `hamiltonian(e, ref)` (Hamiltonians),
-`element_field` (Fields), `linear_matrix(e, ref)` (Linear),
-`element_lie_map(e, ref)` (Tracking), `exact_track_element` (FieldTrack),
-`edge_map` (FringeMaps).
+Physics lives elsewhere: `hamiltonian` (Hamiltonians), `element_flow`
+(ElementFlow), `element_lie_map` (Tracking), `element_da_map` (DATracking),
+`exact_track_element` (FieldTrack), `linear_matrix` (Linear), `edge_map`
+(FringeMaps). `element_field` (Fields) is the comparison formulation.
 
 Subtypes: [`Drift`](@ref), [`SBend`](@ref), [`Quadrupole`](@ref),
 [`Sextupole`](@ref), [`RFCavity`](@ref), [`Marker`](@ref).
@@ -60,13 +60,14 @@ values by the long constructor or by a structure-file card.
 # Fields
 - `L::Float64` – arc length [m].
 - `angle::Float64` – bending angle [rad]; curvature ``h = \mathrm{angle}/L`` [1/m] ([`curvature`](@ref)).
-- `k1::Float64` – normalised gradient ``(\partial B_y/\partial x)/(B\rho)`` [1/m²].
+- `k1::Float64` – normalised gradient ``(\partial B_y/\partial x)/(B\rho)`` [1/m²]. ``k_1 > 0`` focuses in ``x``.
 - `e1::Float64`, `e2::Float64` – entrance / exit pole-face rotation angles [rad].
 - `gap::Float64` – full magnet gap [m].
 - `fint::Float64` – fringe-field integral FINT [1].
 
-The body Hamiltonian / field ODEs use only `L`, `angle`, `k1`.
-`e1, e2, gap, fint` are read only by the edge maps of the Fringe module.
+The body Hamiltonian uses `L`, `angle`, and `k1`. The comparison field
+equations use the same three. `e1`, `e2`, `gap`, and `fint` are read by the
+edge model (`Fringe`, `FringeMaps`).
 
 Structure-file card: `BM sbend L = 5.33 angle = 22.5 deg k1 = 0 e1 = 0 gap = 0.05 fint = 0.5`.
 """
@@ -113,13 +114,14 @@ end
     RFCavity(name, voltage_MV, harmonic, phi_s)        # thin, L = 0
     RFCavity(name, voltage_MV, harmonic, phi_s, L)     # thick, length L [m]
 
-RF cavity with s-Hamiltonian ``H = H_{drift} + H_{rf}`` (see
-[`rf_potential`](@ref)); uniform accelerating gradient ``V/L`` (transit factor 1).
-`L = 0` is the thin limit, whose map is the exact energy kick [`rf_kick`](@ref).
-- `L::Float64` - length [m] (0 = thin).
+RF cavity. A thick cavity (`L > 0`) has s-Hamiltonian
+``H = H_{\mathrm{drift}} + G/L`` with [`rf_potential`](@ref) ``G`` and a
+uniform gradient ``V/L`` (transit factor 1). `L = 0` is the thin limit; its
+map is [`rf_kick`](@ref).
 
 # Fields
-- `voltage_MV::Float64` – peak voltage ``V`` [MV] (per unit charge).
+- `L::Float64` – length [m] (`0` = thin).
+- `voltage_MV::Float64` – peak voltage ``V`` [MV]. The energy change is ``ZV`` [MeV].
 - `harmonic::Int` – RF harmonic number ``h``.
 - `phi_s::Float64` – synchronous phase ``\varphi_s`` [rad].
 

@@ -7,9 +7,9 @@
 # The model of an element is its Hamiltonian H, and dz/ds = S ∇H.
 # A magnet and a thick RF cavity go through ElementFlow, which integrates H.
 # There is no polynomial truncation on a point: the cut is the step in s.
-# A Marker is the identity. A thin RF cavity applies closed-form formulas.
-# The field equations remain for comparison and for tests. After a kick on a
-# ramp the reference is updated.
+# A Marker is the identity. A thin RF cavity is rf_kick.
+# The field equations remain for comparison and for tests.
+# renormalize rebuilds the reference from a synchronous particle after a thin kick.
 # =============================================================================
 module FieldTrack
 
