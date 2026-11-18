@@ -19,13 +19,16 @@ A short index of the same versions remains in
 - `ParticleState` (a canonical 6-vector and a spin slot, empty by default) and `Beam` (a set of such particles). The Thomas–Bargmann–Michel–Telegdi equation is not evaluated: spin is only stored.
 - `AbstractMap`, the wrappers `LinearMap` and `DAMap` (`linear_part`, call as a function, `compose` for a pair of wrappers). `LieFactor` is an `AbstractMap` as well.
 - Trackers `FieldTracker` (`exact_track_turn`), `LieTracker` (`track` over the factors from `build_factors`), and `MapTracker` (a one-turn function), plus `track!` for a `Beam` and for a mutable 6-vector. The previous tracking functions stay in place.
-- Tests are split into files `test/test_*.jl`: structure and coordinate round-trips, an optics regression of `magnetic_2` against `benchmarks/twiss/bell/results.csv`, and an Aqua check.
+- Tests are split into files `test/test_*.jl`: structure and coordinate round-trips, an optics regression of `magnetic_2`, and an Aqua check.
+- `test/README.md` and `benchmarks/README.md` say what each directory is for. Benchmark numbers come from real runs and are never fitted.
 - `test/test_physics_consistency.jl`: `element_field` matches `S ∇H` of the same Hamiltonian on DA of orders 5 and 6, and matches a numerical gradient on `Float64`.
 - The top of `docs/HISTORY.md` states that it is the archive through v0.17, and that new entries go in this file.
 
 ### Changed
 
 - Descriptions state one model: the element s-Hamiltonian `H`, with `dz/ds = S ∇H`. The field equations are an alternative formulation kept for comparison. Differential algebra and Taylor series are algebras used to compute, not a second physical model. A Taylor map is symplectic only up to its truncation order. A Lie factor applied exactly stays symplectic at any truncation; the current factors carry generators `f3` and `f4` (map order 3). The DA computation still integrates the field equations, and the Lie computation still uses `H`.
+- The optics regression no longer reads `benchmarks/`. Its reference numbers are copied into `test/test_optics_regression.jl` from a real run recorded in `benchmarks/twiss/bell/results.csv`. The checks and tolerances are unchanged, and the test still runs only when `BELL_FULL_TESTS=1`.
+- The Hénon–Heiles integrator study moved from `test/integrator_study.jl` and `test/output/` to `benchmarks/integrator_study/`. It is run by hand and is not part of `Pkg.test()`.
 - CI is a single job: `windows-latest`, Julia 1. The OS and version matrix, coverage collection, the Codecov upload, and the documentation build are removed. The job runs a plain `Pkg.test()`.
 - `Pkg.test()` runs the fast suite by default. The optics regression, high-order DA, Aqua, and the optimizer tests run only when `BELL_FULL_TESTS=1`.
 - The README is in English and opens with the physics: the element s-Hamiltonian, the equations `dz/ds = S ∇H`, and the variables `z` normalised to the reference particle. Install with `Pkg.develop` on a clone; fast tests are `Pkg.test()`, and full tests set `BELL_FULL_TESTS=1`. Links to `CONTRIBUTING.md` and `AGENTS.md`.
