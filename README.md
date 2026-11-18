@@ -2,7 +2,7 @@
 
 **BELL — Beam Evolution in Accelerator Lattice**
 
-**Автор:** С. Д. Колокольчиков (Kolokolchikov Sergey Dmitrievich, `sergey.bell13@gmail.com`)
+**Author:** S. D. Kolokolchikov (Kolokolchikov Sergey Dmitrievich, `sergey.bell13@gmail.com`)
 
 Bell is the Hamiltonian dynamics of a charged particle in an accelerator lattice. The model of an element is its s-Hamiltonian `H`. The equations of motion `dz/ds = S ∇H` and the maps of the element are derived from `H`. The variables `z = (x, p_x, y, p_y, l, δ)` are normalised to the reference particle.
 

@@ -1,7 +1,7 @@
 # =============================================================================
 # acceleration.jl - ramping the reference energy with a thin RF cavity
 #
-# NOTE (v0.17): approximate / expanded longitudinal model, kept for comparison.
+# Approximate / expanded longitudinal model, kept for comparison.
 # The reference 6D RF model is the RFCavity s-Hamiltonian (src/physics/hamiltonians.jl)
 # and its exact thin limit rf_kick (src/maps/da/field_track.jl).
 # =============================================================================
