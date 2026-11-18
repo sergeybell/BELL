@@ -26,6 +26,7 @@ A short index of the same versions remains in
 
 ### Changed
 
+- Descriptions state one model: the element s-Hamiltonian `H`, with `dz/ds = S ∇H`. The field equations are an alternative formulation kept for comparison. Differential algebra and Taylor series are algebras used to compute, not a second physical model. A Taylor map is symplectic only up to its truncation order. A Lie factor applied exactly stays symplectic at any truncation; the current factors carry generators `f3` and `f4` (map order 3). The DA computation still integrates the field equations, and the Lie computation still uses `H`.
 - The optics regression no longer reads `benchmarks/`. Its reference numbers are copied into `test/test_optics_regression.jl` from a real run recorded in `benchmarks/twiss/bell/results.csv`. The checks and tolerances are unchanged, and the test still runs only when `BELL_FULL_TESTS=1`.
 - The Hénon–Heiles integrator study moved from `test/integrator_study.jl` and `test/output/` to `benchmarks/integrator_study/`. It is run by hand and is not part of `Pkg.test()`.
 - CI is a single job: `windows-latest`, Julia 1. The OS and version matrix, coverage collection, the Codecov upload, and the documentation build are removed. The job runs a plain `Pkg.test()`.

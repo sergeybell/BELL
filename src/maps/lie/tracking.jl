@@ -1,13 +1,21 @@
 # =============================================================================
-# tracking.jl - symplectic tracking with factorised Lie maps
+# tracking.jl - Lie-factor tracking of the element Hamiltonian
 # =============================================================================
 #
 # Author: Kolokolchikov Sergey Dmitrievich <sergey.bell13@gmail.com>
 #
-# The ring object is a product of Lie factors. Tracking applies each factor
-# (flow of f4, then f3, then R). RFCavity maps come from its Hamiltonian like any element.
-# A Taylor-series map of the same Hamiltonian is obtained by integrating
-# hamiltonian_field with a chosen ODE method; it stores no copy of H.
+# The model of an element is its Hamiltonian H, and dz/ds = S ∇H.
+# This computation uses H. The field equations are an alternative formulation,
+# kept for comparison. The DA computation integrates those equations and is
+# not unified with this one.
+# Taylor series is an algebra used to compute, not a second physical model.
+# The ring is a product of Lie factors. Tracking applies each factor exactly:
+# the flow of f4, then f3, then the linear map. A Lie factor applied exactly
+# is symplectic at any truncation. The current factors carry generators f3 and
+# f4 (map order 3); higher orders are algorithmically more expensive. A Taylor
+# map of the same H is symplectic only up to its truncation order and does not
+# store a copy of H. An RF cavity is mapped from its Hamiltonian, as any other
+# element.
 # =============================================================================
 module Tracking
 
