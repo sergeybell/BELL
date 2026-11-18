@@ -1,5 +1,5 @@
 name: Bug report
-description: Дефект в коде, тестах или численном результате
+description: A defect in the code, the tests, or a numerical result
 title: "fix: "
 labels:
   - bug
@@ -8,7 +8,7 @@ body:
     id: title
     attributes:
       label: Title
-      description: Короткая формулировка дефекта.
+      description: A short statement of the defect.
       placeholder: Drift map disagrees with the exact track
     validations:
       required: true
@@ -16,14 +16,14 @@ body:
     id: description
     attributes:
       label: Description
-      description: Что сломано и при каких условиях.
+      description: What is broken, and under which conditions.
     validations:
       required: true
   - type: textarea
     id: steps
     attributes:
       label: Steps to reproduce
-      description: Команды, решётка, порядок карты.
+      description: Commands, the lattice, and the map order.
       placeholder: |
         1. julia --project=.
         2. ...
@@ -33,21 +33,21 @@ body:
     id: expected
     attributes:
       label: Expected
-      description: Какой результат должен быть.
+      description: What the result should be.
     validations:
       required: true
   - type: textarea
     id: actual
     attributes:
       label: Actual
-      description: Какой результат получается на самом деле.
+      description: What the result actually is.
     validations:
       required: true
   - type: input
     id: julia_version
     attributes:
       label: Julia version
-      description: Вывод `julia --version`.
+      description: Output of `julia --version`.
       placeholder: julia version 1.10.5
     validations:
       required: true
@@ -55,7 +55,7 @@ body:
     id: os
     attributes:
       label: OS
-      description: Операционная система и, если важно, архитектура.
+      description: The operating system and, if it matters, the architecture.
       placeholder: Windows 10 x64
     validations:
       required: true

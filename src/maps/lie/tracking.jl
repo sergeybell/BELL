@@ -5,7 +5,7 @@
 # Author: Kolokolchikov Sergey Dmitrievich <sergey.bell13@gmail.com>
 #
 # The ring object is a product of Lie factors. Tracking applies each factor
-# (flow of f4, then f3, then R). RFCavity maps come from its Hamiltonian like any element (v0.17).
+# (flow of f4, then f3, then R). RFCavity maps come from its Hamiltonian like any element.
 # A Taylor-series map of the same Hamiltonian is obtained by integrating
 # hamiltonian_field with a chosen ODE method; it stores no copy of H.
 # =============================================================================

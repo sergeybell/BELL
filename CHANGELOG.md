@@ -1,58 +1,59 @@
 # Changelog
 
-Все заметные изменения Bell записываются в этот файл.
+All notable changes to Bell are recorded in this file.
 
-Формат — [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
-версии — [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-Подробные исторические заметки (v0.1–v0.17) остаются в
-[`docs/HISTORY.md`](docs/HISTORY.md). Это архив, его не переносят сюда покоммитно.
-Дальше канонический журнал — этот файл.
+Detailed historical notes (v0.1–v0.17) stay in
+[`docs/HISTORY.md`](docs/HISTORY.md). That file is an archive and is not copied here commit by commit.
+From here on, this file is the canonical log.
 
-Краткий указатель тех же версий по-прежнему лежит в
+A short index of the same versions remains in
 [`docs/CHANGELOG.md`](docs/CHANGELOG.md).
 
 ## [Unreleased]
 
 ### Added
 
-- `ParticleState` (канонический 6-вектор и слот спина, по умолчанию пустой) и `Beam` (набор таких частиц). Уравнение Томаса–Баргмана–Мишеля–Телегди не считается: спин только хранится.
-- `AbstractMap`, обёртки `LinearMap` и `DAMap` (`linear_part`, вызов как функция, `compose` для пары обёрток). `LieFactor` — тоже `AbstractMap`.
-- Трекеры `FieldTracker` (`exact_track_turn`), `LieTracker` (`track` по факторам `build_factors`) и `MapTracker` (однооборотная функция), плюс `track!` для `Beam` и для изменяемого 6-вектора. Старые функции трекинга остаются на месте.
-- Тесты разложены по файлам `test/test_*.jl`: round-trip структуры и координат, регрессия оптики `magnetic_2` по `benchmarks/twiss/bell/results.csv`, проверка Aqua.
-- `test/test_physics_consistency.jl`: `element_field` совпадает с `S ∇H` того же гамильтониана на DA порядков 5 и 6 и с численным градиентом на `Float64`.
-- В начале `docs/HISTORY.md` указано, что это архив до v0.17, а новые записи ведутся в этом файле.
+- `ParticleState` (a canonical 6-vector and a spin slot, empty by default) and `Beam` (a set of such particles). The Thomas–Bargmann–Michel–Telegdi equation is not evaluated: spin is only stored.
+- `AbstractMap`, the wrappers `LinearMap` and `DAMap` (`linear_part`, call as a function, `compose` for a pair of wrappers). `LieFactor` is an `AbstractMap` as well.
+- Trackers `FieldTracker` (`exact_track_turn`), `LieTracker` (`track` over the factors from `build_factors`), and `MapTracker` (a one-turn function), plus `track!` for a `Beam` and for a mutable 6-vector. The previous tracking functions stay in place.
+- Tests are split into files `test/test_*.jl`: structure and coordinate round-trips, an optics regression of `magnetic_2` against `benchmarks/twiss/bell/results.csv`, and an Aqua check.
+- `test/test_physics_consistency.jl`: `element_field` matches `S ∇H` of the same Hamiltonian on DA of orders 5 and 6, and matches a numerical gradient on `Float64`.
+- The top of `docs/HISTORY.md` states that it is the archive through v0.17, and that new entries go in this file.
 
 ### Changed
 
-- CI — одна задача: `windows-latest`, Julia 1. Матрица ОС и версий, сбор покрытия, загрузка в Codecov и сборка документации убраны. Задача запускает обычный `Pkg.test()`.
-- `Pkg.test()` по умолчанию гоняет быстрый набор. Регрессия оптики, DA высоких порядков, Aqua и тесты оптимизаторов запускаются только при `BELL_FULL_TESTS=1`.
-- README на английском и начинается с физики: s-гамильтониан элемента, уравнения `dz/ds = S ∇H`, переменные `z`, нормированные на референсную частицу. Установка — `Pkg.develop` клона; быстрые тесты — `Pkg.test()`, полные — с `BELL_FULL_TESTS=1`. Ссылки на `CONTRIBUTING.md` и `AGENTS.md`.
-- `LieFactor` является подтипом `AbstractMap`. Вызов `F(z)` делает то же, что `apply_factor(F, z)`.
-- HTML-документация собирается из одного дерева `docs/src`. Страницы сайта перенесены из `docs/site`. Markdown руководств PDF лежит в `docs/manual`.
-- Страница архитектуры описывает слои `math → core → io → physics → maps/{lie,da} → analysis → tracking interfaces → effects` (каталога `effects` ещё нет). Оба движка (Lie на TaylorSeries и DA на DiffAlgebra) остаются.
-- Публичные имена Bell перечислены явным `export` вместо цикла `@eval export`. Набор имён тот же; добавлена `clear_caches!()`.
-- Кэш карт DA (`_DACACHE`) включает элемент, `p0`, порядок, сам метод интегрирования, `tol` и `nsteps`. `clear_caches!()` очищает кэши карт Lie, DA и краевого поля.
-- Графики (`plot_twiss`, `plot_dispersion2`, `plot_chromatic`, `plot_acceleration`, `separatrix!`, `gif_ramp`, `gif_elements`) перенесены в расширение `BellPlotsExt`. Plots — слабая зависимость: ядро Bell её не требует, методы появляются после `using Plots`.
-- `hamiltonian(e, ref, z)` считает тот же s-гамильтониан на числах, `TaylorN` и DA. `hamiltonian(e, ref)` по-прежнему возвращает полином Lie-пути.
-- `src/` разложен по слоям `math`, `core`, `io`, `physics`, `maps`, `analysis`. Имена модулей и публичный API не изменились.
-- Цепочки `isa` у `element_lie_map`, `taylor_map_element`, `element_da_map`, `exact_track_element`, `linear_matrix`, `element_rhs`, `Base.show` и `_card_line` заменены методами. `magnetic_lattice` отбирает RF через `strip_rf`. Поведение то же; `element_rhs` для `Marker` и `RFCavity` бросает `ArgumentError`.
-- `track(factors, z; turns)` больше не принимает игнорируемые `ref` и `path_length`. Симплектичность матрицы, карты `TaylorN`, карты DA и шага трекинга — одна функция `symplectic_error` (случай DA считает `da_symplectic_error`).
+- CI is a single job: `windows-latest`, Julia 1. The OS and version matrix, coverage collection, the Codecov upload, and the documentation build are removed. The job runs a plain `Pkg.test()`.
+- `Pkg.test()` runs the fast suite by default. The optics regression, high-order DA, Aqua, and the optimizer tests run only when `BELL_FULL_TESTS=1`.
+- The README is in English and opens with the physics: the element s-Hamiltonian, the equations `dz/ds = S ∇H`, and the variables `z` normalised to the reference particle. Install with `Pkg.develop` on a clone; fast tests are `Pkg.test()`, and full tests set `BELL_FULL_TESTS=1`. Links to `CONTRIBUTING.md` and `AGENTS.md`.
+- `LieFactor` is a subtype of `AbstractMap`. Calling `F(z)` does the same as `apply_factor(F, z)`.
+- HTML documentation is built from the single tree `docs/src`. The site pages were moved out of `docs/site`. Markdown for the PDF manuals lives in `docs/manual`.
+- The architecture page describes the layers `math → core → io → physics → maps/{lie,da} → analysis → tracking interfaces → effects` (there is no `effects` directory yet). Both engines remain: Lie on TaylorSeries, and DA on DiffAlgebra.
+- Public names of Bell are listed by an explicit `export` instead of an `@eval export` loop. The set of names is the same; `clear_caches!()` was added.
+- The DA map cache (`_DACACHE`) includes the element, `p0`, the order, the integration method itself, `tol`, and `nsteps`. `clear_caches!()` clears the Lie-map, DA-map, and fringe-field caches.
+- Plots (`plot_twiss`, `plot_dispersion2`, `plot_chromatic`, `plot_acceleration`, `separatrix!`, `gif_ramp`, `gif_elements`) moved into the `BellPlotsExt` extension. Plots is a weak dependency: the Bell core does not require it, and the methods appear after `using Plots`.
+- `hamiltonian(e, ref, z)` evaluates the same s-Hamiltonian on numbers, on `TaylorN`, and on DA. `hamiltonian(e, ref)` still returns the Lie-path polynomial.
+- `src/` is laid out in the layers `math`, `core`, `io`, `physics`, `maps`, and `analysis`. Module names and the public API are unchanged.
+- `isa` chains in `element_lie_map`, `taylor_map_element`, `element_da_map`, `exact_track_element`, `linear_matrix`, `element_rhs`, `Base.show`, and `_card_line` are replaced by methods. `magnetic_lattice` selects RF elements through `strip_rf`. The behavior is the same; `element_rhs` for `Marker` and `RFCavity` throws `ArgumentError`.
+- `track(factors, z; turns)` no longer accepts the ignored arguments `ref` and `path_length`. Symplecticity of a matrix, a `TaylorN` map, a DA map, and a tracking step is one function, `symplectic_error` (the DA case calls `da_symplectic_error`).
+- This changelog, the GitHub issue and pull request templates, and the remaining Russian notes in `src/` and `benchmarks/` are in English.
 
 ### Fixed
 
 ### Removed
 
-- Из `DiffAlgebra` удалены неиспользуемые `poisson_bracket`, `lie_series`, `lie_flow`, `vector_field_flow` и `change_order`. Оставлены `canonical_pairs`, `hamiltonian_vector_field` и `da_symplectic_error`.
+- Unused `poisson_bracket`, `lie_series`, `lie_flow`, `vector_field_flow`, and `change_order` were removed from `DiffAlgebra`. `canonical_pairs`, `hamiltonian_vector_field`, and `da_symplectic_error` remain.
 
 ## [0.17.0] - 2026-11-02
 
 ### Added
 
-- s-гамильтониан `RFCavity`: тонкая карта (`L = 0`) совпадает с `rf_kick`; толстая карта использует длину `L` (`exp(-L:H:)` на Lie-пути, drift/kick/drift на field/DA).
-- Функции `rf_potential`, `rf_wavenumber` и `magnetic_lattice`.
+- The s-Hamiltonian of `RFCavity`: the thin map (`L = 0`) matches `rf_kick`; the thick map uses the length `L` (`exp(-L:H:)` on the Lie path, drift/kick/drift on the field and DA paths).
+- The functions `rf_potential`, `rf_wavenumber`, and `magnetic_lattice`.
 
 ### Changed
 
-- Раскладка исходников: `src/lie`, `src/da`, `src/common`, `src/longitudinal_models`.
-- Карты элемента (`element_lie_map`, tracking, fringe, DA) больше не содержат отдельной ветки для RF.
+- Source layout: `src/lie`, `src/da`, `src/common`, `src/longitudinal_models`.
+- Element maps (`element_lie_map`, tracking, fringe, DA) no longer contain a separate branch for RF.

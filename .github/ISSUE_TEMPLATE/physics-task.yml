@@ -1,5 +1,5 @@
 name: Physics task
-description: Физическая модель элемента или численная проверка
+description: A physical model of an element, or a numerical check
 title: "feat: "
 labels:
   - physics
@@ -8,24 +8,24 @@ body:
     id: goal
     attributes:
       label: Physics goal
-      description: Какой элемент, гамильтониан или наблюдаемая. Что должно получиться.
+      description: Which element, Hamiltonian, or observable, and what the result should be.
     validations:
       required: true
   - type: textarea
     id: references
     attributes:
       label: References
-      description: Формулы, статьи, COSY / OptiM / MAD-X, файлы решётки.
+      description: Formulas, papers, and lattice files.
       placeholder: |
         - docs/src/dev/...
-        - Wolski / COSY procedure
+        - Wolski procedure, or a lattice file
     validations:
       required: true
   - type: textarea
     id: acceptance
     attributes:
       label: Acceptance criteria
-      description: Численные проверки — референс, допуск, какой тест это фиксирует.
+      description: Numerical checks — the reference, the tolerance, and which test records them.
       placeholder: |
         - thin RF map vs rf_kick, coefficients to 2e-15
         - Q_s vs Smooth within 1.5e-5

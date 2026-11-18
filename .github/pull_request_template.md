@@ -1,6 +1,6 @@
 ## Summary
 
-<!-- Что сделано и зачем. -->
+<!-- What was done, and why. -->
 
 ## Related Issue
 

@@ -1,5 +1,5 @@
 name: Feature
-description: Новая возможность пакета
+description: A new capability of the package
 title: "feat: "
 labels:
   - enhancement
@@ -8,20 +8,20 @@ body:
     id: description
     attributes:
       label: Description
-      description: Что нужно добавить. Имена типов и функций — как в коде.
+      description: What to add. Use type and function names as in the code.
     validations:
       required: true
   - type: textarea
     id: motivation
     attributes:
       label: Motivation
-      description: Зачем это пользователю решётки или разработчику.
+      description: Why a lattice user or a developer needs this.
     validations:
       required: true
   - type: textarea
     id: acceptance
     attributes:
       label: Acceptance criteria
-      description: Когда задачу можно считать сделанной.
+      description: When the task counts as done.
     validations:
       required: true
