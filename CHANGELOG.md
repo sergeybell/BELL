@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Root `README.md` and `AGENTS.md` state that magnets and a thick RF cavity are integrated from `H`, and that a thin cavity stays `rf_kick` (no drift/kick/drift as the production path). ([#48])
 - Public docstrings in `src/` follow the settled model: magnets and a thick `RFCavity` integrate `dz/ds = S ∇H`, a thin cavity is `rf_kick`, and the field equations stay the comparison formulation. Coordinate notes state `p_x = P_x/p_0`, `δ = Δp/p_0`, and `l = -v Δt`. Version tags and retired paths are gone from those comments. ([#46], [#44])
 - `Bell.jl` includes files along math → core → io → physics → maps → analysis → tracking → longitudinal models → optimizers → research, except `Hamiltonians` after `LieAlgebra` and `FringeMaps` after `MapReadings`. `clear_caches!` is a registry in `core/caches.jl`; the facade registers the map caches when it loads. `dispersion_along` carries an RF cavity as a drift by method. The `MapReadings` header states which readings build a map. ([#45], [#43])
 - Fringe physics (edge types, profiles, `fringe_hamiltonian`, `FringeModel`) stays in `src/physics/fringe.jl` and does not build maps. Edge maps, the edge-map cache, and `fringe_observables` live in `src/maps/lie/fringe_maps.jl`. Family selection is by method. `fringe_hamiltonian(h0, F, Fp, ref, z)` evaluates the scalar Hamiltonian; the Lie path calls it on `Z`. `element_flow(H, z0; s0, s1)` integrates an s-dependent scalar `H(z, s)` by the dual symplectic gradient at each stage. `TaylorIntegrate` uses that flow. ([#42], [#41])
@@ -313,4 +314,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [#26]: https://github.com/sergeybell/BELL/pull/26
 [#27]: https://github.com/sergeybell/BELL/pull/27
 [#28]: https://github.com/sergeybell/BELL/issues/28
+[#29]: https://github.com/sergeybell/BELL/issues/29
+[#30]: https://github.com/sergeybell/BELL/issues/30
 [#32]: https://github.com/sergeybell/BELL/pull/32
+[#33]: https://github.com/sergeybell/BELL/pull/33
+[#34]: https://github.com/sergeybell/BELL/pull/34
+[#35]: https://github.com/sergeybell/BELL/issues/35
+[#36]: https://github.com/sergeybell/BELL/pull/36
+[#37]: https://github.com/sergeybell/BELL/issues/37
+[#38]: https://github.com/sergeybell/BELL/pull/38
+[#39]: https://github.com/sergeybell/BELL/issues/39
+[#40]: https://github.com/sergeybell/BELL/pull/40
+[#41]: https://github.com/sergeybell/BELL/issues/41
+[#42]: https://github.com/sergeybell/BELL/pull/42
+[#43]: https://github.com/sergeybell/BELL/issues/43
+[#44]: https://github.com/sergeybell/BELL/issues/44
+[#45]: https://github.com/sergeybell/BELL/pull/45
+[#46]: https://github.com/sergeybell/BELL/pull/46
+[#47]: https://github.com/sergeybell/BELL/issues/47
+[#48]: https://github.com/sergeybell/BELL/pull/48
