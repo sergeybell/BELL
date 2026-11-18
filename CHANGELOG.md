@@ -33,10 +33,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Pkg.test()` runs the fast suite. The optics regression, high-order DA, Aqua, and the optimizer tests run only when `BELL_FULL_TESTS=1`. Continuous integration is one job, Julia 1 on `windows-latest`, and runs that fast suite. ([#22], [#12])
 - The README is in English and opens with the physics: the element s-Hamiltonian, the equations `dz/ds = S ∇H`, and the variables `z` normalised to the reference particle. Install with `Pkg.develop` on a clone; fast tests are `Pkg.test()`, and full tests set `BELL_FULL_TESTS=1`. ([#20], [#13])
 
+### Fixed
+
+- Map caches for the linear matrix, the Lie map, the Taylor element map, the DA element map, and the fringe edge map were keyed by `p0` alone. Two reference particles with the same `p0` and a different mass, or the same mass and a different charge, no longer share a cached map: the key is the full `RefParticle`. ([#34], [#30])
+
 ### Removed
 
 - Unused `StructureFile`. ([#33], [#29])
 - `hamiltonian_vector_field` had no callers and was removed. `da_symplectic_error` remains. ([#33], [#29])
+- Write-only soft-edge RK step counter `_RK_STEPS` (it was stored and never read). ([#34], [#30])
 - `docs/HISTORY.md` and the version index `docs/CHANGELOG.md`. ([#32], [#28])
 
 ## [0.19.0] - 2026-11-17
