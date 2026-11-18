@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Forward-mode `Dual` numbers in `DiffAlgebra` evaluate the phase-space gradient of a scalar function at the current point, on numbers, on DA, and on `TaylorN`. `symplectic_gradient` applies a pairing matrix `S` (the default is the block pairing `[0 1; -1 0]`). On a DA coordinate jet, `map_vector_field` builds the same vector field with `deriv`, which agrees with the dual partial through order `N-1`. ([#35])
 - A short README in each source folder under `src/` (the dependency map in `src/README.md` is unchanged), in `ext/`, and in benchmark folders that did not have one. Each note says what is there, what it depends on, what uses it, and where new code of that kind goes. ([#26], [#17])
 - `test/README.md` and `benchmarks/README.md` say what each directory is for. Benchmark numbers come from real runs and are never fitted. ([#25], [#16])
 - `src/README.md` maps the modules from the real `using` and `import` graph, states the split between the Hamiltonian model and the computation, and lists the layering violations. ([#21], [#14])
