@@ -4,75 +4,29 @@
 
 **Автор:** С. Д. Колокольчиков (Kolokolchikov Sergey Dmitrievich, `sergey.bell13@gmail.com`)
 
-Bell — пакет Julia для симплектического моделирования пучка в ускорительной решётке.
-Гамильтониан элемента становится преобразованием Ли; произведение этих преобразований — объект одного оборота.
-Из него читаются оптика и величины старших порядков. Точное интегрирование поля — независимая проверка.
-Оба движка остаются в пакете: путь Ли на TaylorSeries и путь DA на DiffAlgebra.
+Bell is the Hamiltonian dynamics of a charged particle in an accelerator lattice. The model of an element is its s-Hamiltonian `H`. The equations of motion `dz/ds = S ∇H` and the maps of the element are derived from `H`. The variables `z = (x, p_x, y, p_y, l, δ)` are normalised to the reference particle.
 
-## Установка
+The model is the Hamiltonian. The field equations of motion are an alternative formulation, kept for comparison. Computation holds no physics: differential algebra and Taylor series are algebras, and the integrators are generic. A Taylor map is symplectic only up to its truncation order. A Lie factor applied exactly stays symplectic at any truncation; the current factors carry generators `f3` and `f4`. Today the DA path integrates the field equations, and the Lie path uses `H`.
 
-В ту среду Julia, где нужен Bell (`path` — каталог клона с `Project.toml` пакета):
+## Installation
+
+Develop the clone in the Julia environment that should see Bell. `path` is the directory of the clone that contains `Project.toml`.
 
 ```julia
 using Pkg
-Pkg.develop(path = raw"C:\path\to\Bell")
+Pkg.develop(path = "path/to/Bell")
 ```
 
-После этого `using Bell` берёт этот клон: правки в дереве видны без переустановки.
+After that, `using Bell` loads this clone.
 
-Зависимости самого пакета из корня репозитория:
+## Tests
 
-```text
-julia --project=. -e "using Pkg; Pkg.instantiate()"
-```
-
-Примеры. В `examples/Project.toml` путь к Bell задан таблицей `[sources]` (Julia 1.11 и новее):
-
-```text
-julia --project=examples -e "using Pkg; Pkg.instantiate()"
-```
-
-На Julia 1.10 ту же связь задают явно, из корня репозитория:
-
-```text
-julia --project=examples -e "using Pkg; Pkg.develop(PackageSpec(path=pwd())); Pkg.instantiate()"
-```
-
-## Быстрый старт
-
-Из корня репозитория:
-
-```julia
-using Bell
-
-lat = load_structure("examples/lattices/fodo.bell")
-R = ring_matrix(lat)
-opt = periodic_optics(R, lat.ref, path_length(lat))
-opt.x.beta, opt.y.beta
-```
-
-Линейная оптика решётки `magnetic_2`:
-
-```text
-julia --project=examples examples/10_linear_optics/run.jl
-```
-
-## Тесты
+Fast tests, from the repository root:
 
 ```text
 julia --project=. -e "using Pkg; Pkg.test()"
 ```
 
-## Документация и процесс
+Full tests are the same command with `BELL_FULL_TESTS=1`.
 
-* Сайт Documenter, одно дерево [`docs/src/index.md`](docs/src/index.md). Сборка совпадает с задачей CI:
-
-  ```text
-  julia --project=docs -e "using Pkg; Pkg.develop(PackageSpec(path=pwd())); Pkg.instantiate()"
-  julia --project=docs docs/make.jl
-  ```
-
-  На Julia 1.11 и новее достаточно `Pkg.instantiate()` в проекте `docs`: путь к Bell уже записан в `docs/Project.toml`.
-* Руководство по физике (PDF): Markdown в [`docs/manual/index.md`](docs/manual/index.md), сборка `julia --project=docs docs/make_pdf.jl`. Готовый PDF — `docs/pdf/Bell_Beam_Physics_Manual.pdf`.
-* Журнал изменений: [`CHANGELOG.md`](CHANGELOG.md). Заметки до v0.17 — архив [`docs/HISTORY.md`](docs/HISTORY.md). Краткий указатель тех же версий — [`docs/CHANGELOG.md`](docs/CHANGELOG.md).
-* Как предлагать изменения: [`CONTRIBUTING.md`](CONTRIBUTING.md). Правила для агентов: [`AGENTS.md`](AGENTS.md).
+How to propose a change: [`CONTRIBUTING.md`](CONTRIBUTING.md). Rules for agents: [`AGENTS.md`](AGENTS.md).
