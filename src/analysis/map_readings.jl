@@ -214,7 +214,7 @@ end
     chromaticity_series(lattice, N; cache = true) -> NamedTuple
 
 Exact chromaticity series of a one-turn DA map. The Lattice method drops thin
-`RFCavity` elements and uses [`one_turn_map_da`](@ref) (field ODEs on DA).
+`RFCavity` elements and uses [`one_turn_map_da`](@ref) (magnet maps from `H`).
 """
 function chromaticity_series(M::AbstractVector{<:DA}; iters::Integer = M[1].sp.no + 2)
     sp = M[1].sp; N = sp.no

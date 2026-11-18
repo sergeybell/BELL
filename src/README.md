@@ -39,6 +39,7 @@ flowchart TB
     LieAlgebra
     Linear
     Tracking
+    ElementFlow
     FieldTrack
     DATracking
   end
@@ -103,17 +104,24 @@ flowchart TB
   Tracking --> Hamiltonians
   Tracking --> LieAlgebra
   Tracking --> Integrators
+  Tracking --> ElementFlow
+  ElementFlow --> DiffAlgebra
+  ElementFlow --> Integrators
+  ElementFlow --> Coordinates
+  ElementFlow --> Elements
+  ElementFlow --> Hamiltonians
   FieldTrack --> Coordinates
   FieldTrack --> Elements
   FieldTrack --> Structure
   FieldTrack --> Fields
   FieldTrack --> Integrators
+  FieldTrack --> ElementFlow
   DATracking --> DiffAlgebra
   DATracking --> Integrators
   DATracking --> Coordinates
   DATracking --> Elements
   DATracking --> Structure
-  DATracking --> Fields
+  DATracking --> ElementFlow
   DATracking --> FieldTrack
   MapReadings --> Coordinates
   MapReadings --> Elements
@@ -147,7 +155,8 @@ flowchart TB
 Two statements repeat an edge that is already drawn and do not add a second arrow:
 
 - `maps/abstract.jl`: `using ..DiffAlgebra` and `import ..DiffAlgebra` are one arrow `Maps → DiffAlgebra`;
-- `physics/fringe.jl`: `using ..Tracking` and `import ..Tracking` are one arrow `Fringe → Tracking`.
+- `physics/fringe.jl`: `using ..Tracking` and `import ..Tracking` are one arrow `Fringe → Tracking`;
+- `maps/element_flow.jl`: `using ..Coordinates` and `using ..Coordinates: SYMPLECTIC_S` are one arrow `ElementFlow → Coordinates`.
 
 `Coordinates`, `Elements`, and `BeamState` import no other Bell module. `Optimizers` imports only `Random`. `DiffAlgebra` imports only `Printf`.
 
@@ -165,6 +174,7 @@ flowchart LR
   Bell --> OptimConverter
   Bell --> Linear
   Bell --> Symplectic
+  Bell --> ElementFlow
   Bell --> FieldTrack
   Bell --> Tracking
   Bell --> BeamState
@@ -211,7 +221,7 @@ Files with no `using` / `import` of their own, because they are pulled in by `in
 
 **Model** is what we specify. The element Hamiltonian `H(e, ref, z)` lives in `Hamiltonians`. The field equations of motion are a second formulation kept for comparison; they live in `Fields`.
 
-**Computation** is how we compute, and it holds no physics of its own. `DiffAlgebra` and Taylor series (`LieAlgebra` on top of `TaylorSeries`) are algebras. `Integrators` are generic ODE methods. Both engines take a model as input: the Lie path takes the Hamiltonian, and the field / DA path takes the right-hand side `dz/ds`.
+**Computation** is how we compute, and it holds no physics of its own. `DiffAlgebra` and Taylor series (`LieAlgebra` on top of `TaylorSeries`) are algebras. `Integrators` are generic ODE methods. Both engines take a model as input. The Lie path takes the Hamiltonian. `ElementFlow` integrates a magnet from the same Hamiltonian, `dz/ds = S ∇H`, and `FieldTrack` / `DATracking` call that flow. The field equations remain the comparison formulation. A thick RF cavity still steps its drift halves with those equations.
 
 `Fields` depends only on `Coordinates` and `Elements`. `Hamiltonians` also depends on `LieAlgebra`; that edge is in the violation list.
 
@@ -237,11 +247,12 @@ The engines import the lattice and the model:
 | File | Module | Bell modules |
 | --- | --- | --- |
 | `maps/lie/linear.jl` | `Linear` | `Coordinates`, `Elements`, `Structure`, `Hamiltonians`, `LieAlgebra` |
-| `maps/lie/tracking.jl` | `Tracking` | `Coordinates`, `Elements`, `Structure`, `Hamiltonians`, `LieAlgebra`, `Integrators` |
-| `maps/da/field_track.jl` | `FieldTrack` | `Coordinates`, `Elements`, `Structure`, `Fields`, `Integrators` |
-| `maps/da/tracking.jl` | `DATracking` | `DiffAlgebra`, `Integrators`, `Coordinates`, `Elements`, `Structure`, `Fields`, `FieldTrack` |
+| `maps/lie/tracking.jl` | `Tracking` | `Coordinates`, `Elements`, `Structure`, `Hamiltonians`, `LieAlgebra`, `Integrators`, `ElementFlow` |
+| `maps/element_flow.jl` | `ElementFlow` | `Coordinates`, `Elements`, `Hamiltonians`, `Integrators`, `DiffAlgebra` |
+| `maps/da/field_track.jl` | `FieldTrack` | `Coordinates`, `Elements`, `Structure`, `Fields`, `Integrators`, `ElementFlow` |
+| `maps/da/tracking.jl` | `DATracking` | `DiffAlgebra`, `Integrators`, `Coordinates`, `Elements`, `Structure`, `ElementFlow`, `FieldTrack` |
 
-Along the layer chain, `maps` sits to the right of `physics` and `core`, so the arrow points left. The intended split says an engine takes a model as input, so `Tracking → Hamiltonians` and `FieldTrack` / `DATracking → Fields` are recorded as that input. A literal reading of "a computation module depends on elements or physics" would count the same four files as violations. The table above follows the first reading.
+Along the layer chain, `maps` sits to the right of `physics` and `core`, so the arrow points left. The intended split says an engine takes a model as input, so `Tracking → Hamiltonians`, `ElementFlow → Hamiltonians`, and `FieldTrack → Fields` are recorded as that input. A literal reading of "a computation module depends on elements or physics" would count the same files as violations. The table above follows the first reading.
 
 `Fringe → Integrators` and `Fringe → Symplectic` point left: `physics` may depend on `math` and `core`. They are absent from the violations. `Fringe` itself calls an ODE method and the symplecticity check.
 
@@ -257,7 +268,7 @@ Every internal target in this table is an arrow on the diagram above. External t
 
 | File | Module | Statement | Bell modules | External |
 | --- | --- | --- | --- | --- |
-| `Bell.jl` | `Bell` | `using` | `Coordinates`, `Elements`, `Structure`, `Maps`, `LieAlgebra`, `Hamiltonians`, `Fields`, `OptimConverter`, `Linear`, `Symplectic`, `FieldTrack`, `Tracking`, `BeamState`, `Trackers`, `DATracking`, `MapReadings`, `Smooth`, `Acceleration`, `Fringe`, `SextupoleFamilies`, `Optimizers` | |
+| `Bell.jl` | `Bell` | `using` | `Coordinates`, `Elements`, `Structure`, `Maps`, `LieAlgebra`, `Hamiltonians`, `Fields`, `OptimConverter`, `Linear`, `Symplectic`, `ElementFlow`, `FieldTrack`, `Tracking`, `BeamState`, `Trackers`, `DATracking`, `MapReadings`, `Smooth`, `Acceleration`, `Fringe`, `SextupoleFamilies`, `Optimizers` | |
 | `math/DiffAlgebra.jl` | `DiffAlgebra` | `using` | | `Printf` |
 | `math/integrators/Integrators.jl` | `Integrators` | `using` | | `LinearAlgebra` |
 | `math/integrators/Integrators.jl` | `Integrators` | `using` | `DiffAlgebra` | |
@@ -286,11 +297,13 @@ Every internal target in this table is an arrow on the diagram above. External t
 | `maps/lie/linear.jl` | `Linear` | `using` | | `LinearAlgebra`, `TaylorSeries` |
 | `maps/lie/linear.jl` | `Linear` | `using` | `Coordinates`, `Elements`, `Structure`, `Hamiltonians`, `LieAlgebra` | |
 | `maps/lie/tracking.jl` | `Tracking` | `using` | | `TaylorSeries`, `LinearAlgebra` |
-| `maps/lie/tracking.jl` | `Tracking` | `using` | `Coordinates`, `Elements`, `Structure`, `Hamiltonians`, `LieAlgebra`, `Integrators` | |
-| `maps/da/field_track.jl` | `FieldTrack` | `using` | `Coordinates`, `Elements`, `Structure`, `Fields`, `Integrators` | |
+| `maps/lie/tracking.jl` | `Tracking` | `using` | `Coordinates`, `Elements`, `Structure`, `Hamiltonians`, `LieAlgebra`, `Integrators`, `ElementFlow` | |
+| `maps/element_flow.jl` | `ElementFlow` | `using` | `Coordinates`, `Elements`, `Hamiltonians`, `Integrators`, `DiffAlgebra` | |
+| `maps/element_flow.jl` | `ElementFlow` | `using` | `Coordinates` | |
+| `maps/da/field_track.jl` | `FieldTrack` | `using` | `Coordinates`, `Elements`, `Structure`, `Fields`, `Integrators`, `ElementFlow` | |
 | `maps/da/tracking.jl` | `DATracking` | `using` | | `LinearAlgebra` |
 | `maps/da/tracking.jl` | `DATracking` | `using` | `DiffAlgebra`, `Integrators` | |
-| `maps/da/tracking.jl` | `DATracking` | `using` | `Coordinates`, `Elements`, `Structure`, `Fields`, `FieldTrack` | |
+| `maps/da/tracking.jl` | `DATracking` | `using` | `Coordinates`, `Elements`, `Structure`, `ElementFlow`, `FieldTrack` | |
 | `maps/lie/normal_form.jl` | `NormalForm` | `using` | | `LinearAlgebra` |
 | `maps/lie/normal_form.jl` | `NormalForm` | `using` | | `TaylorSeries` |
 | `maps/lie/normal_form.jl` | `NormalForm` | `using` | `LieAlgebra`, `Coordinates`, `Elements`, `Structure`, `Tracking`, `MapReadings`, `Smooth`, `Linear` | |

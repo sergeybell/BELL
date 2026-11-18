@@ -29,6 +29,7 @@ end
     include("test_phase_space_gradient.jl")
     include("test_src_review.jl")
     include("test_da_tracking.jl")
+    include("test_element_flow.jl")
     include("test_lie.jl")
     include("test_tracking_interfaces.jl")
     include("test_physics_consistency.jl")

@@ -5,9 +5,9 @@
 # Author: Kolokolchikov Sergey Dmitrievich <sergey.bell13@gmail.com>
 #
 # The model of an element is its Hamiltonian H, and dz/ds = S ∇H.
-# This computation uses H. The field equations are an alternative formulation,
-# kept for comparison. The DA computation integrates those equations and is
-# not unified with this one.
+# This computation uses H as Lie factors. A magnet Taylor map integrates the
+# same H through ElementFlow. The field equations are an alternative
+# formulation, kept for comparison and for tests.
 # Taylor series is an algebra used to compute, not a second physical model.
 # The ring is a product of Lie factors. Tracking applies each factor exactly:
 # the flow of f4, then f3, then the linear map. A Lie factor applied exactly
@@ -20,7 +20,7 @@
 module Tracking
 
 using TaylorSeries, LinearAlgebra
-using ..Coordinates, ..Elements, ..Structure, ..Hamiltonians, ..LieAlgebra, ..Integrators
+using ..Coordinates, ..Elements, ..Structure, ..Hamiltonians, ..LieAlgebra, ..Integrators, ..ElementFlow
 
 export build_factors, apply_factor, track, element_lie_map, ring_lie_factor,
        taylor_map_element, element_maps, ring_taylor_map, laboratory_map
@@ -137,9 +137,10 @@ end
     taylor_map_element(e, ref; ds = 0.01, method = RK4(), order = MAP_ORDER, path_length = 0) -> Vector{TaylorN}
 
 Taylor map of one element: integrate ``dz/ds = S\\nabla H`` of [`hamiltonian`](@ref)
-with `method` in polynomial arithmetic, starting from the identity. Truncated
-to `order`. A marker is the identity; a thin RF cavity integrates [`rf_potential`](@ref)
-over a unit interval. This is a check of the Lie map, not the production route.
+with `method` in polynomial arithmetic, starting from the identity. A magnet
+uses [`element_flow`](@ref). Truncated to `order`. A marker is the identity; a
+thin RF cavity integrates [`rf_potential`](@ref) over a unit interval. This is
+a check of the Lie map, not the production route.
 """
 function taylor_map_element(e::Marker, ref::RefParticle; ds = 0.01,
                             method::ODEMethod = RK4(), order::Int = MAP_ORDER, path_length::Real = 0.0)
@@ -156,7 +157,11 @@ end
 
 function taylor_map_element(e::AbstractElement, ref::RefParticle; ds = 0.01,
                             method::ODEMethod = RK4(), order::Int = MAP_ORDER, path_length::Real = 0.0)
-    return _taylor_flow(hamiltonian_field(hamiltonian(e, ref, path_length)), elem_length(e); ds, method, order)
+    L = elem_length(e)
+    L == 0 && return collect(Z)
+    n = max(4, ceil(Int, L / ds))
+    zf = element_flow(e, ref, collect(Z); method = method, nsteps = n, path_length = path_length)
+    return [truncate_to(zi, order) for zi in zf]
 end
 
 """

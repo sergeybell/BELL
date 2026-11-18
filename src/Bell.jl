@@ -15,10 +15,11 @@
 # A new `using ..X` follows that direction. Include order: Symplectic is
 # loaded before LieAlgebra so the TaylorN method of symplectic_error can
 # extend it (core does not import the map algebra). Hamiltonians stay after
-# LieAlgebra. Fringe stays after Tracking. SextupoleFamilies stays after
-# MapReadings. Map types are included before LieAlgebra so that
-# LieFactor <: AbstractMap. Beam state and trackers are included after
-# FieldTrack and Tracking.
+# LieAlgebra. ElementFlow stays after Hamiltonians and Integrators, and before
+# FieldTrack, Tracking, and DATracking. Fringe stays after Tracking.
+# SextupoleFamilies stays after MapReadings. Map types are included before
+# LieAlgebra so that LieFactor <: AbstractMap. Beam state and trackers are
+# included after FieldTrack and Tracking.
 # =============================================================================
 """
     Bell
@@ -35,8 +36,10 @@ exactly symplectic at any truncation when the factor is applied exactly. The
 current implementation carries generators `f3` and `f4` (map order 3); higher
 orders are algorithmically more expensive.
 
-The two computations are not unified. The DA computation integrates the field
-equations. The Lie computation uses `H`.
+Magnetic elements are integrated from `H`: `dz/ds = S ∇H`, on numbers, on
+differential algebra, and on Taylor series. The field equations remain for
+comparison and for tests. An RF cavity keeps its kick, or drift/kick/drift
+when the cavity is thick. The Lie computation uses `H` as Lie factors.
 
 Smooth `(φ, δ)` is a separate averaged model, not 6D RF tracking.
 `NormalForm` is research-only (`using Bell.NormalForm`).
@@ -62,6 +65,7 @@ include("physics/hamiltonians.jl")
 include("physics/fields.jl")
 include("io/optim_converter.jl")
 include("maps/lie/linear.jl")
+include("maps/element_flow.jl")
 include("maps/da/field_track.jl")
 include("maps/lie/tracking.jl")
 include("tracking/state.jl")
@@ -78,7 +82,7 @@ include("optimizers/Optimizers.jl")
 include("maps/lie/normal_form.jl")
 
 using .Coordinates, .Elements, .Structure, .Maps, .LieAlgebra, .Hamiltonians, .Fields,
-      .OptimConverter, .Linear, .Symplectic, .FieldTrack, .Tracking, .BeamState, .Trackers,
+      .OptimConverter, .Linear, .Symplectic, .ElementFlow, .FieldTrack, .Tracking, .BeamState, .Trackers,
       .DATracking, .MapReadings, .Smooth, .Acceleration, .Fringe, .SextupoleFamilies,
       .Optimizers
 
@@ -102,7 +106,7 @@ export AbstractElement, AbstractMap, AbstractTracker, Beam, DAMap, Drift, EdgeMa
        clear_caches!, closed_orbit, coeff, compose_maps, concatenate, convert_optim, curvature,
        describe_reference, deuteron, dispersion_along, dispersion_orders, dragt_finn_factor,
        edge_map, edge_model, electron, elem_length, element_da_map, element_da_maps, element_field,
-       element_lie_map, element_maps, element_rhs, energy_term, enge_default, exact_track_element,
+       element_flow, element_lie_map, element_maps, element_rhs, energy_term, enge_default, exact_track_element,
        exact_track_turn, exponents_of_order, factor_to_map, find_optics_maxima, fixed_points,
        fringe_hamiltonian, fringe_integral, fringe_observables, fringe_sequence, gif_elements,
        gif_ramp, hamiltonian, hamiltonian_field, hamiltonian_formula, hessian, hom, identity_factor,

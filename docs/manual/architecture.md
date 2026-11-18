@@ -50,12 +50,13 @@ flowchart TD
 | `src/core/coordinates.jl` | Coordinates | Particle, reference, canonical and laboratory coordinates |
 | `src/core/elements.jl` | Elements | Data types: drift, bend, quad, sext, thin RF, marker |
 | `src/core/structure.jl` | Structure | Lattice and structure file |
-| `src/physics/hamiltonians.jl` | Hamiltonians | Polynomial `H` for the Lie path only |
-| `src/physics/fields.jl` | Fields | Equations of motion `dz/ds` from multipole fields |
+| `src/physics/hamiltonians.jl` | Hamiltonians | s-Hamiltonian of every element |
+| `src/physics/fields.jl` | Fields | Comparison equations of motion `dz/ds` |
+| `src/maps/element_flow.jl` | ElementFlow | Integrate a magnet from `H`: `dz/ds = S ∇H` |
 | `src/maps/lie/lie_algebra.jl` | Lie algebra | Poisson bracket, Lie series, Dragt–Finn |
 | `src/maps/lie/tracking.jl` | Tracking | Lie factors of truncated `H`; thin RF via `rf_kick` |
-| `src/maps/da/field_track.jl` | FieldTrack | Float64 tracking of field ODEs + `rf_kick` |
-| `src/maps/da/tracking.jl` | DATracking | Same field ODEs on DA (any order N) |
+| `src/maps/da/field_track.jl` | FieldTrack | Float64 tracking of magnets from `H`, plus `rf_kick` |
+| `src/maps/da/tracking.jl` | DATracking | Magnet maps from `H` on DA (any order N) |
 | `src/math/DiffAlgebra.jl` | DiffAlgebra | Truncated power series (pure maths) |
 | `src/longitudinal_models/smooth.jl` | Smooth | Averaged `(φ, δ)` — not 6D RF |
 | `src/longitudinal_models/acceleration.jl` | Acceleration | Ramp with thin `RFCavity` + `renormalize` |
@@ -64,9 +65,10 @@ flowchart TD
 
 **Lie path.** Polynomial Hamiltonian → Dragt–Finn → `Tracking`.
 
-**Field / DA path.** Write `dz/ds = f(z)` from hard-edge fields
-(`physics/fields.jl`), not from `H`. Evaluate on `Float64` (`FieldTrack`) or on DA
-(`DATracking`) to any order `N`. Same thin `rf_kick`.
+**Magnet flow.** `dz/ds = S ∇H` from the element Hamiltonian (`ElementFlow`).
+`FieldTrack` evaluates it on `Float64`. `DATracking` evaluates it on DA to any
+order `N`. The field equations remain for comparison. Thin RF is the same
+`rf_kick` on both paths. A thick cavity is drift/kick/drift.
 
 ## Thin RF in 6D
 

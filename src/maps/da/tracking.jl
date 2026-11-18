@@ -1,22 +1,22 @@
 # =============================================================================
-# maps/da/tracking.jl - maps from the field equations on differential algebra
+# maps/da/tracking.jl - magnet maps from the s-Hamiltonian on differential algebra
 # =============================================================================
 #
 # Author: Kolokolchikov Sergey Dmitrievich <sergey.bell13@gmail.com>
 #
 # The model of an element is its Hamiltonian H, and dz/ds = S ∇H.
 # Differential algebra is an algebra used to compute the map, not a second
-# physical model. This computation integrates the field equations of motion,
-# the alternative formulation kept for comparison, on series initial
-# conditions to a chosen order. It does not use H. A Taylor map is symplectic
-# only up to its truncation order. The Lie computation uses H and is not
-# unified with this one.
+# physical model. A magnet is integrated from H by ElementFlow, on the identity
+# jet, to a chosen order. A Taylor map is symplectic only up to its truncation
+# order. The field equations remain for comparison and for tests. An RF cavity
+# still uses FieldTrack (thin kick, or drift/kick/drift). The Lie computation
+# uses the same H as Lie factors.
 # =============================================================================
 module DATracking
 
 using LinearAlgebra
 using ..DiffAlgebra, ..Integrators
-using ..Coordinates, ..Elements, ..Structure, ..Fields, ..FieldTrack
+using ..Coordinates, ..Elements, ..Structure, ..FieldTrack, ..ElementFlow
 
 export map_space, element_da_map, element_da_maps, one_turn_map_da
 
@@ -25,7 +25,7 @@ const _SPACES = Dict{Tuple{Int,Int},DASpace}()
 """
     map_space(N) -> DASpace
 
-Cached shared 6-variable DA space of order `N` for field maps
+Cached shared 6-variable DA space of order `N` for element maps
 ``z = (x, p_x, y, p_y, l, \\delta)``.
 """
 map_space(N::Integer) = get!(() -> DASpace(6, N), _SPACES, (6, Int(N)))
@@ -33,8 +33,8 @@ map_space(N::Integer) = get!(() -> DASpace(6, N), _SPACES, (6, Int(N)))
 @doc raw"""
     element_da_map(e, ref, N; method = DormandPrince853(), tol = 1e-14, nsteps = nothing) -> Vector{DA}
 
-Transfer map of element `e` to order ``N`` by integrating the field equations of
-motion on DA initial conditions ``z(0) =`` identity jet. A [`Marker`](@ref) is the
+Transfer map of element `e` to order ``N``. A magnet integrates ``dz/ds = S\\nabla H``
+([`element_flow`](@ref)) on the DA identity jet. A [`Marker`](@ref) is the
 identity. An [`RFCavity`](@ref) needs `path_length`: thin uses [`rf_kick`](@ref),
 thick is drift/kick/drift. `SBend`: body only (no edge angles).
 """
@@ -58,16 +58,17 @@ function element_da_map(e::AbstractElement, ref::RefParticle, N::Integer;
     L = elem_length(e)
     L == 0 && return identity_map(sp)
     z0 = collect(da_vars(sp))
-    f = element_rhs(e, ref)
+    plen = path_length === nothing ? 0.0 : Float64(path_length)
     if nsteps === nothing
-        return integrate(f, z0, 0.0, L; method = method, tol = tol).z
+        return element_flow(e, ref, z0; s1 = L, method = method, tol = tol, path_length = plen)
     else
-        return integrate_fixed(f, z0, 0.0, L, nsteps; method = method).z
+        return element_flow(e, ref, z0; s1 = L, method = method, tol = tol,
+                            nsteps = nsteps, path_length = plen)
     end
 end
 
 # Key: element, reference particle, order, method value, tol, nsteps.
-# `path_length` and `ds` do not change a non-RF field map (RF is not cached).
+# `path_length` and `ds` do not change a non-RF magnet map (RF is not cached).
 const _DACacheKey = Tuple{Any,RefParticle,Int,Any,Float64,Union{Nothing,Int}}
 const _DACACHE = Dict{_DACacheKey,Vector{DA{Float64}}}()
 
@@ -86,7 +87,7 @@ end
 `path_length(lattice)` and is not cached. With `cache = true`, every other
 element is stored under `(element, reference particle, N, method, tol, nsteps)`. `method` is
 the integrator value, so two methods of one type with different parameters do
-not share an entry. `path_length` and `ds` do not change a non-RF field map
+not share an entry. `path_length` and `ds` do not change a non-RF magnet map
 and are not part of the key. A warning is given when an [`SBend`](@ref) has a
 nonzero edge angle: the map is the body only.
 """
@@ -113,7 +114,7 @@ end
 """
     one_turn_map_da(lattice, N; cache = true, kw...) -> Vector{DA}
 
-One-turn DA map at order N from composition of element field maps.
+One-turn DA map at order N from composition of element maps.
 RF cavities are included (exact `rf_kick` / thick splitting); use `magnetic_lattice` for the magnetic ring.
 """
 function one_turn_map_da(lattice::Lattice, N::Integer; cache::Bool = true, kw...)

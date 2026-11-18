@@ -11,7 +11,7 @@ Modules: `FieldTrack`, `Acceleration`, `Smooth`. The only RF element is thin
 
 | where | longitudinal treatment | truncated? |
 |:--|:--|:--|
-| [`exact_track_element`](@ref) (magnets) | field ODEs with exact roots | **no** |
+| [`exact_track_element`](@ref) (magnets) | ``S\nabla H``, square roots kept closed | **no** |
 | [`rf_kick`](@ref) | exact energy kick; ``E \leftrightarrow \delta``, ``l \leftrightarrow \Delta t`` | **no** |
 | [`accelerate`](@ref), [`turn_snapshots`](@ref) | field track + [`renormalize`](@ref) after each thin kick | **no** |
 | [`element_da_map`](@ref) / DA `rf_kick` | same formulas on DA → jet to order N | series cut is the DA order only |
