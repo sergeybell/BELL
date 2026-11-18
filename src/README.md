@@ -1,18 +1,18 @@
-# Карта зависимостей `src/`
+# Dependency map of `src/`
 
-Стрелка `A → B` значит: в `src/` модуль `A` зависит от модуля `B`. Ребро берётся из оператора `using` или `import`. `include` ребром не считается: он только вкладывает файл в уже открытый модуль.
+An arrow `A → B` means: in `src/`, module `A` depends on module `B`. An edge comes from a `using` or `import`. An `include` is not an edge: it only inserts a file into a module that is already open.
 
-Цепочка слоёв, по которой ребро считается направленным к более правому слою, записана в шапке `Bell.jl` и дополнена каталогами, которых в той строке нет:
+The layer chain that decides whether an edge points toward a layer further to the right is the one in the header of `Bell.jl`, plus the directories that line does not name:
 
 ```text
 math → core → io → physics → maps → analysis → tracking → longitudinal_models → optimizers → research
 ```
 
-`tracking` здесь — каталог `src/tracking` (`BeamState`, `Trackers`). Модуль `Tracking` в `maps/lie/tracking.jl` остаётся в слое `maps`. `NormalForm` лежит в `maps/lie/`, но шапка файла называет его research-слоем: он подключается последним и не входит в `using` фасада `Bell`. На диаграмме он стоит в `research`, справа от `longitudinal_models`.
+Here `tracking` is the directory `src/tracking` (`BeamState`, `Trackers`). The `Tracking` module in `maps/lie/tracking.jl` stays in the `maps` layer. `NormalForm` lives under `maps/lie/`, and the file header calls it a research layer: it is included last and is absent from the `using` of the `Bell` facade. On the diagram it sits in `research`, to the right of `longitudinal_models`.
 
-Сплошная стрелка идёт внутри одного слоя или к более левому слою. Пунктир идёт к более правому слою: это нарушение «нижний зависит от верхнего».
+A solid arrow stays inside one layer or points toward a layer further to the left. A dotted arrow points toward a layer further to the right: a lower layer depending on an upper one.
 
-## Диаграмма модулей
+## Module diagram
 
 ```mermaid
 flowchart TB
@@ -143,14 +143,14 @@ flowchart TB
   NormalForm --> Linear
 ```
 
-Два оператора повторяют уже нарисованное ребро и второй стрелки не дают:
+Two statements repeat an edge that is already drawn and do not add a second arrow:
 
-- `maps/abstract.jl`: `using ..DiffAlgebra` и `import ..DiffAlgebra` — одна стрелка `Maps → DiffAlgebra`;
-- `physics/fringe.jl`: `using ..Tracking` и `import ..Tracking` — одна стрелка `Fringe → Tracking`.
+- `maps/abstract.jl`: `using ..DiffAlgebra` and `import ..DiffAlgebra` are one arrow `Maps → DiffAlgebra`;
+- `physics/fringe.jl`: `using ..Tracking` and `import ..Tracking` are one arrow `Fringe → Tracking`.
 
-`Coordinates`, `Elements` и `BeamState` не импортируют другие модули Bell. `Optimizers` импортирует только `Random`, `DiffAlgebra` — только `Printf`.
+`Coordinates`, `Elements`, and `BeamState` import no other Bell module. `Optimizers` imports only `Random`. `DiffAlgebra` imports only `Printf`.
 
-Фасад `Bell` реэкспортирует подмодули отдельным `using` в `Bell.jl`. `DiffAlgebra`, `Integrators` и `NormalForm` в этот список не входят.
+The `Bell` facade re-exports submodules with a separate `using` in `Bell.jl`. `DiffAlgebra`, `Integrators`, and `NormalForm` are absent from that list.
 
 ```mermaid
 flowchart LR
@@ -177,11 +177,11 @@ flowchart LR
   Bell --> Optimizers
 ```
 
-## Внешние пакеты
+## External packages
 
-В граф модулей Bell они не входят. `TaylorSeries` — зависимость пакета. `LinearAlgebra`, `Printf` и `Random` — стандартная библиотека Julia.
+These names stay outside the Bell module graph. `TaylorSeries` is a package dependency. `LinearAlgebra`, `Printf`, and `Random` are Julia standard libraries.
 
-| Модуль | Файл | Пакеты |
+| Module | File | Packages |
 | --- | --- | --- |
 | `DiffAlgebra` | `math/DiffAlgebra.jl` | `Printf` |
 | `Integrators` | `math/integrators/Integrators.jl` | `LinearAlgebra` |
@@ -198,66 +198,66 @@ flowchart LR
 | `MapReadings` | `analysis/map_readings.jl` | `TaylorSeries`, `LinearAlgebra` |
 | `Optimizers` | `optimizers/Optimizers.jl` | `Random` |
 
-В `src/core/plotting.jl` нет `using` и `import`. Имя `Plots` есть в docstring. Методы графиков лежат в `ext/BellPlotsExt.jl`, это вне `src/`.
+`src/core/plotting.jl` has no `using` or `import`. The name `Plots` appears in a docstring. The plot methods live in `ext/BellPlotsExt.jl`, outside `src/`.
 
-Файлы без собственного `using` / `import`, потому что они вложены через `include`:
+Files with no `using` / `import` of their own, because they are pulled in by `include`:
 
-- `math/lie_series.jl` — внутрь `DiffAlgebra`;
-- `math/integrators/rk4.jl`, `dormand_prince.jl`, `gragg_bulirsch_stoer.jl`, `implicit_midpoint.jl`, `yoshida.jl` — внутрь `Integrators`;
-- `core/caches.jl` и `core/plotting.jl` — внутрь `Bell`.
+- `math/lie_series.jl` goes into `DiffAlgebra`;
+- `math/integrators/rk4.jl`, `dormand_prince.jl`, `gragg_bulirsch_stoer.jl`, `implicit_midpoint.jl`, and `yoshida.jl` go into `Integrators`;
+- `core/caches.jl` and `core/plotting.jl` go into `Bell`.
 
-## Задуманное разделение
+## Intended split
 
-**Модель** — то, что мы задаём. Гамильтониан элемента `H(e, ref, z)` живёт в `Hamiltonians`. Уравнения движения поля — вторая формулировка для сравнения, модуль `Fields`.
+**Model** is what we specify. The element Hamiltonian `H(e, ref, z)` lives in `Hamiltonians`. The field equations of motion are a second formulation kept for comparison; they live in `Fields`.
 
-**Вычисление** — то, как мы считаем, без своей физики. `DiffAlgebra` и ряды Тейлора (`LieAlgebra` поверх `TaylorSeries`) — алгебры. `Integrators` — общие методы ОДУ. Оба движка принимают модель на вход: путь Ли берёт гамильтониан, путь поля и DA берёт правую часть `dz/ds`.
+**Computation** is how we compute, and it holds no physics of its own. `DiffAlgebra` and Taylor series (`LieAlgebra` on top of `TaylorSeries`) are algebras. `Integrators` are generic ODE methods. Both engines take a model as input: the Lie path takes the Hamiltonian, and the field / DA path takes the right-hand side `dz/ds`.
 
-`Fields` зависит только от `Coordinates` и `Elements`. `Hamiltonians` зависит ещё и от `LieAlgebra`; эта связь стоит в нарушениях.
+`Fields` depends only on `Coordinates` and `Elements`. `Hamiltonians` also depends on `LieAlgebra`; that edge is in the violation list.
 
-## Нарушения
+## Violations
 
-Смысл подписан по двум вопросам: ребро смотрит в более правый слой, и физика зависит от построения или чтения карт. Модулей вычисления, которые сами импортируют элементы или физику, в узком наборе алгебр и интеграторов нет: `DiffAlgebra`, `Integrators`, `Maps` и `LieAlgebra` тянут только друг друга и внешние пакеты. Движки карт разобраны ниже, в спорной классификации.
+Each row answers two questions: the edge points at a layer further to the right, and physics depends on map building or on reading an already built map. In the narrow set of algebras and integrators, no computation module imports elements or physics: `DiffAlgebra`, `Integrators`, `Maps`, and `LieAlgebra` depend only on each other and on external packages. The map engines are under disputed classification below.
 
-| Файл | Модуль | Зависит от | В чём нарушение |
+| File | Module | Depends on | What is wrong |
 | --- | --- | --- | --- |
-| `physics/hamiltonians.jl` | `Hamiltonians` | `LieAlgebra` | `physics` левее `maps`. Модель гамильтониана зависит от алгебры Lie-пути (`Z`, `JET_ORDER`). |
-| `core/symplectic.jl` | `Symplectic` | `LieAlgebra` | `core` левее `maps`. Проверка симплектичности зависит от алгебры карт. |
-| `core/sextupole_families.jl` | `SextupoleFamilies` | `LieAlgebra` | `core` левее `maps`. |
-| `core/sextupole_families.jl` | `SextupoleFamilies` | `MapReadings` | `core` левее `analysis`. |
-| `physics/fringe.jl` | `Fringe` | `LieAlgebra` | `physics` левее `maps`. Модель края зависит от алгебры карт. |
-| `physics/fringe.jl` | `Fringe` | `Linear` | `physics` левее `maps`. Модель края зависит от линейных матриц. |
-| `physics/fringe.jl` | `Fringe` | `Tracking` | `physics` левее `maps`. Модель края зависит от построения Lie-карт. Тот же модуль назван и в `using`, и в `import`. |
-| `physics/fringe.jl` | `Fringe` | `MapReadings` | `physics` левее `analysis`. Модель края зависит от чтения уже построенной карты. |
-| `core/caches.jl` | `Bell` | `DATracking`, `Tracking`, `Linear`, `Fringe` | Отдельного `using` нет, стрелки на диаграмме нет. `clear_caches!` в файле слоя `core` опустошает приватные кэши `_DACACHE`, `_SPACES`, `_MCACHE`, `_TMCACHE`, `_HCACHE`, `_RK_STEPS`, `_ECACHE`. |
+| `physics/hamiltonians.jl` | `Hamiltonians` | `LieAlgebra` | `physics` is left of `maps`. The Hamiltonian model depends on the Lie-path algebra (`Z`, `JET_ORDER`). |
+| `core/symplectic.jl` | `Symplectic` | `LieAlgebra` | `core` is left of `maps`. The symplecticity check depends on the map algebra. |
+| `core/sextupole_families.jl` | `SextupoleFamilies` | `LieAlgebra` | `core` is left of `maps`. |
+| `core/sextupole_families.jl` | `SextupoleFamilies` | `MapReadings` | `core` is left of `analysis`. |
+| `physics/fringe.jl` | `Fringe` | `LieAlgebra` | `physics` is left of `maps`. The edge model depends on the map algebra. |
+| `physics/fringe.jl` | `Fringe` | `Linear` | `physics` is left of `maps`. The edge model depends on the linear matrices. |
+| `physics/fringe.jl` | `Fringe` | `Tracking` | `physics` is left of `maps`. The edge model depends on Lie-map building. The same module is named in both `using` and `import`. |
+| `physics/fringe.jl` | `Fringe` | `MapReadings` | `physics` is left of `analysis`. The edge model depends on reading an already built map. |
+| `core/caches.jl` | `Bell` | `DATracking`, `Tracking`, `Linear`, `Fringe` | There is no `using`, so the diagram has no arrow. `clear_caches!`, in a file of the `core` layer, empties the private caches `_DACACHE`, `_SPACES`, `_MCACHE`, `_TMCACHE`, `_HCACHE`, `_RK_STEPS`, and `_ECACHE`. |
 
-## Спорная классификация
+## Disputed classification
 
-Эти `using` на диаграмме есть. В таблицу нарушений они не попали.
+These `using` statements are on the diagram. They are absent from the violation table.
 
-Движки импортируют решётку и модель:
+The engines import the lattice and the model:
 
-| Файл | Модуль | Модули Bell |
+| File | Module | Bell modules |
 | --- | --- | --- |
 | `maps/lie/linear.jl` | `Linear` | `Coordinates`, `Elements`, `Structure`, `Hamiltonians`, `LieAlgebra` |
 | `maps/lie/tracking.jl` | `Tracking` | `Coordinates`, `Elements`, `Structure`, `Hamiltonians`, `LieAlgebra`, `Integrators` |
 | `maps/da/field_track.jl` | `FieldTrack` | `Coordinates`, `Elements`, `Structure`, `Fields`, `Integrators` |
 | `maps/da/tracking.jl` | `DATracking` | `DiffAlgebra`, `Integrators`, `Coordinates`, `Elements`, `Structure`, `Fields`, `FieldTrack` |
 
-По цепочке слоёв `maps` правее `physics` и `core`, стрелка смотрит влево. Задуманное разделение говорит, что движок принимает модель на вход, поэтому `Tracking → Hamiltonians` и `FieldTrack` / `DATracking → Fields` записаны как этот вход. Буквальное чтение «модуль вычисления зависит от элементов или физики» относит те же четыре файла к нарушениям. В таблицу выше записано первое чтение.
+Along the layer chain, `maps` sits to the right of `physics` and `core`, so the arrow points left. The intended split says an engine takes a model as input, so `Tracking → Hamiltonians` and `FieldTrack` / `DATracking → Fields` are recorded as that input. A literal reading of "a computation module depends on elements or physics" would count the same four files as violations. The table above follows the first reading.
 
-`Fringe → Integrators` и `Fringe → Symplectic` смотрят влево: `physics` может зависеть от `math` и `core`. В нарушения не входят. Сам `Fringe` при этом вызывает метод ОДУ и проверку симплектичности.
+`Fringe → Integrators` and `Fringe → Symplectic` point left: `physics` may depend on `math` and `core`. They are absent from the violations. `Fringe` itself calls an ODE method and the symplecticity check.
 
-`MapReadings` импортирует `Tracking` и `DATracking`. Шапка `analysis/map_readings.jl` говорит, что модуль решётку не интегрирует. Слой `analysis` правее `maps`, стрелка смотрит влево.
+`MapReadings` imports `Tracking` and `DATracking`. The header of `analysis/map_readings.jl` says the module does not integrate the lattice. The `analysis` layer sits to the right of `maps`, so the arrow points left.
 
-`NormalForm → MapReadings` и `NormalForm → Smooth` смотрят влево только потому, что `NormalForm` поставлен в `research`. Если считать его частью `maps` по каталогу `maps/lie/`, оба ребра идут в более правый слой и становятся нарушением.
+`NormalForm → MapReadings` and `NormalForm → Smooth` point left only because `NormalForm` is placed in `research`. Treated as part of `maps` because the file is under `maps/lie/`, both edges point at a layer further to the right and are violations.
 
-`using` в `Bell.jl` — реэкспорт фасада и рёбра второй диаграммы. Фасад собирает пакет и стоит над подмодулями, поэтому эти стрелки нарушением слоя не считаются.
+The `using` in `Bell.jl` is the facade re-export and the edges of the second diagram. The facade assembles the package and sits above the submodules, so these arrows are not a layering violation.
 
-## Все операторы `using` и `import`
+## Every `using` and `import`
 
-Каждая внутренняя цель из этой таблицы — стрелка на диаграмме выше. Внешние цели в граф не входили.
+Every internal target in this table is an arrow on the diagram above. External targets stay out of the graph.
 
-| Файл | Модуль | Оператор | Модули Bell | Внешние |
+| File | Module | Statement | Bell modules | External |
 | --- | --- | --- | --- | --- |
 | `Bell.jl` | `Bell` | `using` | `Coordinates`, `Elements`, `Structure`, `Maps`, `LieAlgebra`, `Hamiltonians`, `Fields`, `OptimConverter`, `Linear`, `Symplectic`, `FieldTrack`, `Tracking`, `BeamState`, `Trackers`, `DATracking`, `MapReadings`, `Smooth`, `Acceleration`, `Fringe`, `SextupoleFamilies`, `Optimizers` | |
 | `math/DiffAlgebra.jl` | `DiffAlgebra` | `using` | | `Printf` |
