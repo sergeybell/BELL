@@ -21,6 +21,16 @@ using ..Coordinates, ..Elements, ..Structure, ..FieldTrack
 export accelerate, measure_tune, turn_snapshots
 
 """
+    after_element!(zs, ref, e) -> (zs, ref)
+
+Hook after one element of an energy ramp. An [`RFCavity`](@ref) rebuilds the
+reference from the synchronous particle ([`renormalize`](@ref)). Every other
+element returns the same states and reference.
+"""
+after_element!(zs, ref, ::RFCavity) = renormalize(zs, ref, 1)
+after_element!(zs, ref, ::AbstractElement) = (zs, ref)
+
+"""
     accelerate(lattice, injection_reference, laboratory_particles;
                Ekin_target = 270.0, max_turns = 10_000,
                flat_turns = 1000, phi_flat = π, ds = 0.2) -> (record, flat_start)
@@ -66,9 +76,7 @@ function accelerate(lattice::Lattice, injection_reference::RefParticle, laborato
     for n in 1:max_turns
         for e in curlat.elements
             zs = [exact_track_element(z, e, ref, Lpath; ds = ds) for z in zs]
-            if e isa RFCavity
-                zs, ref = renormalize(zs, ref, 1)
-            end
+            zs, ref = after_element!(zs, ref, e)
         end
         record!(n)
         if flat_start == 0 && ref.Ekin_MeV >= Ekin_target
@@ -107,7 +115,7 @@ function turn_snapshots(lattice::Lattice, ref::RefParticle, zs; ds = 0.2)
     names = ["start"]; svals = [0.0]; s = 0.0
     for e in lattice.elements
         zs = [exact_track_element(z, e, ref, Lpath; ds = ds) for z in zs]
-        e isa RFCavity && ((zs, ref) = renormalize(zs, ref, 1))
+        zs, ref = after_element!(zs, ref, e)
         s += elem_length(e)
         push!(snapshots, [canonical_to_laboratory(z, ref, Lpath, h) for z in zs]); push!(names, e.name); push!(svals, s)
     end

@@ -5,20 +5,18 @@
     implicit_midpoint(f, z, s, hs; maxiter = 40, tol = 1e-16) -> z'
 
 One implicit midpoint step ``z' = z + h\,f((z+z')/2,\, s + h/2)``.
-Fixed-point iteration; for real numbers it stops at `|Δ| ≤ tol`.
+Fixed-point iteration stops when ``\\max_i \\mathrm{errnorm}(z'_i - z_i) \\le \\mathrm{tol}``,
+for real numbers, for DA (coefficient norm), and for any other series whose
+magnitude is [`errnorm`](@ref). At most `maxiter` iterations.
 Symplectic for any, including s-dependent, Hamiltonian vector field; order 2.
 """
 function implicit_midpoint(f, z, s, hs; maxiter::Integer = 40, tol::Real = 1e-16)
     zn = z .+ hs .* f(z, s + hs / 2)
     for _ in 1:maxiter
         znew = z .+ hs .* f((z .+ zn) ./ 2, s + hs / 2)
-        if eltype(znew) <: Real
-            done = maximum(abs.(znew .- zn)) <= tol
-            zn = znew
-            done && break
-        else
-            zn = znew
-        end
+        done = maximum(errnorm(znew[i] - zn[i]) for i in eachindex(znew)) <= tol
+        zn = znew
+        done && break
     end
     return zn
 end

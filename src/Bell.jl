@@ -12,11 +12,13 @@
 # Layers: math → core → io → physics → maps → analysis →
 # longitudinal_models → optimizers. Plotting is ext/BellPlotsExt.jl
 # (weak dependency Plots), not a submodule.
-# A new `using ..X` follows that direction. Include order is the existing
-# load order: Hamiltonians and Symplectic stay after LieAlgebra, Fringe
-# after Tracking, SextupoleFamilies after MapReadings.
-# Map types are included before LieAlgebra so that LieFactor <: AbstractMap.
-# Beam state and trackers are included after FieldTrack and Tracking.
+# A new `using ..X` follows that direction. Include order: Symplectic is
+# loaded before LieAlgebra so the TaylorN method of symplectic_error can
+# extend it (core does not import the map algebra). Hamiltonians stay after
+# LieAlgebra. Fringe stays after Tracking. SextupoleFamilies stays after
+# MapReadings. Map types are included before LieAlgebra so that
+# LieFactor <: AbstractMap. Beam state and trackers are included after
+# FieldTrack and Tracking.
 # =============================================================================
 """
     Bell
@@ -53,23 +55,23 @@ include("math/integrators/Integrators.jl")
 include("core/coordinates.jl")
 include("core/elements.jl")
 include("core/structure.jl")
+include("core/symplectic.jl")
 include("maps/abstract.jl")
 include("maps/lie/lie_algebra.jl")
 include("physics/hamiltonians.jl")
 include("physics/fields.jl")
 include("io/optim_converter.jl")
 include("maps/lie/linear.jl")
-include("core/symplectic.jl")
 include("maps/da/field_track.jl")
 include("maps/lie/tracking.jl")
 include("tracking/state.jl")
 include("tracking/trackers.jl")
 include("maps/da/tracking.jl")
 include("analysis/map_readings.jl")
+include("analysis/sextupole_families.jl")
 include("longitudinal_models/smooth.jl")
 include("longitudinal_models/acceleration.jl")
 include("physics/fringe.jl")
-include("core/sextupole_families.jl")
 include("core/caches.jl")
 include("core/plotting.jl")
 include("optimizers/Optimizers.jl")
@@ -94,7 +96,7 @@ export AbstractElement, AbstractMap, AbstractTracker, Beam, DAMap, Drift, EdgeMa
        Lattice, LieFactor, LieTracker, LinearMap, LinearRamp, LongitudinalParams, MAP_ORDER, Magnus,
        MapTracker, Marker, NelderMead, NoEdge, OptiMFile, OptimizationResult, Optimizer, Particle,
        ParticleState, Quadrupole, RFCavity, RandomStart, RefParticle, SBend, SEXT_FAMILIES, SPACE,
-       SYMPLECTIC_S, Sextupole, SoftEdge, Splitting, StructureFile, Tabulated, Tanh, TaylorIntegrate,
+       SYMPLECTIC_S, Sextupole, SoftEdge, Splitting, Tabulated, Tanh, TaylorIntegrate,
        VAR_NAMES, Z, accelerate, apply_factor, bucket_height, build_factors, c_light,
        canonical_to_laboratory, chromaticity, chromaticity_orders, chromaticity_series,
        clear_caches!, closed_orbit, coeff, compose_maps, concatenate, convert_optim, curvature,

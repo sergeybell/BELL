@@ -13,7 +13,7 @@
 #   load_structure(path) reads the file into a Lattice.
 #   write_structure(path, lattice) dumps a Lattice back to the same format.
 #   insert_cavity splits a named drift and inserts a thin RFCavity. Sextupole families live in
-#   sextupole_families.jl.
+#   analysis/sextupole_families.jl.
 #
 # =============================================================================
 module Structure
@@ -23,7 +23,7 @@ using ..Coordinates, ..Elements
 
 export Lattice, path_length, total_bend_angle, unique_elements,
        insert_cavity, set_cavity_phase, with_reference,
-       load_structure, write_structure, StructureFile
+       load_structure, write_structure
 
 """
     Lattice(name, elements, ref, harmonic)
@@ -53,13 +53,17 @@ Sum of element lengths: the length of the reference orbit. This is an arc
 length, not necessarily the circumference of a closed ring.
 """
 path_length(lattice::Lattice) = sum(elem_length, lattice.elements)
+_bend_angle(e::SBend) = e.angle
+_bend_angle(::AbstractElement) = 0.0
 """
     total_bend_angle(lattice) -> Float64 [rad]
+    total_bend_angle(elements) -> Float64 [rad]
 
 Sum of the bending angles of all [`SBend`](@ref)s; 2π for a closed ring.
 Used as a consistency check after loading/converting a lattice.
 """
-total_bend_angle(lattice::Lattice) = sum(e -> e isa SBend ? e.angle : 0.0, lattice.elements)
+total_bend_angle(elements::AbstractVector{<:AbstractElement}) = sum(_bend_angle, elements)
+total_bend_angle(lattice::Lattice) = total_bend_angle(lattice.elements)
 
 """
     unique_elements(lattice) -> Vector{AbstractElement}
@@ -96,31 +100,46 @@ end
 export magnetic_lattice
 
 """
-    insert_cavity(lattice, cav::RFCavity; in_element) -> (Lattice, index)
+    insert_cavity(lattice, cav::RFCavity; in_element, harmonic = nothing) -> (Lattice, index)
 
 Split the first drift named `in_element` into drift(L/2) – thin `cav` – drift(L/2),
 keeping the path length. `in_element` is required. The cavity has zero length.
 Returns the new lattice and the index of the cavity in it.
+
+The ring harmonic of the result is `lattice.harmonic`. `cav.harmonic` is the
+cavity's own harmonic and is not copied onto the lattice. Pass `harmonic = h`
+to store a different ring harmonic on the returned lattice.
 """
-function insert_cavity(lattice::Lattice, cav::RFCavity; in_element::AbstractString)
+function insert_cavity(lattice::Lattice, cav::RFCavity; in_element::AbstractString,
+                       harmonic::Union{Nothing,Integer} = nothing)
     i = findfirst(e -> e.name == in_element, lattice.elements)
     i === nothing && error("no element named $in_element")
-    e = lattice.elements[i]
-    e isa Drift || error("insert_cavity: $in_element is not a Drift")
+    h = harmonic === nothing ? lattice.harmonic : Int(harmonic)
+    return _insert_cavity(lattice, cav, i, lattice.elements[i], h)
+end
+
+function _insert_cavity(lattice::Lattice, cav::RFCavity, i::Int, e::Drift, h::Int)
     Ld = e.L / 2
     elems = vcat(lattice.elements[1:i-1], [Drift(e.name * "_u", Ld), cav, Drift(e.name * "_d", Ld)], lattice.elements[i+1:end])
-    return Lattice(lattice.name * "+RF", elems, lattice.ref, cav.harmonic), i + 1
+    return Lattice(lattice.name * "+RF", elems, lattice.ref, h), i + 1
 end
+
+_insert_cavity(::Lattice, ::RFCavity, ::Int, e::AbstractElement, ::Int) =
+    error("insert_cavity: $(e.name) is not a Drift")
+
+_with_phase(e::RFCavity, phi_s) = RFCavity(e.name, e.voltage_MV, e.harmonic, phi_s, e.L)
+_with_phase(e::AbstractElement, phi_s) = e
 
 """
     set_cavity_phase(lattice, phi_s) -> Lattice
 
-Same lattice with every thin [`RFCavity`](@ref) set to synchronous phase `phi_s` [rad]
+Same lattice with every [`RFCavity`](@ref) set to synchronous phase `phi_s` [rad]
 (used by `accelerate` to switch to a flat top).
 """
-set_cavity_phase(lattice::Lattice, phi_s) =
-    Lattice(lattice.name, [e isa RFCavity ? RFCavity(e.name, e.voltage_MV, e.harmonic, phi_s, e.L) : e for e in lattice.elements],
-            lattice.ref, lattice.harmonic)
+function set_cavity_phase(lattice::Lattice, phi_s)
+    elems = AbstractElement[_with_phase(e, phi_s) for e in lattice.elements]
+    return Lattice(lattice.name, elems, lattice.ref, lattice.harmonic)
+end
 
 """
     with_reference(lattice, ref) -> Lattice
@@ -134,19 +153,9 @@ with_reference(lattice::Lattice, ref::RefParticle) = Lattice(lattice.name, latti
 # Structure-file parser
 # =============================================================================
 
-"""
-    StructureFile(path, parameters, lattice)
-
-Container for a parsed structure file: `path::String`, `parameters::Dict{String,Float64}`
-(evaluated parameter section), `lattice::Lattice`.
-"""
-struct StructureFile
-    path::String
-    parameters::Dict{String,Float64}
-    lattice::Lattice
-end
-
 _strip_comment(l) = (i = findfirst('#', l); i === nothing ? String(l) : String(l[1:prevind(l, i)]))
+
+const _NUMBER_LITERAL = r"^[-+]?(\d+\.?\d*|\.\d+)([eE][-+]?\d+)?$"
 
 const _PARTICLES = Dict(
     "deuteron" => deuteron,
@@ -236,7 +245,7 @@ function _eval_atom(s::AbstractString, params)
     if startswith(s, "+") && length(s) > 1
         return _eval_atom(s[2:end], params)
     end
-    if occursin(r"^[-+]?(\d+\.?\d*|\.\d+)([eE][-+]?\d+)?$", s)
+    if occursin(_NUMBER_LITERAL, s)
         return parse(Float64, s)
     end
     haskey(params, s) || error("unknown parameter '$s'")

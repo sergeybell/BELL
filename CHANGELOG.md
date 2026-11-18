@@ -15,6 +15,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `is_adaptive` selects ODE methods that carry an error estimate. `integrate` uses that trait. Implicit midpoint stops when `errnorm` of the update is within tolerance, including DA and other series. ([#33], [#29])
+- `SextupoleFamilies` lives in `src/analysis/`. `place_sextupole_families` checks that optics bounds match `lattice.elements` in length and order. ([#33], [#29])
+- `SYMPLECTIC_S` is defined with the coordinates. `LieAlgebra` adds the `TaylorN` method of `symplectic_error`. `Symplectic` no longer imports `LieAlgebra`. ([#33], [#29])
+- `insert_cavity` keeps the ring harmonic unless the keyword `harmonic` is set. ([#33], [#29])
+- `da_var` and the DA intrinsics keep the coefficient type. A missing monomial is an `ArgumentError`. `abs` of a DA with a zero constant part and higher coefficients throws `DomainError`. ([#33], [#29])
+- `canonical_pairs` is no longer part of the public DiffAlgebra API. `closed_orbit` stops at `|Δu| < 1e-12`. ([#33], [#29])
+- `RandomStart` rejects `n < 1`. `GridSearch` rejects points of unequal length. ([#33], [#29])
+- The energy ramp calls `after_element!`, dispatched on `RFCavity`. ([#33], [#29])
 - Notes from 0.1.0 through 0.17.0 are condensed in this file. Each later change cites its pull request. ([#32], [#28])
 - `CONTRIBUTING.md` and `AGENTS.md`: a user-visible pull request adds an entry under `[Unreleased]` with its pull request number. `version` in `Project.toml` is bumped, and `[Unreleased]` is renamed, only in a release pull request. ([#32], [#28])
 - `AGENTS.md` describes the Hamiltonian model, the `src/` layers, the coordinate conventions, and how to check a result. `CONTRIBUTING.md` is the workflow only: one issue, a branch from `main`, fast tests, and a squash-merge. ([#27], [#19])
@@ -25,13 +33,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Pkg.test()` runs the fast suite. The optics regression, high-order DA, Aqua, and the optimizer tests run only when `BELL_FULL_TESTS=1`. Continuous integration is one job, Julia 1 on `windows-latest`, and runs that fast suite. ([#22], [#12])
 - The README is in English and opens with the physics: the element s-Hamiltonian, the equations `dz/ds = S ∇H`, and the variables `z` normalised to the reference particle. Install with `Pkg.develop` on a clone; fast tests are `Pkg.test()`, and full tests set `BELL_FULL_TESTS=1`. ([#20], [#13])
 
-### Fixed
-
-- Map caches for the linear matrix, the Lie map, the Taylor element map, the DA element map, and the fringe edge map were keyed by `p0` alone. Two reference particles with the same `p0` and a different mass, or the same mass and a different charge, no longer share a cached map: the key is the full `RefParticle`. ([#34], [#30])
-
 ### Removed
 
-- Write-only soft-edge RK step counter `_RK_STEPS` (it was stored and never read). ([#34], [#30])
+- Unused `StructureFile`. ([#33], [#29])
+- `hamiltonian_vector_field` had no callers and was removed. `da_symplectic_error` remains. ([#33], [#29])
 - `docs/HISTORY.md` and the version index `docs/CHANGELOG.md`. ([#32], [#28])
 
 ## [0.19.0] - 2026-11-17

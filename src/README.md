@@ -25,7 +25,6 @@ flowchart TB
     Elements
     Structure
     Symplectic
-    SextupoleFamilies
   end
   subgraph ioL["io"]
     OptimConverter
@@ -45,6 +44,7 @@ flowchart TB
   end
   subgraph analysisL["analysis"]
     MapReadings
+    SextupoleFamilies
   end
   subgraph trackIface["tracking"]
     BeamState
@@ -64,13 +64,12 @@ flowchart TB
   Integrators --> DiffAlgebra
   Structure --> Coordinates
   Structure --> Elements
+  Symplectic --> Coordinates
   Symplectic --> DiffAlgebra
-  Symplectic -.-> LieAlgebra
   SextupoleFamilies --> Coordinates
   SextupoleFamilies --> Elements
   SextupoleFamilies --> Structure
-  SextupoleFamilies -.-> LieAlgebra
-  SextupoleFamilies -.-> MapReadings
+  SextupoleFamilies --> MapReadings
   OptimConverter --> Coordinates
   OptimConverter --> Elements
   OptimConverter --> Structure
@@ -91,6 +90,8 @@ flowchart TB
   Fringe -.-> MapReadings
   Maps --> DiffAlgebra
   LieAlgebra --> Maps
+  LieAlgebra --> Coordinates
+  LieAlgebra --> Symplectic
   Linear --> Coordinates
   Linear --> Elements
   Linear --> Structure
@@ -186,8 +187,8 @@ These names stay outside the Bell module graph. `TaylorSeries` is a package depe
 | `DiffAlgebra` | `math/DiffAlgebra.jl` | `Printf` |
 | `Integrators` | `math/integrators/Integrators.jl` | `LinearAlgebra` |
 | `Structure` | `core/structure.jl` | `Printf` |
-| `Symplectic` | `core/symplectic.jl` | `TaylorSeries`, `LinearAlgebra` |
-| `SextupoleFamilies` | `core/sextupole_families.jl` | `LinearAlgebra`, `TaylorSeries` |
+| `Symplectic` | `core/symplectic.jl` | `LinearAlgebra` |
+| `SextupoleFamilies` | `analysis/sextupole_families.jl` | `LinearAlgebra` |
 | `Hamiltonians` | `physics/hamiltonians.jl` | `TaylorSeries` |
 | `Fringe` | `physics/fringe.jl` | `TaylorSeries`, `LinearAlgebra` |
 | `LieAlgebra` | `maps/lie/lie_algebra.jl` | `TaylorSeries`, `LinearAlgebra` |
@@ -216,14 +217,11 @@ Files with no `using` / `import` of their own, because they are pulled in by `in
 
 ## Violations
 
-Each row answers two questions: the edge points at a layer further to the right, and physics depends on map building or on reading an already built map. In the narrow set of algebras and integrators, no computation module imports elements or physics: `DiffAlgebra`, `Integrators`, `Maps`, and `LieAlgebra` depend only on each other and on external packages. The map engines are under disputed classification below.
+Each row answers two questions: the edge points at a layer further to the right, and physics depends on map building or on reading an already built map. In the narrow set of algebras and integrators, no computation module imports elements or physics. `DiffAlgebra`, `Integrators`, and `Maps` depend only on each other and on external packages. `LieAlgebra` also imports `Coordinates` (`SYMPLECTIC_S`) and `Symplectic` (it adds the `TaylorN` method of `symplectic_error`); both arrows point left. The map engines are under disputed classification below.
 
 | File | Module | Depends on | What is wrong |
 | --- | --- | --- | --- |
 | `physics/hamiltonians.jl` | `Hamiltonians` | `LieAlgebra` | `physics` is left of `maps`. The Hamiltonian model depends on the Lie-path algebra (`Z`, `JET_ORDER`). |
-| `core/symplectic.jl` | `Symplectic` | `LieAlgebra` | `core` is left of `maps`. The symplecticity check depends on the map algebra. |
-| `core/sextupole_families.jl` | `SextupoleFamilies` | `LieAlgebra` | `core` is left of `maps`. |
-| `core/sextupole_families.jl` | `SextupoleFamilies` | `MapReadings` | `core` is left of `analysis`. |
 | `physics/fringe.jl` | `Fringe` | `LieAlgebra` | `physics` is left of `maps`. The edge model depends on the map algebra. |
 | `physics/fringe.jl` | `Fringe` | `Linear` | `physics` is left of `maps`. The edge model depends on the linear matrices. |
 | `physics/fringe.jl` | `Fringe` | `Tracking` | `physics` is left of `maps`. The edge model depends on Lie-map building. The same module is named in both `using` and `import`. |
@@ -267,11 +265,11 @@ Every internal target in this table is an arrow on the diagram above. External t
 | `core/elements.jl` | `Elements` | | | |
 | `core/structure.jl` | `Structure` | `using` | | `Printf` |
 | `core/structure.jl` | `Structure` | `using` | `Coordinates`, `Elements` | |
-| `core/symplectic.jl` | `Symplectic` | `using` | | `TaylorSeries`, `LinearAlgebra` |
-| `core/symplectic.jl` | `Symplectic` | `using` | `LieAlgebra` | |
+| `core/symplectic.jl` | `Symplectic` | `using` | | `LinearAlgebra` |
+| `core/symplectic.jl` | `Symplectic` | `using` | `Coordinates` | |
 | `core/symplectic.jl` | `Symplectic` | `using` | `DiffAlgebra` | |
-| `core/sextupole_families.jl` | `SextupoleFamilies` | `using` | | `LinearAlgebra`, `TaylorSeries` |
-| `core/sextupole_families.jl` | `SextupoleFamilies` | `using` | `Coordinates`, `Elements`, `Structure`, `LieAlgebra`, `MapReadings` | |
+| `analysis/sextupole_families.jl` | `SextupoleFamilies` | `using` | | `LinearAlgebra` |
+| `analysis/sextupole_families.jl` | `SextupoleFamilies` | `using` | `Coordinates`, `Elements`, `Structure`, `MapReadings` | |
 | `io/optim_converter.jl` | `OptimConverter` | `using` | `Coordinates`, `Elements`, `Structure` | |
 | `physics/hamiltonians.jl` | `Hamiltonians` | `using` | | `TaylorSeries` |
 | `physics/hamiltonians.jl` | `Hamiltonians` | `using` | `Coordinates`, `Elements`, `LieAlgebra` | |
@@ -283,6 +281,8 @@ Every internal target in this table is an arrow on the diagram above. External t
 | `maps/abstract.jl` | `Maps` | `import` | `DiffAlgebra` | |
 | `maps/lie/lie_algebra.jl` | `LieAlgebra` | `using` | | `TaylorSeries`, `LinearAlgebra` |
 | `maps/lie/lie_algebra.jl` | `LieAlgebra` | `using` | `Maps` | |
+| `maps/lie/lie_algebra.jl` | `LieAlgebra` | `using` | `Coordinates` | |
+| `maps/lie/lie_algebra.jl` | `LieAlgebra` | `import` | `Symplectic` | |
 | `maps/lie/linear.jl` | `Linear` | `using` | | `LinearAlgebra`, `TaylorSeries` |
 | `maps/lie/linear.jl` | `Linear` | `using` | `Coordinates`, `Elements`, `Structure`, `Hamiltonians`, `LieAlgebra` | |
 | `maps/lie/tracking.jl` | `Tracking` | `using` | | `TaylorSeries`, `LinearAlgebra` |

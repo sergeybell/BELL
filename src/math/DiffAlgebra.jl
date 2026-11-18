@@ -33,8 +33,7 @@ using Printf
 
 export DASpace, DA, da_var, da_vars, da_const, coefficient, constant_part, linear_part,
        truncate_da, deriv, antideriv, compose, inverse_map, identity_map, nmonomials,
-       monomial_exponents, coeffnorm, order, nvars,
-       canonical_pairs, hamiltonian_vector_field, da_symplectic_error
+       monomial_exponents, coeffnorm, order, nvars, da_symplectic_error
 
 # ----------------------------------------------------------------------------- space
 @doc raw"""
@@ -104,7 +103,17 @@ function DASpace(nv::Integer, no::Integer)
     DASpace(nv, no, exps, deg, key, pw, dense, dict, ds, parent, pvar)
 end
 
-@inline _index(sp::DASpace, k::Int) = isempty(sp.dense) ? sp.dict[k] : Int(@inbounds sp.dense[k+1])
+function _index(sp::DASpace, k::Int)
+    idx = if isempty(sp.dense)
+        get(sp.dict, k, 0)
+    elseif 0 <= k < length(sp.dense)
+        Int(@inbounds sp.dense[k + 1])
+    else
+        0
+    end
+    idx == 0 && throw(ArgumentError("monomial key $k is not in DASpace(nv=$(sp.nv), no=$(sp.no))"))
+    return idx
+end
 
 "Number of monomials ``\\binom{v+N}{N}`` of the space."
 nmonomials(sp::DASpace) = size(sp.exps, 2)
@@ -139,9 +148,11 @@ Coordinate function ``x_i`` (plus the constant `at`): ``a_0 = `` `at`, ``\partia
 """
 function da_var(sp::DASpace, i::Integer; at::Real = 0.0)
     1 <= i <= sp.nv || throw(ArgumentError("variable $i out of 1:$(sp.nv)"))
-    c = zeros(Float64, nmonomials(sp)); c[1] = at
-    sp.no >= 1 && (c[1+i] = 1.0)   # degree-1 monomials are x_1..x_v in this order
-    DA(sp, c)
+    T = typeof(float(at))
+    c = zeros(T, nmonomials(sp))
+    c[1] = convert(T, at)
+    sp.no >= 1 && (c[1 + i] = one(T))   # degree-1 monomials are x_1..x_v in this order
+    return DA(sp, c)
 end
 "All coordinate functions ``(x_1,\\dots,x_v)``, optionally about the point `at`."
 da_vars(sp::DASpace; at = zeros(sp.nv)) = [da_var(sp, i; at = at[i]) for i in 1:sp.nv]
@@ -241,17 +252,34 @@ function is extended to DA.
 """
 function _series(a::DA, f::AbstractVector)
     h = a - a.c[1]; N = a.sp.no
-    r = DA(a.sp, f[N+1] + zero(eltype(a.c)))
-    for k in N-1:-1:0
-        r = r * h + f[k+1]
+    T = eltype(a.c)
+    r = DA(a.sp, convert(T, f[N + 1]) + zero(T))
+    for k in N - 1:-1:0
+        r = r * h + f[k + 1]
     end
-    r
+    return r
 end
 
-Base.exp(a::DA) = (e = exp(a.c[1]); _series(a, [e / factorial(big(k)) for k in 0:a.sp.no] .|> Float64))
+function _series_over_factorial(a::DA, term)
+    T = eltype(a.c)
+    f = Vector{T}(undef, a.sp.no + 1)
+    for k in 0:a.sp.no
+        f[k + 1] = convert(T, term(k) / factorial(big(k)))
+    end
+    return _series(a, f)
+end
+
+Base.exp(a::DA) = (e = exp(a.c[1]); _series_over_factorial(a, _ -> e))
 function Base.log(a::DA)
-    a0 = a.c[1]; a0 > 0 || throw(DomainError(a0, "log of DA with non-positive constant part"))
-    _series(a, [k == 0 ? log(a0) : (-1)^(k + 1) / (k * a0^k) for k in 0:a.sp.no])
+    a0 = a.c[1]
+    a0 > 0 || throw(DomainError(a0, "log of DA with non-positive constant part"))
+    T = eltype(a.c)
+    f = Vector{T}(undef, a.sp.no + 1)
+    f[1] = log(a0)
+    for k in 1:a.sp.no
+        f[k + 1] = convert(T, (-1)^(k + 1) / (k * a0^k))
+    end
+    return _series(a, f)
 end
 @doc raw"""
     a^p  (real p)
@@ -262,11 +290,15 @@ end
 function Base.:^(a::DA, p::Real)
     isinteger(p) && return a^Int(p)
     a0 = a.c[1]; a0 > 0 || throw(DomainError(a0, "non-integer power of DA needs a positive constant part"))
-    f = zeros(a.sp.no + 1); b = 1.0
+    T = eltype(a.c)
+    f = Vector{T}(undef, a.sp.no + 1)
+    b = one(T)
+    pp = convert(T, p)
     for k in 0:a.sp.no
-        f[k+1] = b * a0^(p - k); b *= (p - k) / (k + 1)
+        f[k + 1] = b * a0^(pp - k)
+        b *= (pp - k) / (k + 1)
     end
-    _series(a, f)
+    return _series(a, f)
 end
 Base.sqrt(a::DA) = a^0.5
 Base.cbrt(a::DA) = a^(1 / 3)
@@ -278,10 +310,15 @@ zero divisor and has no inverse in ``{}_N D_v``).
 """
 function Base.inv(a::DA)
     a0 = a.c[1]; iszero(a0) && throw(DomainError(a0, "DA with zero constant part is not invertible"))
-    _series(a, [(-1)^k / a0^(k + 1) for k in 0:a.sp.no])
+    T = eltype(a.c)
+    f = Vector{T}(undef, a.sp.no + 1)
+    for k in 0:a.sp.no
+        f[k + 1] = convert(T, (-1)^k / a0^(k + 1))
+    end
+    return _series(a, f)
 end
-Base.sin(a::DA) = (a0 = a.c[1]; _series(a, [sin(a0 + k * pi / 2) / factorial(big(k)) for k in 0:a.sp.no] .|> Float64))
-Base.cos(a::DA) = (a0 = a.c[1]; _series(a, [cos(a0 + k * pi / 2) / factorial(big(k)) for k in 0:a.sp.no] .|> Float64))
+Base.sin(a::DA) = (a0 = a.c[1]; T = eltype(a.c); _series_over_factorial(a, k -> sin(a0 + k * convert(T, π) / 2)))
+Base.cos(a::DA) = (a0 = a.c[1]; T = eltype(a.c); _series_over_factorial(a, k -> cos(a0 + k * convert(T, π) / 2)))
 Base.tan(a::DA) = sin(a) / cos(a)
 Base.sinh(a::DA) = (e = exp(a); (e - inv(e)) / 2)
 Base.cosh(a::DA) = (e = exp(a); (e + inv(e)) / 2)
@@ -294,10 +331,27 @@ theorem), and ``\arctan t = \sum_k (-1)^k t^{2k+1}/(2k+1)`` for the nilpotent ``
 """
 function Base.atan(a::DA)
     a0 = a.c[1]; t = (a - a0) / (1 + a0 * a)
-    f = zeros(a.sp.no + 1); for k in 0:2:a.sp.no-1; f[k+2] = (-1)^(k ÷ 2) / (k + 1); end
-    _series(t, f) + atan(a0)
+    T = eltype(a.c)
+    f = zeros(T, a.sp.no + 1)
+    for k in 0:2:(a.sp.no - 1)
+        f[k + 2] = convert(T, (-1)^(k ÷ 2) / (k + 1))
+    end
+    return _series(t, f) + atan(a0)
 end
-Base.abs(a::DA) = a.c[1] < 0 ? -a : a
+@doc raw"""
+    abs(a::DA)
+
+Follows the sign of the constant part: ``-a`` when ``a_0 < 0``, ``a`` when ``a_0 > 0``.
+``|x|`` is not analytic at 0. A constant zero stays zero. If ``a_0 = 0`` and any
+higher coefficient is nonzero, this throws `DomainError`.
+"""
+function Base.abs(a::DA)
+    a0 = a.c[1]
+    a0 < 0 && return -a
+    a0 > 0 && return a
+    all(iszero, @view a.c[2:end]) && return a
+    throw(DomainError(a0, "abs is not analytic at 0; the DA has a zero constant part and nonzero higher coefficients"))
+end
 Base.isless(a::DA, b::DA) = isless(a.c[1], b.c[1])
 Base.isless(a::DA, x::Real) = isless(a.c[1], x)
 Base.isless(x::Real, a::DA) = isless(x, a.c[1])

@@ -26,6 +26,7 @@ end
         include("test_diffalgebra.jl")
     end
     include("test_integrators.jl")
+    include("test_src_review.jl")
     include("test_da_tracking.jl")
     include("test_lie.jl")
     include("test_tracking_interfaces.jl")
