@@ -2,13 +2,15 @@
 
 An arrow `A → B` means: in `src/`, module `A` depends on module `B`. An edge comes from a `using` or `import`. An `include` is not an edge: it only inserts a file into a module that is already open.
 
-The layer chain that decides whether an edge points toward a layer further to the right is the one in the header of `Bell.jl`, plus the directories that line does not name:
+The layer chain that decides whether an edge points toward a layer further to the right is the one in the header of `Bell.jl`:
 
 ```text
 math → core → io → physics → maps → analysis → tracking → longitudinal_models → optimizers → research
 ```
 
-Here `tracking` is the directory `src/tracking` (`BeamState`, `Trackers`). The `Tracking` module in `maps/lie/tracking.jl` stays in the `maps` layer. `NormalForm` lives under `maps/lie/`, and the file header calls it a research layer: it is included last and is absent from the `using` of the `Bell` facade. On the diagram it sits in `research`, to the right of `longitudinal_models`.
+`Bell.jl` includes files in that order as far as the remaining edges allow. `Hamiltonians` stays after `LieAlgebra`, because the Taylor entry of `hamiltonian` uses `Z` and `JET_ORDER`. `FringeMaps` stays after `MapReadings`, because `fringe_observables` reads a map that is already built. `NormalForm` is included last.
+
+Here `tracking` is the directory `src/tracking` (`BeamState`, `Trackers`). The `Tracking` module in `maps/lie/tracking.jl` stays in the `maps` layer. `NormalForm` lives under `maps/lie/`. Its header calls it a research layer: it is included last and is absent from the `using` of the `Bell` facade. On the diagram it sits in `research`, to the right of `optimizers`.
 
 A solid arrow stays inside one layer or points toward a layer further to the left. A dotted arrow points toward a layer further to the right: a lower layer depending on an upper one.
 
@@ -220,7 +222,7 @@ Files with no `using` / `import` of their own, because they are pulled in by `in
 
 - `math/lie_series.jl` goes into `DiffAlgebra`;
 - `math/integrators/rk4.jl`, `dormand_prince.jl`, `gragg_bulirsch_stoer.jl`, `implicit_midpoint.jl`, and `yoshida.jl` go into `Integrators`;
-- `core/caches.jl` and `core/plotting.jl` go into `Bell`.
+- `core/caches.jl` and `core/plotting.jl` go into `Bell`. `caches.jl` is the `clear_caches!` registry and does not name a map module. `Bell.__init__` registers the emptiers for `_DACACHE`, `_SPACES`, `_MCACHE`, `_TMCACHE`, `_HCACHE`, and `_ECACHE`.
 
 ## Intended split
 
@@ -238,7 +240,14 @@ Each row answers two questions: the edge points at a layer further to the right,
 | --- | --- | --- | --- |
 | `physics/hamiltonians.jl` | `Hamiltonians` | `LieAlgebra` | `physics` is left of `maps`. The Hamiltonian model depends on the Lie-path algebra (`Z`, `JET_ORDER`). |
 | `maps/lie/fringe_maps.jl` | `FringeMaps` | `MapReadings` | `maps` is left of `analysis`. `fringe_observables` reads a map that is already built. |
-| `core/caches.jl` | `Bell` | `DATracking`, `Tracking`, `Linear`, `FringeMaps` | There is no `using`, so the diagram has no arrow. `clear_caches!`, in a file of the `core` layer, empties the private caches `_DACACHE`, `_SPACES`, `_MCACHE`, `_TMCACHE`, `_HCACHE`, and `_ECACHE`. |
+
+`Hamiltonians → LieAlgebra` remains. The Taylor entry of `hamiltonian` still builds a `TaylorN` on `Z`.
+
+These edges were violations and are not rows above:
+
+- Fringe physics no longer builds maps (#42). The model stays in `physics/fringe.jl` and depends only on `Coordinates`, `Elements`, and `Structure`. Edge maps, the edge-map cache, and `fringe_observables` are `FringeMaps`. The remaining rightward edge is the `FringeMaps` row (`FringeMaps → MapReadings`), not `Fringe → Tracking`.
+- A magnet and a thick RF cavity are integrated from `H` by `ElementFlow` (`dz/ds = S ∇H`) (#38, #40). `FieldTrack`, Lie `Tracking`, and `DATracking` call that flow. A thin cavity stays a kick. The field equations remain the comparison formulation.
+- `clear_caches!` used to live in `core/caches.jl` and name `DATracking`, `Tracking`, `Linear`, and `FringeMaps`. The file is now a registry and names no map module. `Bell.__init__` registers the emptiers. The facade may know every submodule.
 
 ## Disputed classification
 
@@ -259,7 +268,7 @@ Along the layer chain, `maps` sits to the right of `physics` and `core`, so the 
 
 `Fringe` depends only on `Coordinates`, `Elements`, and `Structure`. Those arrows point left. `FringeMaps` takes that model as input. Its arrows toward `maps`, `physics`, `core`, and `math` point left and are absent from the violations. The arrow toward `MapReadings` points right and is in the table.
 
-`MapReadings` imports `Tracking` and `DATracking`. The header of `analysis/map_readings.jl` says the module does not integrate the lattice. The `analysis` layer sits to the right of `maps`, so the arrow points left.
+`MapReadings` imports `Tracking` and `DATracking`. Coefficient readings (`closed_orbit`, `dispersion_orders`, `chromaticity_orders`, `path_expansion`) use a map that is already built. `observables` builds the one-turn Lie factor, `dispersion_along` builds each element Lie map (an RF cavity is carried as a drift of the same length), and `chromaticity_series` on a lattice builds the one-turn DA map. The `analysis` layer sits to the right of `maps`, so those arrows point left.
 
 `NormalForm → MapReadings` and `NormalForm → Smooth` point left only because `NormalForm` is placed in `research`. Treated as part of `maps` because the file is under `maps/lie/`, both edges point at a layer further to the right and are violations.
 
@@ -271,7 +280,7 @@ Every internal target in this table is an arrow on the diagram above. External t
 
 | File | Module | Statement | Bell modules | External |
 | --- | --- | --- | --- | --- |
-| `Bell.jl` | `Bell` | `using` | `Coordinates`, `Elements`, `Structure`, `Maps`, `LieAlgebra`, `Hamiltonians`, `Fields`, `OptimConverter`, `Linear`, `Symplectic`, `ElementFlow`, `FieldTrack`, `Tracking`, `BeamState`, `Trackers`, `DATracking`, `MapReadings`, `Smooth`, `Acceleration`, `Fringe`, `FringeMaps`, `SextupoleFamilies`, `Optimizers` | |
+| `Bell.jl` | `Bell` | `using` | `Coordinates`, `Elements`, `Structure`, `Symplectic`, `OptimConverter`, `Fields`, `Fringe`, `Hamiltonians`, `Maps`, `LieAlgebra`, `Linear`, `ElementFlow`, `FieldTrack`, `Tracking`, `DATracking`, `FringeMaps`, `MapReadings`, `SextupoleFamilies`, `BeamState`, `Trackers`, `Smooth`, `Acceleration`, `Optimizers` | |
 | `math/DiffAlgebra.jl` | `DiffAlgebra` | `using` | | `Printf` |
 | `math/integrators/Integrators.jl` | `Integrators` | `using` | | `LinearAlgebra` |
 | `math/integrators/Integrators.jl` | `Integrators` | `using` | `DiffAlgebra` | |

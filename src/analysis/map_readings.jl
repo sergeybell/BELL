@@ -1,12 +1,17 @@
 # =============================================================================
-# map_readings.jl - read coefficients of an already-built map
+# map_readings.jl - optics readings; three entry points build the map they read
 # =============================================================================
 #
 # Author: Kolokolchikov Sergey Dmitrievich <sergey.bell13@gmail.com>
 #
-# Linear optics of a matrix lives in linear.jl. This file reads coefficients
-# of a polynomial or DA map up to the order that map already has. It does
-# not integrate the lattice.
+# Linear optics of a matrix lives in linear.jl. Coefficient readings
+# (`closed_orbit`, `dispersion_orders`, `chromaticity_orders`,
+# `path_expansion`) use a polynomial or DA map that is already built.
+# `observables` builds the one-turn Lie factor of the magnetic lattice
+# (`ring_lie_factor`) and then reads that polynomial. `dispersion_along`
+# builds each element Lie map. `chromaticity_series` on a lattice builds
+# the one-turn DA map (`one_turn_map_da`). Those three call the map
+# builders. They do not integrate the lattice themselves.
 # =============================================================================
 module MapReadings
 
@@ -148,10 +153,16 @@ function momentum_compaction(M, ref::RefParticle, path_length::Real)
     return (p.alpha0, p.alpha1)
 end
 
+# An RF cavity does not carry dispersion. Transport the same length as a drift,
+# including a thin cavity (L = 0), so the table still has one row per element.
+_dispersion_element(e::RFCavity) = Drift(e.name, e.L)
+_dispersion_element(e::AbstractElement) = e
+
 """
     dispersion_along(lattice, D1, D2) -> NamedTuple
 
-D, D', D2, D2' at each element exit.
+D, D', D2, D2' at each element exit. An [`RFCavity`](@ref) is transported as a
+drift of the same length.
 """
 function dispersion_along(lattice::Lattice, D1, D2)
     d = Z[6]
@@ -160,7 +171,7 @@ function dispersion_along(lattice::Lattice, D1, D2)
     s = 0.0
     along = (s = [0.0], D = [D1[1]], Dp = [D1[2]], D2 = [D2[1]], D2p = [D2[2]])
     for e in lattice.elements
-        Me = e isa RFCavity ? element_lie_map(Drift(e.name, e.L), lattice.ref) : element_lie_map(e, lattice.ref)
+        Me = element_lie_map(_dispersion_element(e), lattice.ref)
         z = [truncate_to(evaluate(m, z), 2) for m in Me]
         s += elem_length(e)
         push!(along.s, s)
