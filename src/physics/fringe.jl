@@ -1,5 +1,5 @@
 # =============================================================================
-# fringe.jl - fringe-field (edge) models of magnets, chosen at call time
+# fringe.jl - fringe-field model of a magnet edge
 # =============================================================================
 #
 # Author: Kolokolchikov Sergey Dmitrievich <sergey.bell13@gmail.com>
@@ -8,37 +8,29 @@
 # gap / FINT. No element carries a fringe flag. The model is chosen when the
 # ring is built. FringeModel() is NoEdge everywhere and leaves the ring as is.
 #
-# HardEdge is a thin lens at each end. The body Hamiltonian is not changed.
-# Linear (order 1): dpx = h tan(e) x, dpy = -h tan(psi) y. Higher order keeps
-# a Lie generator K from the step-field B_s.
+# This module is the model only: edge types, longitudinal profiles, the
+# s-dependent fringe Hamiltonian, and the sequence of edge items. It does not
+# build a map. Hard-edge generators, the soft-edge flow, caches, and
+# fringe_observables live in maps/lie/fringe_maps.jl.
 #
-# SoftEdge is a different layout. Half-width W is read from the profile (Enge:
-# first z where F is below 1e-10 and 1-F is below 1e-10, step gap/20, cap 40
-# gaps). The edge map is Body(-W) o Soft o Drift(-W): a slice of solid body at
-# depth W is removed and replaced by the s-dependent Hamiltonian. W depends on
-# the profile and the gap, not on magnet strength (the profile is normalised;
-# the strength sits in h0). Subtracting the body on depth W is the account of
-# field leaking into the magnet; if notes later say otherwise, the formulas
-# stay until that is reviewed.
+# HardEdge is a thin lens at each end. The body Hamiltonian is not changed.
+# SoftEdge replaces a slice of body and a slice of drift by the s-dependent
+# Hamiltonian. The body gradient k1 is carried by that Hamiltonian as k1*F(s),
+# so F = 1 reproduces the body and F = 0 is a drift. Half-width W is read from
+# the profile. The magnet must satisfy 2W < L.
 #
 # enge_default is an unverified default coefficient set stored in this
 # repository. There is no citation for it; it is not a standard.
-#
-# RK4 of the soft-edge field and Yoshida weights of splitting come from
-# Integrators. Simpson of a profile integral is quadrature, not an ODE method.
 # =============================================================================
 module Fringe
 
-using TaylorSeries, LinearAlgebra
-using ..Coordinates, ..Elements, ..Structure, ..LieAlgebra, ..Hamiltonians, ..Linear,
-      ..Symplectic, ..Tracking, ..MapReadings, ..Integrators
-import ..Tracking: build_factors, ring_lie_factor
+using ..Coordinates, ..Elements, ..Structure
 
 export EdgeModel, NoEdge, HardEdge, SoftEdge,
        FringeProfile, Enge, Tanh, LinearRamp, Tabulated, enge_default,
        FringeMethod, Splitting, Magnus, TaylorIntegrate,
-       FringeModel, EdgeMap, edge_model, fringe_sequence, edge_map,
-       profile_function, fringe_integral, fringe_observables, fringe_hamiltonian
+       FringeModel, EdgeMap, edge_model, fringe_sequence,
+       profile_function, fringe_integral, fringe_hamiltonian
 
 # ----------------------------------------------------------------------------- models
 """
@@ -71,7 +63,7 @@ struct NoEdge <: EdgeModel end
 @doc raw"""
     HardEdge(; order = 2, gap = nothing, fint = nothing)
 
-Thin hard-edge model at the magnet ends; the map is ``e^{-{:}K{:}}z`` (symplectic).
+Thin hard-edge model at the magnet ends. The map is built in `FringeMaps`.
 
 # Fields
 - `order::Int` – 1: linear dipole-edge kick, ``K = -\tfrac{h\tan\varepsilon}{2}x^2 + \tfrac{h\tan\psi}{2}y^2``
@@ -168,10 +160,10 @@ Magnus(; n::Int = 10, order::Int = 4) = Magnus(n, order)
 """
     TaylorIntegrate(; tol = 1e-10, nmax = 512)
 
-Soft-edge integration of the polynomial vector field with RK4 in TaylorN. Starts
-with 16 steps and halves the step until the map changes by less than `tol`
-(max coefficient) or `nmax` steps are reached. Not symplectic by construction;
-it is the reference for the other methods.
+Soft-edge integration of ``dz/ds = S\\nabla H(s)`` by [`element_flow`](@ref).
+Starts with 16 steps and doubles the step count until the map changes by less
+than `tol` (max coefficient) or `nmax` steps are reached. Not symplectic by
+construction; it is the reference for the other methods.
 """
 struct TaylorIntegrate <: FringeMethod
     tol::Float64
@@ -184,7 +176,7 @@ TaylorIntegrate(; tol = 1e-10, nmax::Int = 512) = TaylorIntegrate(Float64(tol), 
 
 Soft-edge dipole model: the field b(s) = h0 F(s) is integrated through [−W, W]
 around the effective field boundary (EFB) using `profile::FringeProfile`, with
-`method::FringeMethod`.
+`method::FringeMethod`. The body gradient enters as `k1 * F(s)`.
 
 # Layout
 The soft region replaces "drift W, then body W" of the hard-edge layout, so the
@@ -192,7 +184,8 @@ lattice length is unchanged:
 - EdgeIn = Body(−W) ∘ Soft ∘ Drift(−W);
 - EdgeOut = Drift(−W) ∘ Soft_out ∘ Body(−W).
 
-A pole-face angle adds a linear wedge at the EFB. The magnet must satisfy 2W < L.
+A pole-face angle is a linear wedge at the EFB, local s = 0, between the
+upstream and downstream halves of the fringe. The magnet must satisfy 2W < L.
 Implemented for `SBend` only.
 """
 struct SoftEdge <: EdgeModel
@@ -233,12 +226,12 @@ family entry (`dipole` for SBend, `quad` for Quadrupole, `sext` for Sextupole),
 else `NoEdge()`.
 """
 function edge_model(m::FringeModel, e::AbstractElement)
-    haskey(m.override, e.name) && return m.override[e.name]
-    e isa SBend && return m.dipole
-    e isa Quadrupole && return m.quad
-    e isa Sextupole && return m.sext
-    return NoEdge()
+    return get(m.override, e.name, _family_edge(m, e))
 end
+_family_edge(m::FringeModel, ::SBend) = m.dipole
+_family_edge(m::FringeModel, ::Quadrupole) = m.quad
+_family_edge(m::FringeModel, ::Sextupole) = m.sext
+_family_edge(::FringeModel, ::AbstractElement) = NoEdge()
 
 Base.show(io::IO, ::NoEdge) = print(io, "NoEdge()")
 Base.show(io::IO, m::HardEdge) = print(io, "HardEdge(order=", m.order,
@@ -323,13 +316,21 @@ struct EdgeMap
 end
 
 const _LAST_FRINGE = Ref("")
+_no_edge(::NoEdge) = true
+_no_edge(::EdgeModel) = false
 function _announce_fringe(model::FringeModel)
-    (model.dipole isa NoEdge && model.quad isa NoEdge && model.sext isa NoEdge &&
-     isempty(model.override)) && return
+    _no_edge(model.dipole) && _no_edge(model.quad) && _no_edge(model.sext) &&
+        isempty(model.override) && return
     key = repr((model.dipole, model.quad, model.sext, sort(collect(keys(model.override)))))
     _LAST_FRINGE[] == key && return
     _LAST_FRINGE[] = key
     @info "fringe model enabled" dipole = model.dipole quad = model.quad sext = model.sext override = model.override
+end
+
+_expand_edge!(expanded, e::AbstractElement, ::NoEdge) = push!(expanded, e)
+function _expand_edge!(expanded, e::AbstractElement, m::EdgeModel)
+    push!(expanded, EdgeMap(e.name * "_in", e, :in, m), e, EdgeMap(e.name * "_out", e, :out, m))
+    return expanded
 end
 
 "Element list with EdgeMap items around every magnet whose model is not NoEdge."
@@ -337,68 +338,40 @@ function fringe_sequence(lattice::Lattice, model::FringeModel)
     _announce_fringe(model)
     expanded = Any[]
     for e in lattice.elements
-        m = edge_model(model, e)
-        if m isa NoEdge
-            push!(expanded, e)
-        else
-            push!(expanded, EdgeMap(e.name * "_in", e, :in, m), e, EdgeMap(e.name * "_out", e, :out, m))
-        end
+        _expand_edge!(expanded, e, edge_model(model, e))
     end
     return expanded
 end
 
-# ----------------------------------------------------------------------------- hard edges
-function _hard(e::SBend, side, m::HardEdge, ref)
-    x, px, y, py, l, d = Z
-    h = curvature(e)
-    ang = side === :in ? e.e1 : e.e2
-    g = m.gap === nothing ? e.gap : m.gap
-    fi = m.fint === nothing ? e.fint : m.fint
-    psi = ang - h * g * fi * (1 + sin(ang)^2) / cos(ang)
-    te, tp = tan(ang), tan(psi)
-    K = -h * te * x^2 / 2
-    if m.order <= 1
-        K += h * tp * y^2 / 2
-    else
-        ps = sqrt((1 + d)^2 - px^2 - py^2)
-        t = px / ps                                 # tan of the slope angle x'
-        T = side === :in ? (tp + t) / (1 - tp * t) : (tp - t) / (1 + tp * t)
-        K += h * y^2 / 2 * T
-        m.order == 2 && (K = truncate_to(K, 3))
-    end
-    K -= constant_term(K)
-    return lie_map(K, 1.0)
-end
+# ----------------------------------------------------------------------------- Hamiltonian
+@doc raw"""
+    fringe_hamiltonian(h0, F, Fp, ref, z; b1 = 0, b2 = 0, k1 = 0)
 
-function _hard(e::Quadrupole, side, m::HardEdge, ref)
-    m.order <= 1 && return collect(Z)               # no linear hard-edge effect
-    x, px, y, py, l, d = Z
-    s = side === :in ? 1.0 : -1.0
-    K = s * e.k1 / (12 * (1 + d)) * (x^3 * px + 3x * y^2 * px - 3x^2 * y * py - y^3 * py)
-    return lie_map(K, 1.0)
-end
+Soft-edge s-Hamiltonian at field level `F` and slope `Fp` [1/m], evaluated on
+the canonical state `z` (numbers, `TaylorN`, or DA).
 
-_hard(e::AbstractElement, side, m::HardEdge, ref) =
-    error("HardEdge is implemented for SBend and Quadrupole, not for $(kind_string(e)) $(e.name)")
+`h0` is the body curvature. `h = h0 * F`. `k1` is the local normalised
+gradient. On a soft edge the caller passes the body gradient times `F`, so
+`F = 1` and `Fp = 0` reproduce the body Hamiltonian of an [`SBend`](@ref)
+(including its `k1`) and `F = 0` is a drift.
 
-# ----------------------------------------------------------------------------- soft edges
+`b1` and `b2` are the gradient and sextupole-like terms of a straight effective
+field boundary seen from the curved frame. They are not the design `k1`.
+The metric factor `(1 + h x)` puts `h b1 (x^3/3 - x y^2/2)` into `H`; without
+it the straight-boundary gradient leaves a spurious sextupole-like term.
+The Lie path evaluates this function on [`Z`](@ref).
 """
-Soft-edge Hamiltonian at field level F, slope F' (per metre), curvature h0.
-b1, b2: gradient and sextupole-like terms of the midplane field
-h0 F(s + x theta) of a straight EFB seen from the curved frame.
-"""
-function fringe_hamiltonian(h0::Real, F::Real, Fp::Real, ref::RefParticle; b1::Real = 0.0, b2::Real = 0.0)
-    x, px, y, py, l, d = Z
+function fringe_hamiltonian(h0::Real, F::Real, Fp::Real, ref::RefParticle, z::AbstractVector;
+                            b1::Real = 0.0, b2::Real = 0.0, k1::Real = 0.0)
+    x, px, y, py, _, d = z
     h = h0 * F
     ax = -y^2 * (h0 * Fp) / (2 * (1 + h * x))
     ps = sqrt((1 + d)^2 - (px - ax)^2 - py^2)
-    # field terms of the curved frame: the force carries the metric factor (1 + h x), so the gradient
-    # b1 contributes h b1 x^2 (horizontal) and h b1 x y (vertical) as well; h b1 (x^3/3 - x y^2/2) is
-    # the lowest-order curl-free completion (A_s = -int (1 + h x) B_y dx).  Without it the soft edge
-    # had a spurious sextupole-like term: int h b1 ds = -int b2/2 ds exactly (theta' = h0 F).
-    H = energy_term(d, ref) - (1 + h * x) * ps + h * x + h^2 * x^2 / 2 +
-        b1 * (x^2 - y^2) / 2 + h * b1 * (x^3 / 3 - x * y^2 / 2) + b2 * (x^3 - 3x * y^2) / 6
-    return H - constant_term(H)
+    # k1 is only the quadrupole term. Folding it into b1 would add the curved-frame
+    # cubic that the body Hamiltonian does not carry, and Body(-W) would no longer cancel.
+    return energy_term(d, ref) - (1 + h * x) * ps + h * x + h^2 * x^2 / 2 +
+           (k1 + b1) * (x^2 - y^2) / 2 + h * b1 * (x^3 / 3 - x * y^2 / 2) +
+           b2 * (x^3 - 3x * y^2) / 6
 end
 
 _along(F, side) = side === :in ? F : (s -> F(-s))
@@ -417,167 +390,47 @@ struct _Edge
     side::Symbol
     ep::Float64
 end
-_Edge(h0, F, W, side) = _Edge(h0, F, W, side, 1e-5 * W)
+_Edge(h0, F, W, side) = _Edge(Float64(h0), F, Float64(W), side, 1e-5 * Float64(W))
+
+"Fringe field of one `SBend` end. `F` is already oriented along the integration coordinate."
+function edge_field(e::SBend, profile::FringeProfile, side::Symbol)
+    F0, W, _ = profile_function(profile)
+    2W < e.L || error("fringe region 2W = $(2W) m is longer than $(e.name) (L = $(e.L) m)")
+    return _Edge(curvature(e), _along(F0, side), W, side)
+end
+
 # Derivatives as averages over a window [s - w, s + w]: exact for smooth F as
 # w -> 0, and integrable for profiles with kinks (LinearRamp, Tabulated).
 _dF(E::_Edge, s, w = E.ep) = (E.F(s + w) - E.F(s - w)) / (2w)
 _d2F(E::_Edge, s, w = E.ep) = (E.F(s + 2w) - 2E.F(s) + E.F(s - 2w)) / (4w^2)
 _theta(E::_Edge, s) = E.side === :in ? E.h0 * _simpson(E.F, -E.W, s; n = 400) :
                                        -E.h0 * _simpson(E.F, s, E.W; n = 400)
-"H at a node s (F', F'' averaged over a window of half-width w)."
-_Hnode(E::_Edge, s, ref, w = E.ep) = (th = _theta(E, s); Fp = _dF(E, s, w);
-    fringe_hamiltonian(E.h0, E.F(s), Fp, ref; b1 = E.h0 * Fp * th, b2 = E.h0 * _d2F(E, s, w) * th^2))
-"H of a slice [a,b] (slice averages of F', F'')."
-function _Hslice(E::_Edge, a, b, ref)
-    m = (a + b) / 2; th = _theta(E, m)
+
+"""
+    fringe_hamiltonian(E, ref, s, z; k1 = 0, w = E.ep)
+
+Hamiltonian of an edge field at station `s`. `k1` is the body gradient; the
+local gradient is `k1 * F(s)`.
+"""
+function fringe_hamiltonian(E::_Edge, ref::RefParticle, s::Real, z::AbstractVector;
+                            k1::Real = 0.0, w::Real = E.ep)
+    th = _theta(E, s)
+    Fp = _dF(E, s, w)
+    F = E.F(s)
+    return fringe_hamiltonian(E.h0, F, Fp, ref, z; b1 = E.h0 * Fp * th,
+                              b2 = E.h0 * _d2F(E, s, w) * th^2, k1 = k1 * F)
+end
+
+"Hamiltonian of a slice [a, b] (slice averages of F' and F''). `k1` is the body gradient."
+function _slice_hamiltonian(E::_Edge, a::Real, b::Real, ref::RefParticle, z::AbstractVector;
+                            k1::Real = 0.0)
+    m = (a + b) / 2
+    th = _theta(E, m)
     Fp = (E.F(b) - E.F(a)) / (b - a)
     Fpp = (_dF(E, b) - _dF(E, a)) / (b - a)
-    return fringe_hamiltonian(E.h0, E.F(m), Fp, ref; b1 = E.h0 * Fp * th, b2 = E.h0 * Fpp * th^2)
-end
-
-function _soft(E::_Edge, m::Splitting, ref)
-    W = E.W
-    ws = splitting_weights(m.order >= 4 ? Yoshida(4) : Leapfrog())
-    hs = 2W / m.n
-    M = collect(Z)
-    for k in 0:m.n-1
-        a = -W + k * hs
-        for w in ws
-            b = a + w * hs
-            M = compose_maps(lie_map(_Hslice(E, a, b, ref), b - a), M)
-            a = b
-        end
-    end
-    return M
-end
-
-function _soft(E::_Edge, m::Magnus, ref)
-    W = E.W
-    hs = 2W / m.n
-    Hs(s) = _Hnode(E, s, ref, max(E.ep, hs * sqrt(3) / 6))
-    M = collect(Z)
-    for k in 0:m.n-1
-        mid = -W + (k + 0.5) * hs
-        if m.order <= 2
-            Om = hs * Hs(mid)
-        else
-            H1 = Hs(mid - hs * sqrt(3) / 6); H2 = Hs(mid + hs * sqrt(3) / 6)
-            Om = hs / 2 * (H1 + H2) - sqrt(3) / 12 * hs^2 * poisson(H1, H2)
-        end
-        M = compose_maps(lie_map(Om, 1.0), M)
-    end
-    return M
-end
-
-function _rk4(E::_Edge, n, ref)
-    W = E.W
-    hs = 2W / n
-    function f(z, s)
-        H = _Hnode(E, s, ref, max(E.ep, hs / 4))
-        V = hamiltonian_field(H)
-        return [truncate_to(evaluate(V[i], z), MAP_ORDER) for i in 1:6]
-    end
-    r = integrate_fixed(f, collect(Z), -W, W, n; method = RK4())
-    return [truncate_to(zi, MAP_ORDER) for zi in r.z]
-end
-
-function _soft(E::_Edge, m::TaylorIntegrate, ref)
-    n = 16
-    M = _rk4(E, n, ref)
-    while 2n <= m.nmax
-        M2 = _rk4(E, 2n, ref)
-        diff = maximum(maxabs(M2[i] - M[i]) for i in 1:6)
-        M, n = M2, 2n
-        diff < m.tol && break
-    end
-    return M
-end
-
-function _soft_edge(e::SBend, side, m::SoftEdge, ref)
-    F0, W, _ = profile_function(m.profile)
-    2W < e.L || error("fringe region 2W = $(2W) m is longer than $(e.name) (L = $(e.L) m)")
-    F = _along(F0, side)
-    h0 = curvature(e)
-    S = _soft(_Edge(h0, F, W, side), m.method, ref)
-    ang = side === :in ? e.e1 : e.e2
-    if ang != 0                                  # pole-face rotation: linear wedge at the EFB
-        x, px, y, py, l, d = Z
-        Wg = lie_map(-h0 * tan(ang) * (x^2 - y^2) / 2, 1.0)
-        S = side === :in ? compose_maps(S, Wg) : compose_maps(Wg, S)
-    end
-    Bm = lie_map(hamiltonian(e, ref), -W)
-    Dm = lie_map(hamiltonian(Drift("_fringe_drift", 1.0), ref), -W)
-    return side === :in ? compose_maps(Bm, compose_maps(S, Dm)) : compose_maps(Dm, compose_maps(S, Bm))
-end
-_soft_edge(e::AbstractElement, side, m::SoftEdge, ref) =
-    error("SoftEdge is implemented for SBend only, not for $(kind_string(e)) $(e.name)")
-
-# Parent, side, model key, full reference particle.
-const _ECacheKey = Tuple{Any,Symbol,Any,RefParticle}
-const _ECACHE = Dict{_ECacheKey,Vector{TaylorN{Float64}}}()
-
-# Cache key of an edge model: repr() for analytic models, plus the table contents for a
-# Tabulated profile (its repr is only "Tabulated(N points)", so two different tables of the
-# same length used to share one cache entry).
-_model_key(m::EdgeModel) = m isa SoftEdge && m.profile isa Tabulated ?
-    (repr(m), Tuple(m.profile.z), Tuple(m.profile.B)) : repr(m)
-
-"""
-    edge_map(E::EdgeMap, ref) -> Vector{TaylorN}
-
-Polynomial map (order MAP_ORDER) of a thin edge item: identity for `NoEdge`, the
-hard-edge Lie map for `HardEdge`, or the composed soft-edge map for `SoftEdge`.
-Cached per (parent magnet, side, model, reference particle).
-"""
-edge_map(E::EdgeMap, ref::RefParticle) =
-    get!(_ECACHE, (E.parent, E.side, _model_key(E.model), ref)::_ECacheKey) do
-        E.model isa NoEdge && return collect(Z)
-        E.model isa HardEdge && return _hard(E.parent, E.side, E.model, ref)
-        return _soft_edge(E.parent, E.side, E.model, ref)
-    end
-
-# ----------------------------------------------------------------------------- ring
-"One factor per item of fringe_sequence (edges are separate factors)."
-function build_factors(lattice::Lattice, model::FringeModel)
-    cache = Dict{Any,LieFactor}()
-    factors = Any[]
-    for it in fringe_sequence(lattice, model)
-        if it isa EdgeMap
-            push!(factors, get!(() -> dragt_finn_factor(edge_map(it, lattice.ref); name = it.name), cache,
-                            (it.parent, it.side, _model_key(it.model))))
-        else
-            push!(factors, get!(() -> dragt_finn_factor(element_lie_map(it, lattice.ref, path_length(lattice)); name = it.name), cache, it))
-        end
-    end
-    return factors
-end
-
-"One-turn Lie factor of the ring with the given fringe model."
-ring_lie_factor(lattice::Lattice, model::FringeModel; name = lattice.name) =
-    product_factors(LieFactor[F for F in build_factors(lattice, model) if F isa LieFactor]; name)
-
-"""
-    fringe_observables(lattice, model) -> NamedTuple
-
-Fractional tunes, first/second-order chromaticity of the one-turn map and the
-symplecticity of the edge maps (linear part, and Jacobian at a test point z0).
-"""
-function fringe_observables(lattice::Lattice, model::FringeModel = FringeModel(); dd = 1e-4,
-                            z0 = [1e-3, 1e-4, 1e-3, 1e-4, 0.0, 1e-3])
-    t0 = time()
-    F = ring_lie_factor(lattice, model)
-    M = factor_to_map(F)
-    ch = chromaticity_orders(M; dd)
-    se_lin, se_pt = 0.0, 0.0
-    for it in fringe_sequence(lattice, model)
-        it isa EdgeMap || continue
-        E = edge_map(it, lattice.ref)
-        se_lin = max(se_lin, symplectic_error(map_linear_part(E)))
-        se_pt = max(se_pt, symplectic_error(jacobian_of_map(E, z0)))
-    end
-    return (Qx = ch.x[1], Qy = ch.y[1], xix = ch.x[2], xiy = ch.y[2], xi2x = ch.x[3], xi2y = ch.y[3],
-            symp_edge_lin = se_lin, symp_edge_pt = se_pt, symp_ring = symplectic_error(F.R),
-            seconds = time() - t0, model = model)
+    F = E.F(m)
+    return fringe_hamiltonian(E.h0, F, Fp, ref, z; b1 = E.h0 * Fp * th,
+                              b2 = E.h0 * Fpp * th^2, k1 = k1 * F)
 end
 
 end # module

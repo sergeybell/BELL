@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Fringe physics (edge types, profiles, `fringe_hamiltonian`, `FringeModel`) stays in `src/physics/fringe.jl` and does not build maps. Edge maps, the edge-map cache, and `fringe_observables` live in `src/maps/lie/fringe_maps.jl`. Family selection is by method. `fringe_hamiltonian(h0, F, Fp, ref, z)` evaluates the scalar Hamiltonian; the Lie path calls it on `Z`. `element_flow(H, z0; s0, s1)` integrates an s-dependent scalar `H(z, s)` by the dual symplectic gradient at each stage. `TaylorIntegrate` uses that flow. ([#41])
 - A thick `RFCavity` is integrated from its s-Hamiltonian, `dz/ds = S ∇H`, by `element_flow`. `exact_track_element`, `element_da_map`, and `taylor_map_element` use that flow. A thin cavity stays `rf_kick`, and `element_flow` rejects it. The field equations remain for comparison and for tests. ([#40], [#39])
 - `element_flow` integrates a magnet from its s-Hamiltonian, `dz/ds = S ∇H`. `exact_track_element`, `element_da_map`, and `taylor_map_element` use that flow for magnets. A marker stays the identity. An RF cavity stays a kick, or drift/kick/drift when it is thick. The field equations remain for comparison and for tests. ([#38], [#37])
 - `is_adaptive` selects ODE methods that carry an error estimate. `integrate` uses that trait. Implicit midpoint stops when `errnorm` of the update is within tolerance, including DA and other series. ([#33], [#29])
@@ -38,6 +39,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- A soft edge on an `SBend` with `k1 ≠ 0` dropped the body gradient over both fringe half-widths: `Body(−W)` removes the full body Hamiltonian, and the fringe Hamiltonian had no `k1`. The local gradient is now `k1 * F(s)`, so `F = 1` matches the body and the thin-lens strength over the magnet is kept. ([#41])
+- The pole-face wedge of a soft edge is applied at the effective field boundary, local `s = 0`, between the upstream and downstream halves. It had been applied at the field-free end of the fringe (`s = −W` on entrance, `s = +W` on exit). ([#41])
 - Map caches for the linear matrix, the Lie map, the Taylor element map, the DA element map, and the fringe edge map were keyed by `p0` alone. Two reference particles with the same `p0` and a different mass, or the same mass and a different charge, no longer share a cached map: the key is the full `RefParticle`. ([#34], [#30])
 
 ### Removed

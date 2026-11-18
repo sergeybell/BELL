@@ -16,10 +16,11 @@
 # loaded before LieAlgebra so the TaylorN method of symplectic_error can
 # extend it (core does not import the map algebra). Hamiltonians stay after
 # LieAlgebra. ElementFlow stays after Hamiltonians and Integrators, and before
-# FieldTrack, Tracking, and DATracking. Fringe stays after Tracking.
-# SextupoleFamilies stays after MapReadings. Map types are included before
-# LieAlgebra so that LieFactor <: AbstractMap. Beam state and trackers are
-# included after FieldTrack and Tracking.
+# FieldTrack, Tracking, and DATracking. Fringe physics stays after Hamiltonians.
+# Fringe maps stay after MapReadings: fringe_observables reads a map that is
+# already built. SextupoleFamilies stays after MapReadings. Map types are
+# included before LieAlgebra so that LieFactor <: AbstractMap. Beam state and
+# trackers are included after FieldTrack and Tracking.
 # =============================================================================
 """
     Bell
@@ -63,6 +64,7 @@ include("maps/abstract.jl")
 include("maps/lie/lie_algebra.jl")
 include("physics/hamiltonians.jl")
 include("physics/fields.jl")
+include("physics/fringe.jl")
 include("io/optim_converter.jl")
 include("maps/lie/linear.jl")
 include("maps/element_flow.jl")
@@ -72,10 +74,10 @@ include("tracking/state.jl")
 include("tracking/trackers.jl")
 include("maps/da/tracking.jl")
 include("analysis/map_readings.jl")
+include("maps/lie/fringe_maps.jl")
 include("analysis/sextupole_families.jl")
 include("longitudinal_models/smooth.jl")
 include("longitudinal_models/acceleration.jl")
-include("physics/fringe.jl")
 include("core/caches.jl")
 include("core/plotting.jl")
 include("optimizers/Optimizers.jl")
@@ -83,7 +85,7 @@ include("maps/lie/normal_form.jl")
 
 using .Coordinates, .Elements, .Structure, .Maps, .LieAlgebra, .Hamiltonians, .Fields,
       .OptimConverter, .Linear, .Symplectic, .ElementFlow, .FieldTrack, .Tracking, .BeamState, .Trackers,
-      .DATracking, .MapReadings, .Smooth, .Acceleration, .Fringe, .SextupoleFamilies,
+      .DATracking, .MapReadings, .Smooth, .Acceleration, .Fringe, .FringeMaps, .SextupoleFamilies,
       .Optimizers
 
 function __init__()

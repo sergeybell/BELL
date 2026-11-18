@@ -31,6 +31,7 @@ end
     include("test_da_tracking.jl")
     include("test_element_flow.jl")
     include("test_element_flow_rf.jl")
+    include("test_fringe.jl")
     include("test_lie.jl")
     include("test_tracking_interfaces.jl")
     include("test_physics_consistency.jl")

@@ -9,6 +9,10 @@
 # field once and evaluates the polynomial on the current state. A Marker and a
 # magnet with L == 0 are the identity. A thin RF cavity is rejected. The field
 # equations stay in Fields for comparison and for tests.
+#
+# element_flow(H, z0; s0, s1) integrates an explicit scalar H(z, s). Each stage
+# evaluates the dual symplectic gradient of w -> H(w, s). A soft edge uses that
+# path because the fringe Hamiltonian depends on s.
 # =============================================================================
 module ElementFlow
 
@@ -39,8 +43,7 @@ function _flow_rhs(H, z)
     return (w, s) -> symplectic_gradient(H, w; S = SYMPLECTIC_S)
 end
 
-function _integrate_flow(z, s0, s1, method, tol, nsteps, ds, H)
-    rhs = _flow_rhs(H, z)
+function _integrate_rhs(z, s0, s1, method, tol, nsteps, ds, rhs)
     n = _fixed_steps(s0, s1, nsteps, ds)
     if n === nothing
         is_adaptive(method) ||
@@ -48,6 +51,10 @@ function _integrate_flow(z, s0, s1, method, tol, nsteps, ds, H)
         return integrate(rhs, z, s0, s1; method = method, tol = tol).z
     end
     return integrate_fixed(rhs, z, s0, s1, n; method = method).z
+end
+
+function _integrate_flow(z, s0, s1, method, tol, nsteps, ds, H)
+    return _integrate_rhs(z, s0, s1, method, tol, nsteps, ds, _flow_rhs(H, z))
 end
 
 function _fixed_steps(s0, s1, nsteps, ds)
@@ -66,12 +73,19 @@ end
     element_flow(e, ref, z0; s0 = 0, s1 = elem_length(e),
                  method = DormandPrince853(), tol = 1e-14,
                  nsteps = nothing, ds = nothing, path_length = 0) -> Vector
+    element_flow(H, z0; s0 = 0, s1, method = DormandPrince853(), tol = 1e-14,
+                 nsteps = nothing, ds = nothing) -> Vector
 
 Integrate one element from its s-Hamiltonian, ``dz/ds = S\nabla H``, with
 [`SYMPLECTIC_S`](@ref). A magnet uses [`hamiltonian`](@ref)`(e, ref, z)`.
 A thick [`RFCavity`](@ref) uses [`hamiltonian`](@ref)`(e, ref, path_length, z)`
 and needs a positive `path_length`. A thin cavity is rejected: the map is
 [`rf_kick`](@ref) and the generator is [`rf_potential`](@ref).
+
+`element_flow(H, z0; s0, s1)` integrates a scalar `H(z, s)`. `s1` is required.
+Each stage evaluates [`symplectic_gradient`](@ref) of `w -> H(w, s)`, including
+on `TaylorN` and on DA. The magnet methods stay on the autonomous path: one
+DA vector field, built once.
 
 `z0` is a canonical 6-vector of numbers, `TaylorN`, or DA. A [`Marker`](@ref),
 a magnet of length 0, or a call with `s1 == s0`, returns a copy of `z0`.
@@ -120,6 +134,17 @@ function element_flow(e::RFCavity, ref::RefParticle, z0;
         "element_flow(::RFCavity) needs a positive path_length"))
     return _integrate_flow(z, s0, s1, method, tol, nsteps, ds,
                            w -> hamiltonian(e, ref, path_length, w))
+end
+
+function element_flow(H::Function, z0;
+                      s0::Real = 0.0, s1::Real,
+                      method::ODEMethod = DormandPrince853(), tol::Real = 1e-14,
+                      nsteps::Union{Nothing,Integer} = nothing,
+                      ds::Union{Nothing,Real} = nothing)
+    z = collect(z0)
+    s1 == s0 && return z
+    rhs = (w, s) -> symplectic_gradient(u -> H(u, s), w; S = SYMPLECTIC_S)
+    return _integrate_rhs(z, s0, s1, method, tol, nsteps, ds, rhs)
 end
 
 end # module
