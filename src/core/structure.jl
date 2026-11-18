@@ -126,7 +126,7 @@ set_cavity_phase(lattice::Lattice, phi_s) =
     with_reference(lattice, ref) -> Lattice
 
 Same elements (same normalised strengths) with another reference particle,
-i.e. the magnets scaled with p0. Maps are rebuilt automatically (caches are keyed by energy).
+i.e. the magnets scaled with p0. Maps are rebuilt automatically (caches are keyed by the full reference particle).
 """
 with_reference(lattice::Lattice, ref::RefParticle) = Lattice(lattice.name, lattice.elements, ref, lattice.harmonic)
 
