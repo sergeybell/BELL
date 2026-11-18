@@ -21,20 +21,27 @@
 """
     Bell
 
-BELL - Beam Evolution in Accelerator Lattice.
+BELL — Beam Evolution in Accelerator Lattice.
 
-Two independent physics stacks share elements, coordinates and integrators:
+The model of an element is its s-Hamiltonian `H`, and the equations of motion
+are `dz/ds = S ∇H`. The field equations of motion are an alternative
+formulation, kept for comparison. Differential algebra and Taylor series are
+algebras used to compute the map. They are not a second physical model.
 
-- **Lie path** — polynomial `hamiltonian`, Lie algebra / Dragt–Finn, `Tracking`.
-- **Field / DA path** — equations of motion in `Fields`, `FieldTrack` (Float64)
-  and `DATracking` (any order N). Thin `RFCavity` uses `rf_kick` in both stacks.
+A Taylor map is symplectic only up to its truncation order. A Lie factor is
+exactly symplectic at any truncation when the factor is applied exactly. The
+current implementation carries generators `f3` and `f4` (map order 3); higher
+orders are algorithmically more expensive.
+
+The two computations are not unified. The DA computation integrates the field
+equations. The Lie computation uses `H`.
 
 Smooth `(φ, δ)` is a separate averaged model, not 6D RF tracking.
 `NormalForm` is research-only (`using Bell.NormalForm`).
 Plotting (`plot_twiss` and the other `plot_*` / `gif_*` names) loads with Plots.
 
 `ParticleState` and `Beam` hold canonical coordinates and an optional spin slot.
-`FieldTracker`, `LieTracker` and `MapTracker` call the two stacks above; they do not replace them.
+`FieldTracker`, `LieTracker` and `MapTracker` call the computations above; they do not replace the model.
 """
 module Bell
 
