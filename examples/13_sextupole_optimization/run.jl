@@ -7,7 +7,7 @@
 #
 #   julia --project=examples examples/13_sextupole_optimization/run.jl
 
-using Bell, Printf, LinearAlgebra, TaylorSeries, Plots
+using Bell, Printf, LinearAlgebra, Random, TaylorSeries, Plots
 
 include(joinpath(@__DIR__, "..", "common", "print_util.jl"))
 
@@ -104,7 +104,70 @@ println()
 println("  (linear-model prediction check A: xi1_x, xi1_y, alpha1 should be ~0)")
 
 
-section("5. Tracking check of solution A")
+section("5. Derivative-free fit of the same linear residual",
+        "solve_A inverts the response. Here f(x) -> Real is that residual:",
+        "xi1_x, xi1_y, and alpha1 predicted from base and cols, which ring_metrics built.",
+        "NelderMead, RandomStart, and GridSearch do not build another one-turn map.")
+
+fs = [f for f in SEXT_FAMILIES if haskey(cols, f)]
+k_ref = [kA[f] for f in fs]
+
+function chromatic_residual(x)
+    xi_x = base.xi1x
+    xi_y = base.xi1y
+    a1 = base.alpha1
+    for (i, f) in enumerate(fs)
+        c = cols[f][1]
+        xi_x += c[:xi1x] * x[i]
+        xi_y += c[:xi1y] * x[i]
+        a1 += c[:alpha1] * x[i]
+    end
+    return xi_x^2 + xi_y^2 + a1^2
+end
+
+function print_opt(tag, result)
+    result isa OptimizationResult || error("expected OptimizationResult")
+    @printf("  %-18s f = %.3e   converged = %-5s   n_eval = %5d   %s\n",
+            tag, result.f, string(result.converged), result.n_eval, result.message)
+    for (f, v, ka) in zip(fs, result.x, k_ref)
+        @printf("    %-6s k2 = % .8f    solution A = % .8f    diff = %.3e\n",
+                f, v, ka, v - ka)
+    end
+    return nothing
+end
+
+@printf("  families = %s\n", join(fs, ", "))
+@printf("  f(0) = %.6e    f(solution A) = %.6e\n",
+        chromatic_residual(zeros(length(fs))), chromatic_residual(k_ref))
+
+t_opt = time()
+local_fit = NelderMead(tol = 1e-14, max_iter = 4000, initial_step = 2.0)
+r_nm = optimize(local_fit, chromatic_residual, zeros(length(fs)))
+r_rs = optimize(RandomStart(3;
+                             lower = fill(-100.0, length(fs)),
+                             upper = fill(100.0, length(fs)),
+                             local_method = NelderMead(tol = 1e-12, max_iter = 800, initial_step = 1.0),
+                             rng = Random.MersenneTwister(52)),
+                chromatic_residual)
+levels = (-10.0, 0.0, 10.0)
+grid_points = Vector{Float64}[]
+for point in Iterators.product(ntuple(_ -> levels, length(fs))...)
+    push!(grid_points, Float64[point...])
+end
+grid = GridSearch(grid_points; polish = false)
+grid_polished = GridSearch(grid_points; polish = true,
+                           local_method = NelderMead(tol = 1e-12, max_iter = 800, initial_step = 1.0))
+r_grid = optimize(grid, chromatic_residual)
+r_polished = optimize(grid_polished, chromatic_residual)
+@printf("  optimizer section in %.3f s    grid points = %d\n", time() - t_opt, length(grid_points))
+println()
+print_opt("NelderMead", r_nm)
+print_opt("RandomStart", r_rs)
+print_opt("GridSearch", r_grid)
+print_opt("GridSearch+polish", r_polished)
+
+
+section("6. Tracking check of solution A")
 
 latA = set_family_strengths(lat, fam_idx, kA)
 MA = mA.M

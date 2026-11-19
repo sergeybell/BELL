@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Dynamics examples `trackers_and_beam` and `rf_longitudinal`. `trackers_and_beam` loads `examples/lattices/fodo.bell` and tracks a small beam with `ParticleState`, `Beam`, `FieldTracker`, `LieTracker`, `MapTracker`, and `track!`. `rf_longitudinal` loads `magnetic_2.bell` and shows a thin cavity (`insert_cavity`, `rf_kick`) and a thick cavity integrated from its s-Hamiltonian, together with the smooth longitudinal model (`synchrotron_tune`, `LongitudinalParams`, `long_H`, `fixed_points`, `separatrix`, `bucket_height`). Example 13 keeps the response solve and adds `NelderMead`, `RandomStart`, `GridSearch`, and `optimize` on a scalar residual built from `ring_metrics`. Examples 10–12 and 14–19 are unchanged. ([#59])
 - Map examples `element_maps`, `lie_maps_fodo`, `da_basics`, and `method_comparison`. They load `examples/lattices/fodo.bell`; the Lie example also loads `magnetic_2.bell`. They show element maps, a Lie-factor product, differential-algebra arithmetic, and a comparison of the Lie path, the DA map of `H`, the Taylor check, and numeric tracking, including Dragt-Finn generators. Examples 10–19 are unchanged. ([#58])
 - Foundation examples `reference_and_coordinates`, `lattice_io`, `element_hamiltonians`, and `linear_optics_fodo`. They load `examples/lattices/fodo.bell`; the IO and optics examples also load `magnetic_2.bell`. They show the reference particle, laboratory and canonical coordinates, a structure-file round trip, element s-Hamiltonians, and FODO linear optics. Examples 10–19 are unchanged. ([#57])
 - Forward-mode `Dual` numbers in `DiffAlgebra` evaluate the phase-space gradient of a scalar function at the current point, on numbers, on DA, and on `TaylorN`. `symplectic_gradient` applies a pairing matrix `S` (the default is the block pairing `[0 1; -1 0]`). On a DA coordinate jet, `map_vector_field` builds the same vector field with `deriv`, which agrees with the dual partial through order `N-1`. ([#36], [#35])
@@ -338,3 +339,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [#47]: https://github.com/sergeybell/BELL/issues/47
 [#48]: https://github.com/sergeybell/BELL/pull/48
 [#56]: https://github.com/sergeybell/BELL/pull/56
+[#59]: https://github.com/sergeybell/BELL/pull/59
