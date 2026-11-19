@@ -1,6 +1,6 @@
 # Loading a lattice
 
-Examples: `examples/10_linear_optics`, `examples/15_coordinates`.
+Examples: `examples/02_lattice_io`, `examples/01_reference_and_coordinates`.
 
 ```julia
 using Bell
@@ -18,8 +18,8 @@ An OptiM file is converted once with `convert_optim(opt_file, bell_file)`.
 
 **Edits** return a new lattice: `insert_cavity(lat, Cavity("RF", 1.0, 0.2, 5, phi_s))`
 returns `(lattice, index)`; `place_sextupole_families` / `set_family_strengths`
-add sextupoles (example 13).
+add sextupoles (`examples/10_sextupole_families`).
 
 **Coordinates:** tracking uses canonical ``z = (x, p_x, y, p_y, l, \delta)``;
 convert with `user_to_canonical(u, ref, C, h)` / `canonical_to_user` from user
-``(x, x', y, y', \varphi, \delta)`` (example 15).
+``(x, x', y, y', \varphi, \delta)`` (`examples/01_reference_and_coordinates`).

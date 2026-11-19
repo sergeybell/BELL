@@ -27,4 +27,4 @@ CurrentModule = Bell
 
 The body Hamiltonians are not touched; edges are separate thin items
 (see [Fringe fields](fringe.md)). Check new models with `fringe_observables`
-(symplecticity of every edge map) and the ``g \to 0`` limit of example 19.
+(symplecticity of every edge map) and the ``g \to 0`` limit in `examples/15_fringe_fields`.

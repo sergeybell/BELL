@@ -1,7 +1,7 @@
 # Tracking and acceleration
 
-Examples: `examples/11_lie_maps`, `examples/12_higher_order`,
-`examples/14_rf_acceleration`, `examples/16_blond_longitudinal`.
+Examples: `examples/06_lie_maps`, `examples/07_map_readings`,
+`examples/13_acceleration`, `examples/12_rf_longitudinal`.
 
 **Exact 6D tracking** (non-expanded Hamiltonians, the reference):
 
@@ -19,7 +19,7 @@ factors = build_factors(lat)
 z = track(factors, z; turns = 1000)
 ```
 
-**Acceleration** with a finite cavity (example 14):
+**Acceleration** (`examples/13_acceleration`):
 
 ```julia
 ref_inj = reference_from_kinetic(DEUTERON, 10.0)

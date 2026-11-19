@@ -17,6 +17,7 @@ docs/build/
 
 # Jupyter
 .ipynb_checkpoints/
+examples/_nb_cache/
 
 # IDE
 .vscode/

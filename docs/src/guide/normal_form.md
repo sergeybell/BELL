@@ -1,6 +1,6 @@
 # Normal forms
 
-Examples: `examples/17_lie_product`, `examples/18_lie_normal_form`.
+Examples: `examples/06_lie_maps`, `examples/14_normal_form`.
 
 ```julia
 ref = reference_from_kinetic(DEUTERON, 270.0)
@@ -14,5 +14,5 @@ nf6d_delta_eq(nf, [Jx, Jy, Js])                      # equilibrium momentum offs
 nf6d_actions(nf, z)                                  # actions of a tracked point
 ```
 
-Example 17 checks the Lie product (`concatenate`) against the Lie series.
+`examples/06_lie_maps` checks the Lie product (`concatenate`) against the Lie series.
 Steps of the algorithm: [Normal form (internals)](../dev/normal_form.md).

@@ -18,5 +18,8 @@ The documentation has four parts:
 Quick start (from the repository root):
 
 ```
-julia --project=examples examples/10_linear_optics/run.jl
+julia --project=examples examples/01_reference_and_coordinates/run.jl
 ```
+
+The teaching set is `examples/01_reference_and_coordinates` through
+`examples/15_fringe_fields`. The table is `examples/README.md`.
