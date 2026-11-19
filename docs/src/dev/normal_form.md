@@ -4,8 +4,10 @@
 CurrentModule = Bell
 ```
 
-Module: `NormalForm` (`src/normal_form.jl`). Two routes are implemented. Route 1
-is the primary one (`examples/14_normal_form`).
+Module: `NormalForm` (`src/maps/lie/normal_form.jl`), loaded with
+`using Bell.NormalForm`. It is not part of `using Bell`. Two routes are
+implemented. Route 1 is the primary one
+(`examples/14_normal_form/run.jl`).
 
 ## Route 1: Dragt–Finn 6D normal form ([`dragt_finn_nf6d`](@ref))
 
@@ -94,16 +96,21 @@ d_k = \tfrac12\Big(\frac{\partial^2U_6}{\partial w_{2k-1}^2} + \frac{\partial^2U
 ## Route 2: map-based RF normal form ([`normal_form_rf`](@ref), older)
 
 ```
-cav = RFCavity(V·T, h, φs)
-M   = one_turn_map_rf(lat, cav)    # RK4 Taylor map of the ring (ring_taylor_map), then rf_kick_taylor
+cav = RFCavity("NF", V * T, h, φs)          # thin; L = 0
+C   = path_length(lat)
+M   = one_turn_map_rf(lat, cav, ref, C)     # ring_taylor_map, then rf_kick_taylor
 z*  = fixed_point_6d(M); Mc = center_map_at(M, z*)
 pe, ξ from the RF-off Taylor map; po from ring_matrix; Qs0 = synchrotron_tune(η0)
 A   = linear_A_6d(po, pe, Qs0):  dispersion shear A[1:4,6] = D4, Courant–Snyder blocks
       [√β 0; −α/√β 1/√β], longitudinal block diag((C/2πh)√βs, 1/√βs), βs = Qs0/(h|η0|)
 Mn  = A⁻¹ ∘ Mc ∘ A ;  F = dragt_finn_factor(Mn)
-δ_eq on 7 tori (Jx, Jy, δm) from ⟨Δφ⟩ = 0 (12³ angle grid, secant iteration);
+δ_eq on 7 tori (Jx, Jy, δm) from the phase condition ⟨Δφ⟩ = 0;
 fit δ_eq = c0 + cx Jx + cy Jy + cs Js
 ```
+
+`ring_taylor_map` is [`taylor_map_element`](@ref) on each element
+(`src/maps/lie/tracking.jl`): [`element_flow`](@ref) of ``H``, default RK4.
+`normal_form_rf(lat, ref, C, h, V, φs)` builds the thin cavity internally.
 
 Notes (truthful status of this route): the linear ``A`` is approximate (not the
 symplectic eigen-normalisation), the cubic generator is not solved by a

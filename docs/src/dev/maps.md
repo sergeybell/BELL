@@ -4,9 +4,12 @@
 CurrentModule = Bell
 ```
 
-Modules: `LieAlgebra` (`src/lie_algebra.jl`), `Hamiltonians`
-(`src/hamiltonians.jl`), `DifferentialAlgebra` (`src/differential_algebra.jl`),
-`Symplectic` (`src/symplectic.jl`).
+Modules: `LieAlgebra` (`src/maps/lie/lie_algebra.jl`), `Hamiltonians`
+(`src/physics/hamiltonians.jl`), `ElementFlow` (`src/maps/element_flow.jl`),
+`Symplectic` (`src/core/symplectic.jl`). There is no `DifferentialAlgebra`
+module. The Taylor check of a Lie map is [`taylor_map_element`](@ref) in
+`src/maps/lie/tracking.jl`. Truncated series of arbitrary order are
+`Bell.DiffAlgebra` (`src/math/DiffAlgebra.jl`).
 
 ## Polynomial space
 
@@ -88,11 +91,16 @@ polynomial `factor_to_map(F)` is symplectic only up to degree MAP_ORDER.
 That is why tracking applies the factor by symplectic flows instead (see
 [Tracking](tracking.md)).
 
-## Differential-algebra (RK4) maps
+## Taylor maps of the same Hamiltonian
 
-An independent route to the same maps integrates ``dz/ds = S\nabla H`` with
-classical RK4, where z is a vector of polynomials starting from the identity.
-The integration is 4th order in the step and not symplectic. It is used only to
-cross-check the Lie product and as the input of the map-based normal form.
+[`taylor_map_element`](@ref) (`src/maps/lie/tracking.jl`) integrates
+``dz/ds = S\nabla H`` through [`element_flow`](@ref). The default method is
+RK4. The state is a vector of `TaylorN` polynomials that starts at the
+identity, and the result is cut at [`MAP_ORDER`](@ref). A magnet and a thick
+[`RFCavity`](@ref) use that flow. A thin cavity integrates the vector field of
+[`rf_potential`](@ref) over a unit interval. The step is not symplectic. The
+map is a check of the Lie product, and it is the input of the map-based
+normal form ([Normal form](normal_form.md), route 2). A DA map of any order
+is a third computation of the same ``H`` ([DA maps](da_tracking.md)).
 
 ## Symplecticity checks

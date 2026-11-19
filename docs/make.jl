@@ -26,7 +26,7 @@ const PAGES = [
         "Fringe fields" => "dev/fringe.md",
         "Differential algebra" => "dev/da.md",
         "ODE integrators" => "dev/integrators.md",
-        "Field ODEs on DA" => "dev/da_tracking.md",
+        "DA maps from H" => "dev/da_tracking.md",
         "Optimizers" => "dev/optimizers.md",
         "Extending Bell" => "dev/extending.md",
     ],

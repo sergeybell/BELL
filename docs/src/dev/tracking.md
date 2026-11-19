@@ -4,181 +4,169 @@
 CurrentModule = Bell
 ```
 
-Modules: `Tracking` (`src/tracking.jl`), `FieldTrack` (`src/field_track.jl`)
-(`src/exact_integrator.jl`), `Acceleration` (`src/acceleration.jl`).
+Production motion is ``dz/ds = S\nabla H`` of the element s-Hamiltonian.
+[`element_flow`](@ref) (`src/maps/element_flow.jl`) is that integral.
+[`exact_track_element`](@ref), [`element_da_map`](@ref), and
+[`taylor_map_element`](@ref) call it for a magnet and for a thick
+[`RFCavity`](@ref). A thin cavity is [`rf_kick`](@ref). The field equations
+in `src/physics/fields.jl` are the comparison formulation. They are not the
+step these functions take.
 
-Bell has four ways to move phase-space coordinates through elements. All of them
-are generic code: they run on `Float64` points and on `TaylorN` polynomials (the
-latter gives exact Jacobians for symplecticity checks). The check itself is one
-function, [`symplectic_error`](@ref): a numeric Jacobian, a `TaylorN` map, a DA map
-([`da_symplectic_error`](@ref)), or a tracking step at a point.
+| module | file | role |
+|:--|:--|:--|
+| `ElementFlow` | `src/maps/element_flow.jl` | integrate ``dz/ds = S\nabla H`` |
+| `FieldTrack` | `src/maps/da/field_track.jl` | one point: `exact_track_*`, `rf_kick`, `renormalize` |
+| `Tracking` | `src/maps/lie/tracking.jl` | Lie factors, `track`, Taylor check `taylor_map_element` |
+| `DATracking` | `src/maps/da/tracking.jl` | DA map from the same flow |
+| `Acceleration` | `src/longitudinal_models/acceleration.jl` | ramp: track, then `renormalize` after each cavity |
+| `Trackers` | `src/tracking/trackers.jl` | `FieldTracker`, `LieTracker`, `MapTracker` |
+| `BeamState` | `src/tracking/state.jl` | `ParticleState`, `Beam` |
 
-| route | function | what is integrated | truncation | symplectic | used for |
-|:--|:--|:--|:--|:--|:--|
-| **exact integrator** | [`exact_track_element`](@ref), [`exact_track_turn`](@ref) | exact (non-expanded) ``H`` incl. finite RF cavity | none (only step error, 4th order) | yes | reference tracking, acceleration, longitudinal studies |
-| Lie-factor tracking | [`track`](@ref), [`apply_factor`](@ref) | element factors ``R, f_3, f_4`` | generators to degree 4 (``H`` to degree 4) | yes | fast tracking of the magnetic ring, thin RF |
-| Lie series | [`lie_map`](@ref) | ``e^{-L{:}H{:}}z`` | map cut at degree 3 | to degree 3 | element maps |
-| RK4 in TaylorN | [`taylor_map_element`](@ref) | ``dz/ds=S\nabla H`` | degree 3 | no | cross-check maps |
+[`symplectic_error`](@ref) is one check: a numeric Jacobian, a `TaylorN` map,
+a DA map ([`da_symplectic_error`](@ref)), or a tracking step at a point.
 
-## 1. Exact-Hamiltonian integrator (`FieldTrack` (`src/field_track.jl`))
+| route | function | what moves the state | cut | symplectic |
+|:--|:--|:--|:--|:--|
+| point tracking | [`exact_track_element`](@ref), [`exact_track_turn`](@ref) | [`element_flow`](@ref) of ``H``; thin RF is [`rf_kick`](@ref) | step of the ODE method | of the solver |
+| Lie factors | [`track`](@ref), [`apply_factor`](@ref) | ``R``, ``f_3``, ``f_4`` | generators through degree 4 | yes for the applied flow |
+| Lie series | [`element_lie_map`](@ref) | ``e^{-L{:}H{:}}z`` | map degree [`MAP_ORDER`](@ref) | up to that degree |
+| Taylor check | [`taylor_map_element`](@ref) | same ``H`` through [`element_flow`](@ref) (default RK4) | degree 3 | up to truncation |
+| DA map | [`element_da_map`](@ref) | same flow on a DA jet | order ``N`` | up to truncation |
 
-### Equations of motion
+## 1. Point tracking (`FieldTrack`)
 
-For every magnet (drift, quadrupole, sextupole, sector bend are special cases
-with ``(h, k_1, k_2)`` taken from the element type, `_params`) the code evaluates
-the exact vector field `_field_mag`:
+[`exact_track_element`](@ref)`(z, e, ref, path_length; ds = 0.1, method = ImplicitYoshida(4))`:
 
-```math
-H_\text{mag} = e(\delta) - (1+hx)p_s + hx + \tfrac{h^2x^2}{2} + \tfrac{k_1}{2}(x^2-y^2) + \tfrac{k_2}{6}(x^3-3xy^2),
-```
+- a [`Marker`](@ref), or a magnet of length 0, returns a copy of `z`;
+- a thin [`RFCavity`](@ref) (`L = 0`) is [`rf_kick`](@ref). [`element_flow`](@ref) rejects a thin cavity;
+- a thick cavity is [`element_flow`](@ref) of [`hamiltonian`](@ref)`(e, ref, path_length, z)` over `L`, with `nsteps = max(1, ceil(L / ds))`. `path_length` must be positive;
+- a [`Drift`](@ref) is one step of `method`;
+- any other magnet is the same flow of [`hamiltonian`](@ref)`(e, ref, z)`, with `nsteps = max(1, ceil(L / ds))`.
 
-```math
-\begin{aligned}
-x' &= \frac{(1+hx)\,p_x}{p_s}, & p_x' &= h\,p_s - h - h^2x - k_1x - \tfrac{k_2}{2}(x^2-y^2),\\
-y' &= \frac{(1+hx)\,p_y}{p_s}, & p_y' &= k_1 y + k_2\,xy,\\
-l' &= \frac{v(\delta)}{v_0} - \frac{(1+hx)(1+\delta)}{p_s}, & \delta' &= 0 .
-\end{aligned}
-```
+[`element_flow`](@ref) itself defaults to [`DormandPrince853`](@ref). When
+`nsteps` and `ds` are both omitted, an adaptive method uses `tol`. The point
+tracker always passes a step count, so its step is fixed. On numbers and on
+`TaylorN`, each stage is the dual [`symplectic_gradient`](@ref) of ``H``. On a
+DA jet the polynomial field is built once; see
+[DA maps](da_tracking.md).
 
-No expansion in ``p_x, p_y, \delta`` or ``x`` is made anywhere: ``p_s`` and
-``v(\delta)/v_0`` are evaluated as square roots.
+[`exact_track_turn`](@ref) walks `lattice.elements` in order and keeps the
+reference it was given. Nothing on this route truncates ``H`` as a polynomial.
+The cut is the step in ``s``.
 
-For the finite cavity (`_field_cav`), with ``\Phi = \omega(s-L/2)/v_0 - \omega l/v(\delta) - \varphi_s``:
+The comparison right-hand side for a hard-edge magnet is [`element_field`](@ref)
+in `src/physics/fields.jl`. [`element_rhs`](@ref) throws for a marker and for
+an [`RFCavity`](@ref): a thick cavity is the flow of ``H``, not that field.
 
-```math
-\begin{aligned}
-x' &= p_x/p_s, & p_x' &= 0,\qquad y' = p_y/p_s,\qquad p_y' = 0,\\
-l' &= \frac{v}{v_0} - \frac{1+\delta}{p_s} - A\sin\Phi\;\frac{\partial\Phi}{\partial\delta}, &
-\delta' &= -\frac{\partial H}{\partial l} = -A\,\frac{\omega}{v}\,\sin\Phi
- = -\frac{ZV}{p_0c\,L}\,\frac{c}{v}\,\sin\Phi ,
-\end{aligned}
-```
+## 2. Acceleration ([`accelerate`](@ref))
 
-with ``\partial\Phi/\partial\delta = \omega\,l\,v_0\,(dv/d\delta)/v^2``. The last
-equation is exactly ``dp/ds = (1/v)\,dE/ds`` with the on-axis field
-``dE/ds = -(ZV/L)\sin\Phi``. Integrated over the cavity it gives the energy gain
-``\Delta E = ZVT\sin(\varphi_s + \varphi)`` with the transit factor
-``T = \sin(\theta/2)/(\theta/2)``, ``\theta = \omega L/v_0`` (historical; the long cavity and `transit_factor` were removed in v0.16, RF is the thin `RFCavity` kick [`rf_kick`](@ref)).
-Transverse RF fields are not modelled.
-
-### Step algorithm
-
-```
-exact_track_element(z, e, ref, C; ds):
-    Marker                → return z
-    Cavity                → (ω, A, v0) = cavity_parameters(e, ref, C)        # recomputed from current ref
-                            n = max(4, ceil(L / 0.02 m));  F = _field_cav
-    Drift                 → n = 1;               F = _field_mag(h=0,k1=0,k2=0)
-    Quadrupole/Sext/SBend → n = ceil(L / ds);    F = _field_mag(h, k1, k2)
-    return _integrate(F, z, L, n)
-
-_integrate(F, z, L, n):                       # Yoshida 4th order
-    hs = L/n ; s = 0
-    W1 = 1/(2 − 2^(1/3)) ; W0 = 1 − 2 W1     # W0 < 0
-    repeat n times:
-        z = _midpoint(F, z, s, W1·hs) ; s += W1·hs
-        z = _midpoint(F, z, s, W0·hs) ; s += W0·hs
-        z = _midpoint(F, z, s, W1·hs) ; s += W1·hs
-    return z
-
-_midpoint(F, z, s, h):                        # implicit midpoint, order 2, symplectic
-    z' = z + h F(z, s + h/2)                  # explicit Euler guess
-    repeat ≤ 40:  z' = z + h F((z + z')/2, s + h/2)   until |Δ| ≤ 1e-16
-    return z'
-```
-
-[`exact_track_turn`](@ref) simply calls `exact_track_element` for
-`lat.elements` in order, with a **fixed** reference particle.
-
-## 2. One turn with acceleration ([`accelerate`](@ref))
-
-Energy is gained only with a finite [`Cavity`](@ref) and the exact integrator.
-The algorithm, turn by turn:
+The ramp uses a thin [`RFCavity`](@ref). Magnets are still the flow of ``H``.
+The reference is rebuilt after the cavity, not inside the Hamiltonian.
 
 ```
-input: lat (contains a Cavity), ref0, particles u_k in user coords (u_1 = synchronous)
-C = circumference(lat);  h = lat.harmonic;  ref = ref0
-z_k = user_to_canonical(u_k, ref, C, h)
-for n = 1 … max_turns:
-    for e in lat.elements (in order):
-        z_k = exact_track_element(z_k, e, ref, C; ds)          # all particles, current ref
-        if e is Cavity:
-            (z_k, ref) = renormalize(z_k, ref, 1)              # particle 1 becomes the reference
-    record (ref.Ekin, γ0, β0, p0, user coords of all particles)
-    if ref.Ekin ≥ Ekin_target (first time):  set φs of every Cavity to phi_flat (default π)
-    stop phi_flat turns after that
+C = path_length(lattice);  h = lattice.harmonic;  ref = injection reference
+z_k = laboratory_to_canonical(u_k, ref, C, h)     # u_1 is the synchronous particle
+for each turn:
+    for e in lattice.elements:
+        z_k = exact_track_element(z_k, e, ref, C; ds)
+        (z_k, ref) = after_element!(z_k, ref, e)  # RFCavity → renormalize(..., 1)
+    record ref and canonical_to_laboratory of every particle
+    when ref.Ekin first reaches Ekin_target:
+        set_cavity_phase(lattice, phi_flat)       # default π
+    stop flat_turns after that
 ```
 
-**What is recomputed after each cavity passage** ([`renormalize`](@ref)). Let the
-synchronous particle leave the cavity with ``(x_s, p_{xs}, y_s, p_{ys}, l_s, \delta_s)``:
+`after_element!` calls [`renormalize`](@ref) for an [`RFCavity`](@ref)
+and returns the same state for every other element.
+
+With ``(x_s, p_{xs}, y_s, p_{ys}, l_s, \delta_s)`` the synchronous particle
+before the rebuild, and ``v(\delta)`` the velocity at that same ``\delta``
+(not at ``\delta'``):
 
 ```math
 \begin{aligned}
-p_0' &= p_0(1+\delta_s),\qquad E_\text{kin}' = \sqrt{p_0'^2 + m^2} - m,\qquad
-\texttt{ref}' = \texttt{reference\_from\_kinetic}(E_\text{kin}')\ \Rightarrow\ \gamma_0', \beta_0', B\rho',\\
+p_0' &= p_0(1+\delta_s),\qquad
+E_\text{kin}' = \sqrt{p_0'^2 + m^2} - m,\\
 \delta' &= \frac{1+\delta}{1+\delta_s} - 1,\qquad
-p_x' = \frac{p_x - p_{xs}}{1+\delta_s},\qquad p_y' = \frac{p_y - p_{ys}}{1+\delta_s},\qquad
-x' = x - x_s,\quad y' = y - y_s,\\
-\Delta t &= -\frac{l}{v(\delta)} + \frac{l_s}{v(\delta_s)},\qquad l' = -v(\delta)\,\Delta t .
+p_x' = \frac{p_x - p_{xs}}{1+\delta_s},\qquad
+p_y' = \frac{p_y - p_{ys}}{1+\delta_s},\\
+x' &= x - x_s,\qquad y' = y - y_s,\\
+\Delta t' &= -\frac{l}{v(\delta)} + \frac{l_s}{v(\delta_s)},\qquad
+l' = -v(\delta)\,\Delta t' .
 \end{aligned}
 ```
 
-The scaling ``p_x/(1+\delta_s)`` is the adiabatic damping. Because the next element
-is tracked with ``\texttt{ref}'``, everything that depends on the reference is
-rebuilt automatically on the next call: ``\beta_0, \gamma_0`` in ``e(\delta)`` and
-``v(\delta)``, the revolution frequency ``\omega_0 = 2\pi\beta_0c/C`` and the RF
-frequency ``\omega = h\omega_0`` (the RF follows the beam), and the cavity
-amplitude ``A \propto ZV/p_0``. The normalised magnet strengths ``h, k_1, k_2`` are
-kept: magnets are assumed to ramp in proportion to ``p_0``.
+``p_x/(1+\delta_s)`` is the adiabatic damping. Normalised magnet strengths are
+kept: the magnets are assumed to ramp with ``p_0``. The next element is
+tracked with the new reference, so ``\beta_0``, ``\gamma_0``, the revolution
+frequency, and the cavity scale ``ZV/p_0`` follow the beam.
 
-[`turn_snapshots`](@ref) runs one such turn and records the coordinates after
-every element.
+[`turn_snapshots`](@ref) runs one such turn and records laboratory coordinates
+after every element.
 
-## 3. Lie-factor tracking (`Tracking`)
+Lie-factor [`track`](@ref) does not ramp. A thin kick changes ``\delta`` of a
+particle and leaves ``p_0`` fixed.
 
-[`build_factors`](@ref) turns each element into one [`LieFactor`](@ref)
-``(R, f_3, f_4)`` (see [Elements](elements.md)), RF cavities included
-(thin = ``\exp(-:G:)`` of [`rf_potential`](@ref)). [`track`](@ref) only applies
-those factors:
+## 3. Lie-factor tracking (`src/maps/lie/tracking.jl`)
+
+[`build_factors`](@ref) stores one [`LieFactor`](@ref) ``(R, f_3, f_4)`` per
+element, from [`element_lie_map`](@ref). A thin cavity is the Lie map of
+[`rf_potential`](@ref). A thick cavity is ``\exp(-L{:}H{:})``. [`track`](@ref)
+only applies those factors:
 
 ```
-track(factors, z; turns = 1):
-    for turn = 1 … turns, for F in factors (lattice order):
-        z = apply_factor(F, z)
 apply_factor(F, z):
     w = z
-    if f4 ≠ 0:  w = _flow(field4, w)      # time-1 flow of −S∇f4  = e^{:f4:}
-    w = _flow(field, w)                   # time-1 flow of −S∇f3  = e^{:f3:}
+    if f4 ≠ 0:  w = flow of −S∇f4 over t ∈ [0, 1]    # ImplicitMidpoint, 2 steps
+    w = flow of −S∇f3 over t ∈ [0, 1]                # ImplicitMidpoint, 2 steps
     return R · w
-_flow(field, w; nsteps = 2, iters = 12):  # implicit midpoint in "time" t ∈ [0,1]
-    repeat nsteps: w ← w + ½ field((w + w⁺)/2)  (fixed point iteration, ≤ 12, tol 1e-17)
 ```
 
-This route is exactly symplectic (each flow is a Hamiltonian flow solved by a
-symplectic rule) but the *generators* are truncated: ``f_3, f_4`` represent the
-element exactly through degree 3 of the map. The reference energy is fixed;
-this route does **not** accelerate (the thin kick changes ``\delta`` of a particle,
-but ``p_0`` is never updated).
+Each flow is Hamiltonian, so the applied factor is symplectic. The generators
+are truncated: ``f_3`` and ``f_4`` represent the element through degree 3 of
+the map. The polynomial `factor_to_map(F)` is symplectic only up to
+[`MAP_ORDER`](@ref).
 
-### Thin RF kick
+### Thin kick and thick cavity
 
-[`rf_kick`](@ref) applies, at the position of the `RFCavity` in the element list:
+[`rf_kick`](@ref) accepts numbers or DA. With path length ``C`` and
+``v_0 = \beta_0 c``:
 
 ```math
-\Delta t = -\frac{l}{v(\delta)},\ \ \varphi = \frac{2\pi h v_0}{C}\,\frac{l}{v(\delta)},\ \
-E' = \sqrt{p_0^2(1+\delta)^2+m^2} + ZV\sin(\varphi_s+\varphi),\ \
-\delta' = \frac{\sqrt{E'^2-m^2}}{p_0}-1,\ \ l' = -v(\delta')\,\Delta t .
+\Delta t = -\frac{l}{v(\delta)},\qquad
+\varphi = -h\omega_0\Delta t = \frac{2\pi h\, v_0}{C}\,\frac{l}{v(\delta)},
 ```
 
-An energy kick at fixed arrival time is canonical in ``(t,-E)`` and the change of
-variables to ``(l,\delta)`` is canonical, so the kick is symplectic.
+```math
+E' = \sqrt{p_0^2(1+\delta)^2 + m^2} + ZV\sin(\varphi_s + \varphi),\qquad
+\delta' = \frac{\sqrt{E'^2 - m^2}}{p_0} - 1,\qquad
+l' = -v(\delta')\,\Delta t .
+```
 
-## 4. Order and accuracy summary
+``x, p_x, y, p_y`` are unchanged, and so is the reference momentum. An energy
+kick at fixed arrival time is canonical in ``(t, -E)``, and the change of
+variables to ``(l, \delta)`` is canonical, so the kick is symplectic.
 
-| quantity | exact integrator | Lie-factor tracking |
-|:--|:--|:--|
-| ``p_s``, ``v(\delta)``, ``e(\delta)`` | exact square roots | expanded to degree 4 in ``H`` |
-| longitudinal ``l, \delta`` | exact (no cut in ``\delta``) | same truncation as transverse |
-| RF | finite cavity, exact ``\sin\Phi``, t-dependent | thin kick, exact formulas |
-| reference energy | updated after every cavity (`renormalize`) | fixed |
-| step error | ``O(\Delta s^4)`` | none per factor (flows of 2 midpoint steps) |
+A thick cavity is the flow of its s-Hamiltonian: ``\exp(-L{:}H{:})`` on the
+Lie path, and [`element_flow`](@ref) of the same ``H`` on the point tracker
+and the DA map. The Hamiltonian, and the ramp that still rebuilds the
+reference with [`renormalize`](@ref) after each thin kick, are written out in
+[RF Hamiltonian and acceleration](rf_acceleration.md).
+
+## 4. Taylor check
+
+[`taylor_map_element`](@ref) integrates ``dz/ds = S\nabla H`` in `TaylorN`,
+default method RK4, and truncates to [`MAP_ORDER`](@ref). A magnet and a thick
+cavity go through [`element_flow`](@ref). A marker is the identity. A thin
+cavity integrates the vector field of [`rf_potential`](@ref) over a unit
+interval. [`ring_taylor_map`](@ref) composes the element maps. This checks the
+Lie product. It is not the tracking route.
+
+## 5. What each route keeps exact
+
+| quantity | point tracking | Lie-factor tracking | DA map |
+|:--|:--|:--|:--|
+| ``p_s``, ``v(\delta)``, [`energy_term`](@ref) | square roots in ``H`` | ``H`` to degree 4 | series to order ``N`` |
+| RF | thin [`rf_kick`](@ref); thick flow of ``H`` | thin ``\exp(-{:}G{:})``; thick ``\exp(-L{:}H{:})`` | same split as the point tracker |
+| reference energy | [`accelerate`](@ref) updates it after each thin cavity | fixed | fixed |
+| cut | ODE step (`ImplicitYoshida(4)` by default on `exact_track_*`) | generators ``f_3``, ``f_4`` | order ``N`` |

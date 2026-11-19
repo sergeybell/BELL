@@ -4,7 +4,12 @@
 CurrentModule = Bell
 ```
 
-Module: `Fringe` (`src/fringe.jl`). The lattice stays physical (an [`SBend`](@ref)
+Two modules. `Fringe` (`src/physics/fringe.jl`) holds the edge types, the
+profiles, [`fringe_hamiltonian`](@ref), [`fringe_sequence`](@ref), and
+[`FringeModel`](@ref). It does not build maps. `FringeMaps`
+(`src/maps/lie/fringe_maps.jl`) holds [`edge_map`](@ref), the edge-map cache,
+[`build_factors`](@ref) / [`ring_lie_factor`](@ref) with a model, and
+[`fringe_observables`](@ref). The lattice stays physical (an [`SBend`](@ref)
 carries `e1, e2, gap, fint`); the edge model is a separate object chosen when the
 ring is built.
 
@@ -29,7 +34,8 @@ ring_lie_factor(lat, model) = product_factors(all factors)
 So a bend with an edge model becomes three Lie factors:
 **EdgeIn → Body(L) → EdgeOut**. `FringeModel()` (all `NoEdge`) leaves the list
 unchanged and reproduces the plain ring exactly. Every edge map is a polynomial
-map of degree 3 (`MAP_ORDER`), cached by (parent, side, model, ``p_0``); the model key is `repr(model)` plus the table contents for a `Tabulated` profile.
+map of degree 3 (`MAP_ORDER`), cached by (parent, side, model key, `RefParticle`).
+The model key is `repr(model)`; a `Tabulated` profile also stores its samples.
 
 ## Hard edge (`HardEdge(order)`)
 
@@ -145,10 +151,14 @@ H_{1,2} = H\big(s_m \mp \tfrac{\sqrt3}{6}\Delta s\big),
 
 and the interval map is ``e^{-{:}\Omega{:}}`` (`lie_map(Ω, 1)`), composed in order.
 
-**`TaylorIntegrate(tol, nmax)`** — classical RK4 of ``dz/ds = S\nabla H(s)`` in
-`TaylorN` (degree 3), starting with 16 steps, doubling the number of steps until the
-maximum coefficient change ``< \text{tol}`` or ``n > n_\text{max}``. Not symplectic;
-it is the reference for the two methods above.
+**`TaylorIntegrate(tol, nmax)`** — [`element_flow`](@ref) of the s-dependent
+fringe Hamiltonian, ``dz/ds = S\nabla H(z, s)``, with RK4 on `TaylorN`. Each
+stage evaluates the dual symplectic gradient of `w -> H(w, s)`. The map is cut
+at degree 3. On the full width the step count starts at 16 (a shorter piece of
+the fringe starts lower, in proportion to its length) and doubles until the
+maximum coefficient change is below `tol` or `nmax` steps are reached.
+Symplecticity holds only up to the truncation of that integrator. It is the
+reference for the two methods above.
 
 ### Pole-face angle and the wrapper
 
@@ -175,5 +185,5 @@ map (linear part and Jacobian at a test point) and of the ring ``R``, and the
 computing time.
 
 
-!!! note "Metric term `h\,b_1`"
-    In the curved frame the force carries the factor `(1+hx)`, so the gradient term contributes `h b_1 x^2` (horizontal) and `h b_1 xy` (vertical). Since `\int h b_1\,ds = -\tfrac12\int b_2\,ds` (`\theta' = h_0F`), the horizontal sextupole-like term of the straight EFB cancels and the vertical one is `b_2/2`. Without this term (before Oct 2026) SoftEdge differed from COSY FR 3 by `\Delta\xi_x \approx -2.9\cdot10^{-3}`, `\Delta\xi_y \approx +1.0\cdot10^{-3}` at a 10 cm gap; with it the single-dipole second-order map agrees with COSY to `10^{-9}`.
+!!! note "Metric term `h b_1`"
+    In the curved frame the force carries the factor `(1+hx)`, so the gradient term contributes `h b_1 x^2` (horizontal) and `h b_1 xy` (vertical). Since `\int h b_1\,ds = -\tfrac12\int b_2\,ds` (`\theta' = h_0 F`), the horizontal sextupole-like term of the straight effective-field boundary cancels and the vertical one is `b_2/2`.
