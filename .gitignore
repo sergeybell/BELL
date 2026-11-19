@@ -8,12 +8,16 @@ examples/*/output/
 # Documenter HTML build
 docs/build/
 
-# LaTeX build junk (PDF and TEX are kept)
+# LaTeX build junk
 *.aux
 *.log
 *.out
 *.toc
 *.synctex.gz
+
+# Built manuals (regenerate with docs/make_pdf.jl). Do not commit PDF or TEX.
+docs/pdf/*.pdf
+docs/pdf/*.tex
 
 # Jupyter
 .ipynb_checkpoints/

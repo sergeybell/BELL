@@ -1,7 +1,8 @@
 # Programmer Manual
 
-Physics is in the [Beam Physics Manual](../index.md). Architecture of the
-blocks is in [Architecture](../architecture.md). This page lists entry
+Physics is in the [Beam Physics Manual](../en/index.md)
+(Russian: [руководство](../ru/index.md)). The present computation routes are
+in [Computation paths](../en/computation_paths.md). This page lists entry
 points of the Julia package `Bell`.
 
 The object of the ring is the Lie product of Dragt–Finn factors.

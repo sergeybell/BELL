@@ -1,18 +1,60 @@
 # =============================================================================
-# docs/make_pdf.jl - PDF from docs/manual Markdown (beam physics or programmer)
-# Usage: julia docs/make_pdf.jl              -> Beam Physics PDF
-#        julia docs/make_pdf.jl programmer   -> Programmer PDF
+# docs/make_pdf.jl - PDF from docs/manual Markdown
+# Usage: julia --project=docs docs/make_pdf.jl              -> English beam-physics PDF
+#        julia --project=docs docs/make_pdf.jl en           -> Bell_Beam_Physics_Manual_en.pdf
+#        julia --project=docs docs/make_pdf.jl ru           -> Bell_Beam_Physics_Manual_ru.pdf
+#        julia --project=docs docs/make_pdf.jl programmer   -> Programmer PDF
+#
+# Beam-physics chapters live in docs/manual/en and docs/manual/ru (same list).
+# Shared figures live in docs/manual/assets. The programmer manual stays in
+# docs/manual/programmer and ignores the language flag.
+# Russian text needs XeLaTeX and a Unicode body font (Times New Roman,
+# DejaVu Serif, or Liberation Serif). Built PDF and TEX files are gitignored.
 # =============================================================================
 const DOC = @__DIR__
-const MODE = length(ARGS) > 0 && ARGS[1] == "programmer" ? :programmer : :beam
-const PAGES = MODE === :programmer ?
-    ["programmer/index.md"] :
-    ["architecture.md", "index.md", "canonical.md", "hamiltonians.md", "lie.md", "linear.md", "second_order.md",
-     "chromaticity.md", "fringe.md", "rf.md", "acceleration.md", "longitudinal.md", "sextupoles.md", "equilibrium.md", "assumptions.md"]
-const OUTNAME = MODE === :programmer ? "Bell_Programmer_Manual" : "Bell_Beam_Physics_Manual"
-const TITLE = MODE === :programmer ?
-    "Bell Programmer Manual\\\\\\large modules, examples, structure file" :
+
+function parse_invocation(args)
+    mode = :beam
+    lang = "en"
+    for a in args
+        key = lowercase(strip(a))
+        if key == "programmer"
+            mode = :programmer
+        elseif key == "en" || key == "ru"
+            lang = key
+        elseif isempty(key)
+            continue
+        else
+            error("unknown argument \"$a\" (expected en, ru, or programmer)")
+        end
+    end
+    return mode, lang
+end
+
+const MODE, LANG = parse_invocation(ARGS)
+const BEAM_PAGES = [
+    "index.md", "coordinates.md", "hamiltonian_s.md", "hamiltonians.md", "fringe.md",
+    "linear.md", "lie.md", "map_readings.md", "normal_form.md", "rf.md",
+    "acceleration.md", "longitudinal.md", "sextupoles.md", "lie_and_da.md",
+    "computation_paths.md", "spin.md", "assumptions.md",
+]
+const PAGES = MODE === :programmer ? ["programmer/index.md"] : BEAM_PAGES
+const MANUAL = joinpath(DOC, "manual")
+const SRCDIR = MODE === :programmer ? MANUAL : joinpath(MANUAL, LANG)
+const OUTNAME = MODE === :programmer ? "Bell_Programmer_Manual" : "Bell_Beam_Physics_Manual_" * LANG
+const TITLE = if MODE === :programmer
+    "Bell Programmer Manual\\\\\\large modules, examples, structure file"
+elseif LANG == "ru"
+    "Руководство по физике пучка Bell\\\\\\large канонические переменные, отображения Ли, ВЧ, ускорение"
+else
     "Bell Beam Physics Manual\\\\\\large canonical variables, Lie maps, RF, acceleration"
+end
+const FONTSETUP = (MODE === :beam && LANG == "ru") ? raw"""
+\IfFontExistsTF{Times New Roman}{\setmainfont{Times New Roman}}{%
+ \IfFontExistsTF{DejaVu Serif}{\setmainfont{DejaVu Serif}}{%
+  \IfFontExistsTF{Liberation Serif}{\setmainfont{Liberation Serif}}{%
+   \PackageWarning{bellmanual}{No Cyrillic-capable font found among Times New Roman, DejaVu Serif, Liberation Serif}}}}
+""" : ""
 
 esc_text(s) = replace(s, "\\" => "\\textbackslash{}", "&" => "\\&", "%" => "\\%", "#" => "\\#",
                       "_" => "\\_", "\$" => "\\\$", "^" => "\\^{}", "~" => "\\~{}", "{" => "\\{", "}" => "\\}")
@@ -34,7 +76,7 @@ function inline(s)
         end
     end; String(take!(out))
 end
-function convert_md(md; srcfile=joinpath(DOC, "manual"))
+function convert_md(md; srcfile=SRCDIR)
     L = split(replace(md, "\ufeff" => "", "\r" => ""), "\n")
     out = String[]; i = 1; list = ""
     closelist() = (list != "" && (push!(out, "\\end{$list}"); list = ""))
@@ -62,7 +104,8 @@ function convert_md(md; srcfile=joinpath(DOC, "manual"))
         elseif (m = match(r"^!\[(.*)\]\((.*)\)\s*$", l)) !== nothing
             closelist(); cap, path = m.captures
             if endswith(path, ".gif")
-                push!(out, "\\begin{quote}\\emph{Animation (see HTML or GIF file): " * inline(cap) * "}\\end{quote}")
+                label = (MODE === :beam && LANG == "ru") ? "Анимация (файл GIF): " : "Animation (GIF file): "
+                push!(out, "\\begin{quote}\\emph{" * label * inline(cap) * "}\\end{quote}")
             else
                 fp = replace(relpath(normpath(joinpath(dirname(srcfile), path)), joinpath(DOC, "pdf")), "\\" => "/")
                 push!(out, "\\begin{figure}[htbp]\\centering\\includegraphics[width=\\linewidth]{$fp}\\caption{" * inline(cap) * "}\\end{figure}")
@@ -78,12 +121,13 @@ function convert_md(md; srcfile=joinpath(DOC, "manual"))
         i += 1
     end; closelist(); join(out, "\n")
 end
-body = join([convert_md(read(joinpath(DOC, "manual", p), String);
-                        srcfile = joinpath(DOC, "manual", p)) for p in PAGES], "\n\\clearpage\n")
+body = join([convert_md(read(joinpath(SRCDIR, p), String);
+                        srcfile = joinpath(SRCDIR, p)) for p in PAGES], "\n\\clearpage\n")
 body = replace(body, r"(?<=\n)\*([^*$]+?)\*" => s"\\emph{\1}")
 tex = """
 \\documentclass[11pt,a4paper]{article}
 \\usepackage{amsmath,amssymb,graphicx,geometry,hyperref,fontspec}
+$FONTSETUP
 \\geometry{margin=2.2cm}
 \\setlength{\\parindent}{0pt}\\setlength{\\parskip}{4pt}
 \\title{$TITLE}

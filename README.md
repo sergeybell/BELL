@@ -8,6 +8,8 @@ Bell is the Hamiltonian dynamics of a charged particle in an accelerator lattice
 
 The model is the Hamiltonian. The field equations of motion are an alternative formulation, kept for comparison and for tests. Computation holds no physics: differential algebra and Taylor series are algebras, and the integrators are generic. A Taylor map is symplectic only up to its truncation order. A Lie factor applied exactly stays symplectic at any truncation; the current factors carry generators `f3` and `f4`. Magnets and a thick RF cavity are integrated from `H` (`dz/ds = S ∇H`). A thin cavity stays the kick `rf_kick`.
 
+The beam-physics manual has the same chapters in English (`docs/manual/en/`) and Russian (`docs/manual/ru/`). Figures are shared in `docs/manual/assets/`. Build one language with `julia --project=docs docs/make_pdf.jl en` or `ru`. The programmer manual stays in `docs/manual/programmer/`.
+
 ## Installation
 
 Develop the clone in the Julia environment that should see Bell. `path` is the directory of the clone that contains `Project.toml`.

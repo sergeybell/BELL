@@ -1,14 +1,19 @@
 # Physics Reference
 
-The physics of Bell — canonical variables, element Hamiltonians, the Lie product
-of the ring, linear and second-order optics, chromaticity, fringe fields, RF,
-acceleration, longitudinal motion, sextupoles, equilibrium momentum shift and
-the list of assumptions — is described in the **Beam Physics Manual**:
+The physics of Bell — coordinates, the s-Hamiltonian, every element including
+the RF cavity, fringe fields, linear optics, the Lie product, map readings,
+the normal form, RF and acceleration, sextupoles, Lie maps and differential
+algebra, the computation paths, and the modelling assumptions — is described
+in the **Beam Physics Manual**, with the same chapters in English and Russian:
 
 ```@raw html
-<p><a href="Bell_Beam_Physics_Manual.pdf"><strong>Bell_Beam_Physics_Manual.pdf</strong></a>
-(Markdown: <code>docs/manual/</code>; PDF: <code>docs/pdf/Bell_Beam_Physics_Manual.pdf</code>;
-rebuild with <code>julia --project=docs docs/make_pdf.jl</code>)</p>
+<p>English: <code>docs/manual/en/</code>,
+<code>julia --project=docs docs/make_pdf.jl en</code>
+writes <code>docs/pdf/Bell_Beam_Physics_Manual_en.pdf</code>.
+Russian: <code>docs/manual/ru/</code>,
+<code>julia --project=docs docs/make_pdf.jl ru</code>
+writes <code>docs/pdf/Bell_Beam_Physics_Manual_ru.pdf</code>.
+Shared figures: <code>docs/manual/assets/</code>.</p>
 ```
 
 This site does not repeat that text. How the formulas are implemented is in the
