@@ -10,14 +10,12 @@
 using Bell, Printf, LinearAlgebra, TaylorSeries, Plots
 
 include(joinpath(@__DIR__, "..", "common", "print_util.jl"))
-include(joinpath(@__DIR__, "..", "common", "reference_values.jl"))
 
 banner("Second-order dispersion, compaction, slip, chromaticity")
 
-of = convert_optim(OPTIM_FILE, STRUCTURE_FILE)
-lat = load_structure(STRUCTURE_FILE)
+lat = load_structure(joinpath(@__DIR__, "..", "lattices", "magnetic_2.bell"))
 ref = lat.ref
-C = circumference(lat)
+C = path_length(lat)
 
 @printf("  lattice %s, C = %.6f m, E_kin = %.1f MeV, gamma0 = %.8f, beta0 = %.8f\n",
         lat.name, C, ref.Ekin_MeV, ref.gamma, ref.beta)
@@ -198,13 +196,6 @@ Je = jacobian_of_function(z -> exact_track_turn(z, lat), z0)
 @printf("  symplectic error of exact-integrator one-turn Jacobian at z0: %.2e\n",
         symplectic_error(Je))
 
-
-section("8. Notes",
-        "Natural lattice (no fringe fields): compare with COSY FR 0 below.",
-        "sextupole strengths in magnetic_2.opt are all zero (natural lattice above).")
-
-@printf("  COSY natural chromaticity (reference only): xi_x = %.6f, xi_y = %.6f\n",
-        COSY_REF.chrom_x[1], COSY_REF.chrom_y[1])
 
 println()
 println("Done.")

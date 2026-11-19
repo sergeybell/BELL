@@ -10,14 +10,12 @@
 using Bell, Printf, LinearAlgebra, TaylorSeries, Plots
 
 include(joinpath(@__DIR__, "..", "common", "print_util.jl"))
-include(joinpath(@__DIR__, "..", "common", "reference_values.jl"))
 
 banner("Sextupole families and example optimisation")
 
-of = convert_optim(OPTIM_FILE, STRUCTURE_FILE)
-lat0 = load_structure(STRUCTURE_FILE)
+lat0 = load_structure(joinpath(@__DIR__, "..", "lattices", "magnetic_2.bell"))
 ref = lat0.ref
-C = circumference(lat0)
+C = path_length(lat0)
 po = periodic_optics(ring_matrix(lat0), ref, C)
 opt = optics_along(lat0, po; ds = 0.01)
 
@@ -44,7 +42,7 @@ for f in SEXT_FAMILIES
     println("  family $f: $nmag magnets, L = $L m")
 end
 
-@printf("  circumference unchanged: %.9f m\n", circumference(lat))
+@printf("  path length unchanged: %.9f m\n", path_length(lat))
 
 
 section("2. Response matrix (per unit k2 = 1 m^-3)",

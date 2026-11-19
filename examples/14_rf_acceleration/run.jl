@@ -2,8 +2,8 @@
 #
 # Author: Kolokolchikov Sergey Dmitrievich <sergey.bell13@gmail.com>
 #
-# Thin RF cavity (RFCavity + rf_kick, v0.16) and a ramp 10 -> 270 MeV on magnetic_2.
-# Injection energy is assumed (5 MeV/u); it is not in the OptiM file.
+# Thin RF cavity (RFCavity + rf_kick) and a ramp 10 -> 270 MeV on magnetic_2.
+# Injection energy is assumed (5 MeV/u). The final energy is the structure-file reference.
 # Takes a few minutes.
 #
 #   julia --project=examples examples/14_rf_acceleration/run.jl
@@ -11,18 +11,15 @@
 using Bell, Printf, LinearAlgebra, TaylorSeries, Random, Plots
 
 include(joinpath(@__DIR__, "..", "common", "print_util.jl"))
-include(joinpath(@__DIR__, "..", "common", "reference_values.jl"))
 
 banner("Thin RF cavity, synchrotron motion, acceleration")
 
-of = convert_optim(OPTIM_FILE, STRUCTURE_FILE)
-lat270 = load_structure(STRUCTURE_FILE)
+lat270 = load_structure(joinpath(@__DIR__, "..", "lattices", "magnetic_2.bell"))
 ref270 = lat270.ref
 
-# Parser uses deuteron.mass_MeV; of.mass_MeV is only the file header.
-mass = deuteron.mass_MeV
-E_inj = 10.0              # assumed: 5 MeV/u, not in magnetic_2.opt
-E_fin = of.energy_MeV     # 270 MeV from the .opt header
+mass = ref270.mass_MeV
+E_inj = 10.0              # assumed: 5 MeV/u
+E_fin = ref270.Ekin_MeV
 V, h, phis = 0.2, 5, deg2rad(150.0)
 
 
@@ -37,8 +34,8 @@ C = path_length(lat_rf270)
 lat_rf = Lattice(lat_rf270.name, lat_rf270.elements, ref_inj, h)
 T = 1.0   # thin cavity: no transit-time factor (long cavity removed in v0.16)
 
-@printf("  injection E_kin = %.1f MeV (ASSUMED, 5 MeV/u; not given in magnetic_2.opt)\n", E_inj)
-@printf("  final     E_kin = %.1f MeV (135 MeV/u)\n", E_fin)
+@printf("  injection E_kin = %.1f MeV (ASSUMED, 5 MeV/u)\n", E_inj)
+@printf("  final     E_kin = %.1f MeV (structure-file reference)\n", E_fin)
 
 println()
 @printf("  thin cavity in the middle of drift %s (element %d)\n", lat270.elements[idrift].name, icav)

@@ -7,17 +7,16 @@
 #   julia --project=examples examples/18_lie_normal_form/run.jl
 
 using Bell, Printf, LinearAlgebra, TaylorSeries
+using Bell.NormalForm
 
 include(joinpath(@__DIR__, "..", "common", "print_util.jl"))
-include(joinpath(@__DIR__, "..", "common", "reference_values.jl"))
 
 banner("One-turn Lie factor and normal form")
 
-of = convert_optim(OPTIM_FILE, STRUCTURE_FILE)
-lat0 = load_structure(STRUCTURE_FILE)
-ref = reference_from_kinetic(DEUTERON, 270.0)
+lat0 = load_structure(joinpath(@__DIR__, "..", "lattices", "magnetic_2.bell"))
+ref = lat0.ref
 lat = Lattice(lat0.name, lat0.elements, ref, 5)
-C = circumference(lat)
+C = path_length(lat)
 cav = RFCavity("RF", 0.2, 5, Float64(pi))
 
 t0 = time()

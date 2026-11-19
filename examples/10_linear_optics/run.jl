@@ -3,36 +3,29 @@
 # Author: Kolokolchikov Sergey Dmitrievich <sergey.bell13@gmail.com>
 #
 # Closed linear optics of lattices/magnetic_2.bell.
-# OptiM is converted first; the structure file is what Bell loads.
 #
 #   julia --project=examples examples/10_linear_optics/run.jl
 
 using Bell, Printf, LinearAlgebra, Plots
+using Bell.NormalForm
 
 include(joinpath(@__DIR__, "..", "common", "print_util.jl"))
-include(joinpath(@__DIR__, "..", "common", "reference_values.jl"))
 
 banner("Linear optics of magnetic_2")
 
 
 section("1. Lattice file")
 
-of = convert_optim(OPTIM_FILE, STRUCTURE_FILE)
-lat = load_structure(STRUCTURE_FILE)
+latfile = joinpath(@__DIR__, "..", "lattices", "magnetic_2.bell")
+lat = load_structure(latfile)
 
-println("  file                 : ", of.path)
-println("  header               : Energy = $(of.energy_MeV) MeV (kinetic), Mass = $(of.mass_MeV) MeV")
-println("  sequence tokens      : $(length(of.sequence)), 'Number of periods' in file = $(of.nperiods_file), repetitions used = $(of.nrepeat_used)")
-
-foreach(w -> println("  WARNING: ", w), of.warnings)
+println("  file : ", abspath(latfile))
+println("  name : ", lat.name)
 
 
 section("2. Reference particle")
 
 println(describe_reference(lat.ref))
-
-@printf("  (physical deuteron mass would be %.8f MeV -> B*rho = %.7f T*m; not used)\n",
-        DEUTERON.mass_MeV, reference_from_kinetic(DEUTERON, of.energy_MeV).brho_Tm)
 
 
 section("3. Elements")
@@ -42,11 +35,11 @@ for e in unique_elements(lat)
     @printf("  %-5s x%-3d %s\n", e.name, n, string(e))
 end
 
-C = circumference(lat)
+C = path_length(lat)
 
 println()
 @printf("  number of elements    : %d\n", length(lat.elements))
-@printf("  circumference C       : %.7f m\n", C)
+@printf("  path length C         : %.7f m\n", C)
 @printf("  total bending angle   : %.9f deg\n", rad2deg(total_bend_angle(lat)))
 @printf("  dipoles: %d, quads: %d, sextupoles: %d\n",
         count(e -> e isa SBend, lat.elements),
@@ -129,27 +122,6 @@ outdir = joinpath(@__DIR__, "output")
 mkpath(outdir)
 png = plot_twiss(opt, joinpath(outdir, "magnetic_2_twiss.png"); title = "magnetic_2: closed optics (Bell)")
 println("  written: ", abspath(png))
-
-
-section("8. Comparison with OptiM / COSY")
-
-ini = of.initial
-rows = [
-    ("beta_x(s=0) [m]", po.x.beta, ini["BetaX[cm]"] / 100, "OptiM Initial"),
-    ("beta_y(s=0) [m]", po.y.beta, ini["BetaY[cm]"] / 100, "OptiM Initial"),
-    ("alpha_x(s=0)", po.x.alpha, ini["AlfaX"], "OptiM Initial"),
-    ("alpha_y(s=0)", po.y.alpha, ini["AlfaY"], "OptiM Initial"),
-    ("D_x(s=0) [m]", po.D4[1], ini["DispersX[cm]"] / 100, "OptiM Initial"),
-    ("D'_x(s=0)", po.D4[2], ini["Dsp_PrimeX"], "OptiM Initial"),
-    ("Qx fractional", mod(opt.Qx, 1), COSY_REF.Qx_frac[1], "COSY FR 0 (OV 3 2 1)"),
-    ("Qy fractional", mod(opt.Qy, 1), COSY_REF.Qy_frac[1], "COSY FR 0 (OV 3 2 1)"),
-    ("alpha_c", po.alpha_c, COSY_REF.alpha0[1], "COSY FR 0 (OV 3 3 0)"),
-]
-
-@printf("  %-18s %18s %18s %12s  %s\n", "quantity", "Bell", "reference", "diff", "source")
-for (n, a, b, src) in rows
-    @printf("  %-18s %18.10g %18.10g %12.3e  %s\n", n, a, b, a - b, src)
-end
 
 println()
 println("Done.")
