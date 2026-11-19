@@ -32,7 +32,7 @@ lat_rf, index = insert_cavity(lat, RFCavity("RF", 0.2, 5, phi_s);
 A thick cavity is `RFCavity(name, V, h, phi_s, L)` with `L > 0`. It is
 integrated from its s-Hamiltonian; see
 [RF Hamiltonian and acceleration](../dev/rf_acceleration.md).
-[`place_sextupole_families`](@ref) and [`set_family_strengths`](@ref) add
+`place_sextupole_families` and `set_family_strengths` add
 sextupoles (`examples/10_sextupole_families/run.jl`).
 
 **Coordinates.** Tracking uses the canonical state

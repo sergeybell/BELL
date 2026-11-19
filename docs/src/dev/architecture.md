@@ -49,11 +49,11 @@ the ring path length. A thin cavity has no continuous Hamiltonian: the map is
 ### `element_flow`, `Dual`, and `deriv`
 
 [`element_flow`](@ref)`(e, ref, z)` is the autonomous element. On numbers and
-on `TaylorN`, each stage evaluates [`symplectic_gradient`](@ref): the
-forward-mode [`Dual`](@ref) partial of the scalar `H`, then the pairing `S`.
+on `TaylorN`, each stage evaluates [`symplectic_gradient`](@ref Bell.DiffAlgebra.symplectic_gradient): the
+forward-mode [`Dual`](@ref Bell.DiffAlgebra.Dual) partial of the scalar `H`, then the pairing `S`.
 On a DA jet that same method builds the polynomial vector field once with
-[`vector_field_on_identity`](@ref), in a space one order above the map,
-because [`deriv`](@ref) drops the top degree of a jet that is already
+[`vector_field_on_identity`](@ref Bell.DiffAlgebra.vector_field_on_identity), in a space one order above the map,
+because [`deriv`](@ref Bell.DiffAlgebra.deriv) drops the top degree of a jet that is already
 truncated. The integrator then evaluates the polynomial. The dual partial and
 `deriv` agree through order `N - 1`, and at order `N` when `H` is a polynomial
 of degree at most `N`.

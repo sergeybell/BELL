@@ -21,14 +21,14 @@ Mr = one_turn_map_da(lat, 5)                              # RF included
 ## How the jet is differentiated
 
 On a DA state, [`element_flow`](@ref) builds the polynomial vector field once
-with [`vector_field_on_identity`](@ref), in a space one order above the map.
-[`deriv`](@ref) drops the top degree of a jet that is already truncated, so
+with [`vector_field_on_identity`](@ref Bell.DiffAlgebra.vector_field_on_identity), in a space one order above the map.
+[`deriv`](@ref Bell.DiffAlgebra.deriv) drops the top degree of a jet that is already truncated, so
 the extra order is what keeps degree ``N`` of ``S\nabla H``. The integrator
 evaluates that polynomial on the current jet.
 
 On numbers and on `TaylorN` the same call evaluates
-[`symplectic_gradient`](@ref) at each stage. That gradient is the forward-mode
-[`Dual`](@ref) partial of the scalar `H`. The dual partial and `deriv` agree
+[`symplectic_gradient`](@ref Bell.DiffAlgebra.symplectic_gradient) at each stage. That gradient is the forward-mode
+[`Dual`](@ref Bell.DiffAlgebra.Dual) partial of the scalar `H`. The dual partial and `deriv` agree
 through order ``N-1``, and at order ``N`` when `H` is a polynomial of degree
 at most ``N``.
 
@@ -48,7 +48,7 @@ A [`Marker`](@ref) is the identity. A thin [`RFCavity`](@ref) is
 | [`exact_track_element`](@ref) | the same flow on a `Float64` point (`src/maps/da/field_track.jl`) |
 | [`magnetic_lattice`](@ref) | drop a thin cavity; replace a thick cavity by a drift of the same length |
 
-The default method is [`DormandPrince853`](@ref) with `tol = 1e-14`. Pass
+The default method is [`DormandPrince853`](@ref Bell.Integrators.DormandPrince853) with `tol = 1e-14`. Pass
 `nsteps` for a fixed step. An [`SBend`](@ref) map is the body only.
 [`element_da_maps`](@ref) warns when an edge angle is nonzero.
 
@@ -63,7 +63,7 @@ At low order the DA map of a short magnet agrees with
 `lie_map(hamiltonian(e, ref), L)` to working precision. A DA map is symplectic
 only up to its truncation. Symplecticity of a Jacobian, a `TaylorN` map, a DA
 map, or a tracking step is [`symplectic_error`](@ref). The DA method of that
-check is [`da_symplectic_error`](@ref).
+check is [`da_symplectic_error`](@ref Bell.DiffAlgebra.da_symplectic_error).
 
 ## Chromaticity
 

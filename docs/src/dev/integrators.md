@@ -38,7 +38,7 @@ r.z, r.nsteps, r.nrejected, r.nfev
 methods need exact sub-flows `flowA(z, h)`, `flowB(z, h)` and are always
 fixed step.
 
-**Step control for DA states.** [`errnorm`](@ref) of a DA vector is the
+**Step control for DA states.** [`errnorm`](@ref Bell.Integrators.errnorm) of a DA vector is the
 maximum coefficient norm over all orders, so the step is controlled on the
 whole series, not only its constant part. High orders have larger coefficients
 and dominate the estimate. Use an absolute `tol` scaled to those magnitudes,

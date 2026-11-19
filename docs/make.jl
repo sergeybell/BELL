@@ -47,7 +47,8 @@ const PAGES = [
 const MODULES = [Bell, Bell.Coordinates, Bell.Elements, Bell.Structure, Bell.LieAlgebra,
                  Bell.Hamiltonians, Bell.Fields, Bell.OptimConverter, Bell.Linear, Bell.Symplectic,
                  Bell.Tracking, Bell.MapReadings, Bell.Smooth,
-                 Bell.FieldTrack, Bell.DATracking, Bell.Acceleration, Bell.NormalForm, Bell.Fringe,
+                 Bell.ElementFlow, Bell.FieldTrack, Bell.DATracking, Bell.Acceleration, Bell.NormalForm, Bell.Fringe,
+                 Bell.FringeMaps,
                  Bell.SextupoleFamilies, Bell.Optimizers,
                  Bell.DiffAlgebra, Bell.Integrators]
 

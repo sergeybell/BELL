@@ -23,7 +23,7 @@ step these functions take.
 | `BeamState` | `src/tracking/state.jl` | `ParticleState`, `Beam` |
 
 [`symplectic_error`](@ref) is one check: a numeric Jacobian, a `TaylorN` map,
-a DA map ([`da_symplectic_error`](@ref)), or a tracking step at a point.
+a DA map ([`da_symplectic_error`](@ref Bell.DiffAlgebra.da_symplectic_error)), or a tracking step at a point.
 
 | route | function | what moves the state | cut | symplectic |
 |:--|:--|:--|:--|:--|
@@ -43,10 +43,10 @@ a DA map ([`da_symplectic_error`](@ref)), or a tracking step at a point.
 - a [`Drift`](@ref) is one step of `method`;
 - any other magnet is the same flow of [`hamiltonian`](@ref)`(e, ref, z)`, with `nsteps = max(1, ceil(L / ds))`.
 
-[`element_flow`](@ref) itself defaults to [`DormandPrince853`](@ref). When
+[`element_flow`](@ref) itself defaults to [`DormandPrince853`](@ref Bell.Integrators.DormandPrince853). When
 `nsteps` and `ds` are both omitted, an adaptive method uses `tol`. The point
 tracker always passes a step count, so its step is fixed. On numbers and on
-`TaylorN`, each stage is the dual [`symplectic_gradient`](@ref) of ``H``. On a
+`TaylorN`, each stage is the dual [`symplectic_gradient`](@ref Bell.DiffAlgebra.symplectic_gradient) of ``H``. On a
 DA jet the polynomial field is built once; see
 [DA maps](da_tracking.md).
 
