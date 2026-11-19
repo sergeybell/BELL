@@ -1,10 +1,10 @@
 # Optics and chromaticity
 
-Examples: `examples/04_linear_optics`, `examples/07_map_readings`,
-`examples/10_sextupole_families`.
+Examples: `examples/04_linear_optics/run.jl`, `examples/07_map_readings/run.jl`,
+`examples/10_sextupole_families/run.jl`.
 
 ```julia
-po  = periodic_optics(ring_matrix(lat), lat.ref, circumference(lat))
+po  = periodic_optics(ring_matrix(lat), lat.ref, path_length(lat))
 po.x.beta, po.x.alpha, po.D4, po.alpha_c          # closed Twiss, dispersion, α_c
 opt = optics_along(lat, po)                        # β, α, D, μ along s; total tunes opt.Qx, opt.Qy
 
