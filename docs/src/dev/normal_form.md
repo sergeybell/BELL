@@ -5,7 +5,7 @@ CurrentModule = Bell
 ```
 
 Module: `NormalForm` (`src/normal_form.jl`). Two routes are implemented. Route 1
-is the primary one (example 18).
+is the primary one (`examples/14_normal_form`).
 
 ## Route 1: Dragt–Finn 6D normal form ([`dragt_finn_nf6d`](@ref))
 

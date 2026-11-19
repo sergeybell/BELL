@@ -1,7 +1,7 @@
 # Optics and chromaticity
 
-Examples: `examples/10_linear_optics`, `examples/12_higher_order`,
-`examples/13_sextupole_optimization`.
+Examples: `examples/04_linear_optics`, `examples/07_map_readings`,
+`examples/10_sextupole_families`.
 
 ```julia
 po  = periodic_optics(ring_matrix(lat), lat.ref, circumference(lat))
@@ -14,5 +14,5 @@ obs.pe.alpha0, obs.pe.alpha1, obs.pe.eta0, obs.pe.eta1
 ```
 
 Second-order dispersion along the ring: `dispersion_orders(obs.M)` and
-`dispersion_along(lat, D1, D2)`. Sextupole correction: example 13.
+`dispersion_along(lat, D1, D2)`. Sextupole correction: `examples/10_sextupole_families`.
 How these numbers are computed: [Optics (internals)](../dev/optics.md).

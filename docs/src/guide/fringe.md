@@ -1,6 +1,6 @@
 # Fringe-field models
 
-Example: `examples/19_fringe_models`.
+Example: `examples/15_fringe_fields`.
 
 The lattice is unchanged; the edge model is passed when the ring is built.
 

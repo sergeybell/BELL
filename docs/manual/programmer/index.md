@@ -60,15 +60,21 @@ Optics of the magnetic product without RF is `observables(lat)`.
 ## Examples
 
 ```
-julia --project=. examples/10_linear_optics.jl
-julia --project=. examples/11_lie_maps.jl
-julia --project=. examples/12_higher_order.jl
-julia --project=. examples/13_optional_sextupole_optimization.jl
-julia --project=. examples/14_rf_acceleration.jl
-julia --project=. examples/15_coordinates.jl
-julia --project=. examples/16_blond_longitudinal.jl
-julia --project=. examples/17_lie_product.jl
-julia --project=. examples/18_lie_normal_form.jl
+julia --project=examples examples/01_reference_and_coordinates/run.jl
+julia --project=examples examples/02_lattice_io/run.jl
+julia --project=examples examples/03_element_hamiltonians/run.jl
+julia --project=examples examples/04_linear_optics/run.jl
+julia --project=examples examples/05_element_maps/run.jl
+julia --project=examples examples/06_lie_maps/run.jl
+julia --project=examples examples/07_map_readings/run.jl
+julia --project=examples examples/08_da_basics/run.jl
+julia --project=examples examples/09_method_comparison/run.jl
+julia --project=examples examples/10_sextupole_families/run.jl
+julia --project=examples examples/11_trackers_and_beam/run.jl
+julia --project=examples examples/12_rf_longitudinal/run.jl
+julia --project=examples examples/13_acceleration/run.jl
+julia --project=examples examples/14_normal_form/run.jl
+julia --project=examples examples/15_fringe_fields/run.jl
 ```
 
 The equilibrium-momentum study lives in `C:\GIT_REPOS\SCT_2\Julia\equilibrium_energy`.
@@ -137,5 +143,5 @@ region except as `Body(-W)` in the wrapper. New profiles need `_raw(p, z)`
 and `_halfwidth(p)`; new methods need `_soft(E::_Edge, m, ref)`; new edge
 models need a method of `edge_map`.
 
-Example: `examples/19_fringe_models/run.jl` runs every model, the
+Example: `examples/15_fringe_fields/run.jl` runs every model, the
 ``g\to 0`` limit, the convergence in ``n`` and the symplecticity check.
