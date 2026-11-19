@@ -4,7 +4,9 @@
 CurrentModule = Bell
 ```
 
-Modules: `Linear` (`src/linear.jl`), `HigherOrder` (`src/higher_order.jl`).
+Modules: `Linear` (`src/maps/lie/linear.jl`), `MapReadings`
+(`src/analysis/map_readings.jl`). `HigherOrder` is the old name of
+`MapReadings`.
 
 ## Is the full Hamiltonian built and then truncated for linear optics? — Yes, in this sense:
 
@@ -49,12 +51,12 @@ transformation, accumulates the phase ``\Delta\mu = \operatorname{atan2}(m_{12},
 (this gives the integer part of the tune), multiplies the dispersion vector
 ``(D_4, 0, 1)`` by each slice matrix, and reports the closure after one turn.
 
-## Nonlinear readings of the one-turn map (`HigherOrder`)
+## Nonlinear readings of the one-turn map (`MapReadings`)
 
 [`observables`](@ref) does, in this order:
 
 ```
-F  = ring_lie_factor(lat)          # product of element factors, generators to degree 4
+F  = ring_lie_factor(magnetic_lattice(lat))   # magnets only; generators to degree 4
 M  = factor_to_map(F)              # polynomial R ∘ e^{:f3:} ∘ e^{:f4:}, cut at degree 3
 po = periodic_optics(F.R, ref, C)  # linear part only
 pe = path_expansion(M, ref, C)     # α0, α1, η0, η1

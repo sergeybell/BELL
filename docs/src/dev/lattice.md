@@ -4,8 +4,8 @@
 CurrentModule = Bell
 ```
 
-Modules: `Elements` (`src/elements.jl`), `Structure` (`src/structure.jl`),
-`OptimConverter` (`src/optim_converter.jl`).
+Modules: `Elements` (`src/core/elements.jl`), `Structure`
+(`src/core/structure.jl`), `OptimConverter` (`src/io/optim_converter.jl`).
 
 ## Elements are data
 
@@ -17,9 +17,11 @@ for physics. Each physics module adds its own method:
 | Hamiltonian | [`hamiltonian`](@ref) | Hamiltonians |
 | linear matrix | [`linear_matrix`](@ref) | Linear |
 | Lie map / factor | [`element_lie_map`](@ref), [`build_factors`](@ref) | Tracking |
-| RK4 Taylor map | [`taylor_map_element`](@ref) | DifferentialAlgebra |
-| exact tracking | [`exact_track_element`](@ref) | FieldTrack |
-| edge maps | [`edge_map`](@ref) | Fringe |
+| flow of ``H`` | [`element_flow`](@ref) | ElementFlow |
+| Taylor check | [`taylor_map_element`](@ref) | Tracking (`src/maps/lie/tracking.jl`) |
+| point tracking | [`exact_track_element`](@ref) | FieldTrack (`src/maps/da/field_track.jl`) |
+| DA map | [`element_da_map`](@ref) | DATracking (`src/maps/da/tracking.jl`) |
+| edge maps | [`edge_map`](@ref) | FringeMaps (`src/maps/lie/fringe_maps.jl`) |
 
 How to add a new element type: [Extending Bell](extending.md).
 
@@ -47,13 +49,13 @@ an exact round trip.
 ## Lattice editing
 
 The editing helpers are used by the sextupole and acceleration examples. They
-change the sequence (drift splitting), never the element types, and always
-keep the circumference.
+change the sequence (a named drift is split around a thin cavity), and
+[`insert_cavity`](@ref) keeps [`path_length`](@ref) when the cavity length is
+zero.
 
-## OptiM converter
+## `.opt` converter
 
-[`convert_optim`](@ref) is a one-way converter that runs once to produce a
-`.bell` file. Bell never reads `.opt` files during a computation. The element
-kind comes from the first letter of the name, and units are converted with Bρ
-of the reference particle (details in [`OptiMFile`](@ref)).
-Anything ignored or guessed is listed in `warnings`.
+[`convert_optim`](@ref) reads a `.opt` file once and writes a `.bell` file.
+Tracking does not read `.opt`. The element kind comes from the first letter
+of the name. Lengths and fields are converted with the reference magnetic
+rigidity ``B\rho``. Anything ignored or guessed is listed in `warnings`.

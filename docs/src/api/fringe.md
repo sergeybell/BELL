@@ -9,3 +9,9 @@ CurrentModule = Bell
 ```@autodocs
 Modules = [Bell.Fringe]
 ```
+
+## `FringeMaps`
+
+```@autodocs
+Modules = [Bell.FringeMaps]
+```

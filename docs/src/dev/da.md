@@ -3,8 +3,16 @@
 `src/math/DiffAlgebra.jl` is a self-contained truncated power-series algebra
 ``{}_nD_v`` (Berz, *Modern Map Methods*, ch. 2): the number of variables ``v`` and
 the order ``n`` are run-time parameters of a [`DASpace`](@ref Bell.DiffAlgebra.DASpace).
-It is independent of the accelerator code and of `Bell.DifferentialAlgebra`
-(`src/differential_algebra.jl`), which is only the TaylorN cross-check route of the Lie maps.
+The module imports no Bell element and no Hamiltonian. `src/math/dual.jl` and
+`src/math/lie_series.jl` are included into the same module.
+[`Dual`](@ref Bell.DiffAlgebra.Dual) is the forward-mode partial;
+[`deriv`](@ref Bell.DiffAlgebra.deriv) differentiates a jet that is already
+truncated. They agree through order ``N-1``, and at order ``N`` when the
+scalar is a polynomial of degree at most ``N``. There is no
+`Bell.DifferentialAlgebra` module and no `src/differential_algebra.jl`.
+The Taylor check of an element map is [`taylor_map_element`](@ref) in
+`src/maps/lie/tracking.jl`, which calls [`element_flow`](@ref). The DA element
+map is [`element_da_map`](@ref) ([DA maps](da_tracking.md)).
 
 ```julia
 using Bell.DiffAlgebra

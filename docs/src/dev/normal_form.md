@@ -4,12 +4,14 @@
 CurrentModule = Bell
 ```
 
-Module: `NormalForm` (`src/normal_form.jl`). Two routes are implemented. Route 1
-is the primary one (`examples/14_normal_form`).
+Module: `NormalForm` (`src/maps/lie/normal_form.jl`), loaded with
+`using Bell.NormalForm`. It is not part of `using Bell`. Two routes are
+implemented. Route 1 is the primary one
+(`examples/14_normal_form/run.jl`).
 
-## Route 1: Dragt–Finn 6D normal form ([`dragt_finn_nf6d`](@ref))
+## Route 1: Dragt–Finn 6D normal form ([`dragt_finn_nf6d`](@ref Bell.NormalForm.dragt_finn_nf6d))
 
-### Input: the one-turn factor with RF ([`one_turn_factor_rf`](@ref))
+### Input: the one-turn factor with RF ([`one_turn_factor_rf`](@ref Bell.NormalForm.one_turn_factor_rf))
 
 ```
 Fmag = ring_lie_factor(lat_mag)                 # BCH product of element factors (R, f3, f4)
@@ -21,14 +23,14 @@ F    = concatenate(Fmag, Frf)                   # magnetic ring first, then RF
 `dragt_finn_factor` requires the origin to be a fixed point, so this route is
 for ``\varphi_s = 0`` or ``\pi`` (no constant term in the kick). With a polynomial map
 as input, `dragt_finn_nf6d(M)` first finds the fixed point ``z^*`` by Newton
-([`fixed_point_6d`](@ref)), centres the map ([`center_map_at`](@ref)) and factorises it.
+([`fixed_point_6d`](@ref Bell.NormalForm.fixed_point_6d)), centres the map ([`center_map_at`](@ref Bell.NormalForm.center_map_at)) and factorises it.
 
 The one-turn map is ``\mathcal M = R\circ e^{{:}f_3{:}}\circ e^{{:}f_4{:}}`` with
 ``R`` 6×6 symplectic, ``f_3`` cubic, ``f_4`` quartic (map exact to degree 3).
 
 ### Steps (`_nf6d_from_factor`)
 
-**Step 1 — linear normalisation** ([`symplectic_eigen_A`](@ref)). Eigen-decompose
+**Step 1 — linear normalisation** ([`symplectic_eigen_A`](@ref Bell.NormalForm.symplectic_eigen_A)). Eigen-decompose
 ``R``; for each eigenvalue ``\lambda`` with ``\operatorname{Im}\lambda>0`` and
 eigenvector ``v = a + ib``, scale so that ``a^\mathsf{T}Sb = 1`` (flip ``b`` and
 ``\mu`` if negative). Plane assignment: ``s`` = pair with the largest
@@ -52,7 +54,7 @@ F_3 - F_3\circ r(\mu) = -f_{3n}.
 
 The operator ``\mathcal L_k F = F - F\circ r`` is assembled as a matrix on the
 monomial basis of degree ``k`` (56 monomials for ``k=3``, 126 for ``k=4``;
-[`homological_operator`](@ref)); in the complex basis its eigenvalues are
+[`homological_operator`](@ref Bell.NormalForm.homological_operator)); in the complex basis its eigenvalues are
 ``1 - e^{-i(\mathbf j-\mathbf n)\cdot\mu}``. It is solved by least squares
 (`L3 \ (−f3)`). All cubic terms are removed (no cubic resonance is kept; for
 generic tunes none is resonant).
@@ -76,11 +78,11 @@ T = e^{{:}F_3{:}}\circ e^{{:}F_4{:}},\qquad T^{-1} = e^{-{:}F_4{:}}\circ e^{-{:}
 z = z^* + A\,T(w).
 ```
 
-* Amplitude-dependent tunes ([`nf6d_tunes`](@ref)):
+* Amplitude-dependent tunes ([`nf6d_tunes`](@ref Bell.NormalForm.nf6d_tunes)):
   ``\mu_k(J) = \mu_k - \partial h_4/\partial J_k = \mu_k - (2c_{kk}J_k + \sum_{j\ne k}c_{kj}J_j)``.
-* Actions of a lab point ([`nf6d_actions`](@ref)): ``u = A^{-1}(z-z^*)``,
+* Actions of a lab point ([`nf6d_actions`](@ref Bell.NormalForm.nf6d_actions)): ``u = A^{-1}(z-z^*)``,
   ``w = T^{-1}(u)``, ``J_k = (w_{2k-1}^2 + w_{2k}^2)/2``.
-* Equilibrium momentum ([`nf6d_delta_eq`](@ref)): with ``U_6 = (A\,T(w))_6``,
+* Equilibrium momentum ([`nf6d_delta_eq`](@ref Bell.NormalForm.nf6d_delta_eq)): with ``U_6 = (A\,T(w))_6``,
 
 ```math
 \delta_\text{eq}(J) = z^*_6 + \langle U_6\rangle_\theta = z^*_6 + \sum_k d_kJ_k,\qquad
@@ -91,19 +93,24 @@ d_k = \tfrac12\Big(\frac{\partial^2U_6}{\partial w_{2k-1}^2} + \frac{\partial^2U
 * Quality numbers: ``|A^{-1}RA - r|``, ``|A^\mathsf{T}SA - S|``, ``\max|f_3|`` before
   and after (``f_{3n} + F_3 - F_3\circ r``), ``\max|f_4' + F_4 - F_4\circ r - h_4|``.
 
-## Route 2: map-based RF normal form ([`normal_form_rf`](@ref), older)
+## Route 2: map-based RF normal form ([`normal_form_rf`](@ref Bell.NormalForm.normal_form_rf), older)
 
 ```
-cav = RFCavity(V·T, h, φs)
-M   = one_turn_map_rf(lat, cav)    # RK4 Taylor map of the ring (ring_taylor_map), then rf_kick_taylor
+cav = RFCavity("NF", V * T, h, φs)          # thin; L = 0
+C   = path_length(lat)
+M   = one_turn_map_rf(lat, cav, ref, C)     # ring_taylor_map, then rf_kick_taylor
 z*  = fixed_point_6d(M); Mc = center_map_at(M, z*)
 pe, ξ from the RF-off Taylor map; po from ring_matrix; Qs0 = synchrotron_tune(η0)
 A   = linear_A_6d(po, pe, Qs0):  dispersion shear A[1:4,6] = D4, Courant–Snyder blocks
       [√β 0; −α/√β 1/√β], longitudinal block diag((C/2πh)√βs, 1/√βs), βs = Qs0/(h|η0|)
 Mn  = A⁻¹ ∘ Mc ∘ A ;  F = dragt_finn_factor(Mn)
-δ_eq on 7 tori (Jx, Jy, δm) from ⟨Δφ⟩ = 0 (12³ angle grid, secant iteration);
+δ_eq on 7 tori (Jx, Jy, δm) from the phase condition ⟨Δφ⟩ = 0;
 fit δ_eq = c0 + cx Jx + cy Jy + cs Js
 ```
+
+`ring_taylor_map` is [`taylor_map_element`](@ref) on each element
+(`src/maps/lie/tracking.jl`): [`element_flow`](@ref) of ``H``, default RK4.
+`normal_form_rf(lat, ref, C, h, V, φs)` builds the thin cavity internally.
 
 Notes (truthful status of this route): the linear ``A`` is approximate (not the
 symplectic eigen-normalisation), the cubic generator is not solved by a

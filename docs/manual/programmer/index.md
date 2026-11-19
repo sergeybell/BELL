@@ -2,63 +2,83 @@
 
 Physics is in the [Beam Physics Manual](../en/index.md)
 (Russian: [руководство](../ru/index.md)). The present computation routes are
-in [Computation paths](../en/computation_paths.md). This page lists entry
-points of the Julia package `Bell`.
+in [Computation paths](../en/computation_paths.md). This page is the map of
+the Julia package: which file owns which step, and which example runs it.
 
-The object of the ring is the Lie product of Dragt–Finn factors.
-Concatenate in the algebra, read the product, track a point through it.
-Linear optics is the closed form of ``\exp(:f_2:)``, stored as the matrix
-``R``. It is not a second theory of the lattice.
+The ring used for optics is the Lie product of Dragt–Finn factors.
+[`observables`](@ref) builds that product on [`magnetic_lattice`](@ref) (a thin
+cavity is dropped, a thick cavity becomes a drift of the same length) and
+reads Twiss, ``\eta``, and ``\xi`` from the factor. [`ring_taylor_map`](@ref)
+is a separate Taylor integration of the same Hamiltonian (default RK4 through
+[`element_flow`](@ref)). It is not that product. A Taylor map is symplectic
+only up to its truncation. A Lie factor applied by its flow stays symplectic
+at any truncation; the factors in the tree carry generators ``f_3`` and ``f_4``.
 
 ![The ring is one Lie factor: Hamiltonians are concatenated in the algebra; the product is read, tracked, or checked.](../assets/architecture_object.png)
 
-`observables(lat)` builds `ring_lie_factor` once and reads Twiss,
-``\eta`` and ``\xi`` from that factor. `ring_taylor_map` is an RK4
-polynomial and is not that object.
-
 ![One polynomial, three homogeneous readings: degree 1 gives Twiss and ``\eta_0``; degree 2 gives ``D_2`` and ``\eta_1``; degree 3 gives ``\xi_1``.](../assets/architecture_orders.png)
 
-## Where each algorithm is written out
+`using Bell` loads the facade. `NormalForm` is research and stays out of that
+list: `using Bell.NormalForm`. `DiffAlgebra` and `Integrators` are the same:
+`using Bell.DiffAlgebra`, `using Bell.Integrators`.
 
-| question | page |
+## Layers
+
+`src/Bell.jl` includes files along this chain. `Hamiltonians` stays after
+`LieAlgebra` (the Taylor entry of `hamiltonian` uses `Z`). `FringeMaps` stays
+after `MapReadings` (`fringe_observables` reads a map that is already built).
+`NormalForm` is included last.
+
+```
+math → core → io → physics → maps → analysis → tracking → longitudinal_models → optimizers → research
+```
+
+| layer | path | what you call |
+|:--|:--|:--|
+| math | `src/math/DiffAlgebra.jl`, `src/math/dual.jl`, `src/math/integrators/` | truncated series, `Dual` / `deriv`, ODE methods. No elements. |
+| core | `src/core/coordinates.jl`, `elements.jl`, `structure.jl`, `symplectic.jl` | `RefParticle`, element data, `Lattice`, `path_length`, `symplectic_error` |
+| io | `src/io/optim_converter.jl` | `convert_optim`: a `.opt` file to a `.bell` file |
+| physics | `src/physics/hamiltonians.jl`, `fields.jl`, `fringe.jl` | `hamiltonian`; `element_field` (comparison only); fringe types and `fringe_hamiltonian` |
+| maps | `src/maps/element_flow.jl`, `src/maps/lie/`, `src/maps/da/` | `dz/ds = S ∇H`; Lie factors; point track and DA map of that flow |
+| analysis | `src/analysis/map_readings.jl`, `sextupole_families.jl` | closed orbit, dispersion, chromaticity, compaction; sextupole families |
+| tracking | `src/tracking/state.jl`, `trackers.jl` | `ParticleState`, `Beam`, `FieldTracker`, `LieTracker`, `MapTracker` |
+| longitudinal_models | `src/longitudinal_models/smooth.jl`, `acceleration.jl` | averaged `(φ, δ)`; `accelerate` |
+| optimizers | `src/optimizers/Optimizers.jl` | `optimize` on a scalar `f(x) -> Real` |
+| research | `src/maps/lie/normal_form.jl` | `using Bell.NormalForm` |
+
+The `using` graph and the two layering exceptions are `src/README.md`.
+Plot methods are `ext/BellPlotsExt.jl`, loaded with `using Plots`.
+
+## Where a step is implemented
+
+| question | file |
 |:--|:--|
-| which Hamiltonian, matrix, polynomial map and Lie generators each element produces (with ``\delta``-dependence) | [Elements: explicit maps](elements.md) |
-| how a particle is integrated through an element and through one turn; the RF kick; how ``p_0`` is ramped | [Tracking](tracking.md) |
-| whether the longitudinal motion is truncated (it is not, in 6D tracking) | [RF & longitudinal](rf.md) |
-| how Twiss, dispersion, tunes, ``\alpha_c`` and ``\xi`` are extracted, and from which order | [Optics](optics.md) |
-| the steps of the normal form | [Normal form](normal_form.md) |
-| field profiles, edge maps and how edges are inserted | [Fringe fields](fringe.md) |
+| element s-Hamiltonian | `src/physics/hamiltonians.jl` |
+| comparison field equations `element_field` | `src/physics/fields.jl` |
+| integrate `dz/ds = S ∇H` (magnet, thick cavity, or `H(z, s)`) | `src/maps/element_flow.jl` |
+| one point, thin `rf_kick`, `renormalize` | `src/maps/da/field_track.jl` |
+| DA map of that flow | `src/maps/da/tracking.jl` |
+| Lie algebra, `R`, Lie-factor tracking, Taylor check | `src/maps/lie/lie_algebra.jl`, `linear.jl`, `tracking.jl` |
+| fringe model (no maps) | `src/physics/fringe.jl` |
+| edge maps and `fringe_observables` | `src/maps/lie/fringe_maps.jl` |
+| readings of a map already built | `src/analysis/map_readings.jl` |
+| normal form | `src/maps/lie/normal_form.jl` |
+| energy ramp | `src/longitudinal_models/acceleration.jl` |
 
-## Layout
+Write-ups of those steps, with the formulas, are the developer guide under
+`docs/src/dev/` (`architecture.md`, `maps.md`, `tracking.md`, `optics.md`,
+`rf_acceleration.md`, `fringe.md`, `normal_form.md`, `da.md`,
+`da_tracking.md`, `integrators.md`).
 
-| path | role |
-|---|---|
-| `src/coordinates.jl` | particle, reference, ``v(\delta)``, ``e(\delta)``, ``z\leftrightarrow u`` |
-| `src/elements.jl` | element types (data only) |
-| `src/structure.jl` | structure file, `Lattice`, sequence edits |
-| `src/hamiltonians.jl` | element generator ``H`` as a polynomial |
-| `src/lie_algebra.jl` | polynomial space, Poisson bracket, Dragt–Finn product |
-| `src/optim_converter.jl` | writes a structure file from OptiM ``.opt`` |
-| `src/linear.jl` | ``R=\exp(L S \mathrm{Hess}\,H)``, slice Twiss along ``s`` |
-| `src/symplectic.jl` | ``J^\mathsf{T}SJ-S`` |
-| `src/tracking.jl` | flow of each factor, thin RF kick, product of the ring |
-| `src/higher_order.jl` | closed orbit, ``D_2``, ``\eta``, chromaticity, `observables` |
-| `src/differential_algebra.jl` | independent DA map (RK4 in polynomials) — a check |
-| `src/normal_form.jl` | one-turn factor with thin RF; torus average of ``\delta`` |
-| `src/fringe.jl` | edge models (hard / soft) as thin maps chosen at build time |
-| `src/longitudinal.jl` | averaged longitudinal Hamiltonian in ``(\varphi,\delta)`` (analysis only, not used by tracking) |
-| `src/exact_integrator.jl` | unexpanded ``H``, finite cavity, renormalise |
-| `src/acceleration.jl` | ramp, tune fit |
-| `src/plotting.jl` | figures |
-| `src/optimizers.jl` | optional sextupole response |
-| `src/Bell.jl` | loads every block and re-exports |
-
-Entry: from the `Julia` folder, `using Bell`.
-
-The one-turn object used for the normal form is `one_turn_factor_rf`.
-Optics of the magnetic product without RF is `observables(lat)`.
+A magnet and a thick [`RFCavity`](@ref) are [`element_flow`](@ref). A thin
+cavity is [`rf_kick`](@ref), and `element_flow` rejects it. On numbers and on
+`TaylorN` each stage is the dual `symplectic_gradient` of `H`. On a DA jet
+the vector field is built once with `vector_field_on_identity` (`deriv` in a
+space one order above the map).
 
 ## Examples
+
+From the repository root, each teaching script is `examples/NN_*/run.jl`:
 
 ```
 julia --project=examples examples/01_reference_and_coordinates/run.jl
@@ -78,71 +98,78 @@ julia --project=examples examples/14_normal_form/run.jl
 julia --project=examples examples/15_fringe_fields/run.jl
 ```
 
-The equilibrium-momentum study lives in `C:\GIT_REPOS\SCT_2\Julia\equilibrium_energy`.
-It depends on this package via `Pkg.develop` of the `Julia` folder.
+`examples/README.md` lists the lattice each script loads and the names it
+calls. Examples 10 and 14 load `Bell.NormalForm`.
 
-## Accepted design choices
+## Conventions in the examples
 
-- Injection kinetic energy 10 MeV; final 270 MeV from the lattice header.
-- Stationary study: thin RF, ``V=0.2`` MV, ``h=5``, ``\varphi_s=\pi``.
-- Ramp demo: finite cavity ``L=1`` m, ``\varphi_s=150^\circ``.
-- Mass = CODATA deuteron ``1875.61294257`` MeV (OptiM `Mass=2*938.272` ignored).
-- Lattice sequence used once (file `Number of periods=2` is an error; bend is 360 deg).
-- Closed ``D(0)=0.011`` m (OptiM initial 0 is not the closed solution).
-- Default sextupole strengths are zero.
+- The predefined `deuteron` has rest energy `1875.61294257` MeV
+  (`src/core/coordinates.jl`).
+- Canonical `z = (x, p_x, y, p_y, l, δ)` with `l = -v Δt`. Laboratory
+  coordinates are `(x, x', y, y', φ, δ)`. The ring length is `path_length`.
+- A thin `RFCavity` is `rf_kick`. A thick cavity is `element_flow` of its
+  s-Hamiltonian and needs `path_length`.
+- The ramp in example 13 is a thin cavity, `renormalize` after each kick,
+  from 10 MeV to the kinetic energy stored on the lattice reference.
 
 ## Docs build
+
+HTML, from `docs/src`:
 
 ```
 julia --project=docs docs/make.jl
 ```
 
+This PDF:
+
+```
+julia --project=docs docs/make_pdf.jl programmer
+```
+
 Developer: Kolokolchikov Sergey Dmitrievich, sergey.bell13@gmail.com.
 
-## Fringe fields (`src/fringe.jl`)
+## Fringe fields
 
-Module `Fringe`. The lattice stays physical (an `SBend` carries `e1`, `e2`,
-`gap`, `fint`; the structure file accepts the same keys). The edge model is
-an argument of the ring construction:
+The lattice stays physical: an [`SBend`](@ref) carries `e1`, `e2`, `gap`,
+and `fint`. The edge model is an argument of the ring construction.
+
+Types, profiles, [`fringe_hamiltonian`](@ref), [`fringe_sequence`](@ref), and
+[`FringeModel`](@ref) live in `src/physics/fringe.jl` (`Fringe`). That module
+does not build maps. [`edge_map`](@ref), the edge-map cache,
+[`build_factors`](@ref) with a model, [`ring_lie_factor`](@ref) with a model,
+and [`fringe_observables`](@ref) live in `src/maps/lie/fringe_maps.jl`
+(`FringeMaps`).
 
 ```julia
 model = FringeModel(dipole = SoftEdge(profile = Enge(gap = 0.05),
                                       method  = Splitting(n = 20, order = 4)),
                     quad = HardEdge(order = 2), sext = NoEdge(),
                     override = Dict("BM" => HardEdge(order = 2)))
-F   = ring_lie_factor(lat, model)      # one-turn LieFactor with edges
-obs = fringe_observables(lat, model)   # Qx, Qy, xi, symplecticity, time
+F   = ring_lie_factor(lat, model)
+obs = fringe_observables(lat, model)
 ```
 
-`FringeModel()` (all `NoEdge`) returns the element list unchanged, so the
-result is identical to `ring_lie_factor(lat)`.
+`FringeModel()` (all `NoEdge`) leaves the element list unchanged, so the
+result matches `ring_lie_factor(lat)`.
 
 | type | role |
-|---|---|
-| `EdgeModel` | `NoEdge`, `HardEdge(order, gap, fint)`, `SoftEdge(profile, method)` |
+|:--|:--|
+| `EdgeModel` | `NoEdge`, `HardEdge(order; gap, fint)`, `SoftEdge(profile, method)` |
 | `FringeProfile` | `Enge(coeffs; gap)`, `Tanh(lambda)`, `LinearRamp(width)`, `Tabulated(z, B)` |
 | `FringeMethod` | `Splitting(n, order)`, `Magnus(n, order)`, `TaylorIntegrate(tol)` |
-| `FringeModel` | model per family (`dipole`, `quad`, `sext`) and per element name (`override`) |
+| `FringeModel` | one model per family (`dipole`, `quad`, `sext`) and per name (`override`) |
 | `EdgeMap` | thin item `(name, parent, side, model)` placed around the parent |
 
-Flow:
+`edge_map` is cached by parent, side, model key, and the full `RefParticle`.
+The model key is `repr(model)`; a `Tabulated` profile also stores its
+samples. `TaylorIntegrate` calls [`element_flow`](@ref) on the s-dependent
+fringe Hamiltonian with RK4. `Splitting` and `Magnus` stay products of Lie
+maps.
 
-1. `fringe_sequence(lat, model)`: every magnet with a model other than
-   `NoEdge` becomes `EdgeMap(:in)`, element, `EdgeMap(:out)`.
-2. `edge_map(E, ref)`: polynomial map of an edge (cached by parent, side,
-   model, momentum). Hard edges are `lie_map(K, 1)` of a generator.
-   Soft edges: `profile_function` gives ``F`` with the EFB at 0 (equal area)
-   and the half-width ``W``; the method integrates the region; the result
-   is wrapped as `Body(-W) o Soft o Drift(-W)` (entrance) or
-   `Drift(-W) o Soft o Body(-W)` (exit) so neighbouring elements keep
-   their lengths.
-3. `build_factors(lat, model)`: Dragt–Finn factor of every element and
-   every edge; `ring_lie_factor(lat, model)` multiplies them.
+A new profile implements `_raw` and `_halfwidth` in `src/physics/fringe.jl`.
+A new integration method implements `_soft` in `src/maps/lie/fringe_maps.jl`.
+A new edge model implements `edge_map` there. The body Hamiltonian stays in
+`src/physics/hamiltonians.jl` and is used in the soft-edge wrapper only as
+`Body(-W)`.
 
-The body Hamiltonians in `hamiltonians.jl` are not used for the fringe
-region except as `Body(-W)` in the wrapper. New profiles need `_raw(p, z)`
-and `_halfwidth(p)`; new methods need `_soft(E::_Edge, m, ref)`; new edge
-models need a method of `edge_map`.
-
-Example: `examples/15_fringe_fields/run.jl` runs every model, the
-``g\to 0`` limit, the convergence in ``n`` and the symplecticity check.
+Example: `examples/15_fringe_fields/run.jl`.

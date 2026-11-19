@@ -22,6 +22,12 @@ Modules = [Bell.Hamiltonians]
 Modules = [Bell.Fields]
 ```
 
+## `ElementFlow`
+
+```@autodocs
+Modules = [Bell.ElementFlow]
+```
+
 ## `Symplectic`
 
 ```@autodocs
