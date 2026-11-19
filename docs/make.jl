@@ -2,7 +2,7 @@ using Documenter
 using Bell
 using Plots # loads BellPlotsExt so plot_* methods exist while docs are built
 
-# HTML site: docs/src (Documenter). PDF manuals: docs/manual via docs/make_pdf.jl.
+# HTML site: docs/src (Documenter). PDF manuals: docs/manual/{en,ru,programmer} via docs/make_pdf.jl.
 const PAGES = [
     "Home" => "index.md",
     "Physics Reference" => "physics.md",

@@ -32,4 +32,4 @@ to first order:
 Twiss and dispersion propagated in slices close after one turn to machine
 precision.
 
-![Closed beta functions, horizontal dispersion and magnet layout.](assets/magnetic_2_twiss.png)
+![Closed beta functions, horizontal dispersion and magnet layout.](../assets/magnetic_2_twiss.png)

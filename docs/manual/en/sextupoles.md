@@ -14,4 +14,4 @@ chosen to null ``\xi_x,\xi_y`` and optionally ``\alpha_1`` or rms ``D_2``; that
 choice is an optimisation problem, not part of the lattice model. The natural
 lattice has vanishing sextupole strengths.
 
-![Tunes versus ``\delta`` after chromaticity correction.](assets/chromaticity_corrected.png)
+![Tunes versus ``\delta`` after chromaticity correction.](../assets/chromaticity_corrected.png)

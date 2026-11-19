@@ -6,7 +6,7 @@ order of the gap. The fringe region is described by separate thin maps at
 the entrance and the exit of the magnet; the body map is unchanged. The
 lattice keeps the physical description of the magnet: length, bending
 angle, pole-face angles ``e_1, e_2``, full gap ``g`` and fringe integral
-``K = \mathrm{FINT}``. The edge model is chosen when the ring map is formed.
+``K``. The edge model is chosen when the ring map is formed.
 
 ## Hard edge, linear order
 
@@ -169,5 +169,6 @@ taken as averages over the slice or step, which keeps ``\int F'`` and
   not modelled.
 
 
-!!! note "Metric term `h\,b_1`"
-    In the curved frame the force carries the factor `(1+hx)`, so the gradient term contributes `h b_1 x^2` (horizontal) and `h b_1 xy` (vertical). Since `\int h b_1\,ds = -\tfrac12\int b_2\,ds` (`\theta' = h_0F`), the horizontal sextupole-like term of the straight EFB cancels and the vertical one is `b_2/2`. Without this term (before Oct 2026) SoftEdge differed from COSY FR 3 by `\Delta\xi_x \approx -2.9\cdot10^{-3}`, `\Delta\xi_y \approx +1.0\cdot10^{-3}` at a 10 cm gap; with it the single-dipole second-order map agrees with COSY to `10^{-9}`.
+## Curved-frame metric
+
+In the curved frame the force carries the factor ``(1+hx)``, so the gradient term contributes ``h b_1 x^2`` (horizontal) and ``h b_1 xy`` (vertical). Since ``\int h b_1\,\mathrm{d}s = -\tfrac12\int b_2\,\mathrm{d}s`` (``\theta' = h_0 F``), the horizontal sextupole-like term of the straight effective field boundary cancels and the vertical one is ``b_2/2``. The body-plus-fringe Hamiltonian keeps this metric term so that cancellation is part of the model, not an extra correction applied afterwards.

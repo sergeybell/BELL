@@ -105,7 +105,7 @@ def fig_object():
     elbow(ax, 9.95, 4.80, 6.075, 3.08)
     elbow(ax, 9.95, 4.80, 10.05, 3.08, color=CHECK, lw=1.05)
 
-    T(ax, 6.1, 0.55, "MaryLie: concatenate in the algebra; analyse the product; track a point through it.",
+    T(ax, 6.1, 0.55, "Concatenate in the algebra; read the product; track a point through it.",
       size=8, color=SLATE)
 
     fig.tight_layout(pad=0.2)
