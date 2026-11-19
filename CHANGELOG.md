@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Examples 10–19 load `examples/lattices/magnetic_2.bell` or `fodo.bell` and the current public names (`path_length`, `laboratory_to_canonical`, `canonical_to_laboratory`, `laboratory_map`, `RFCavity`). Examples 10 and 18 load `Bell.NormalForm`. Comparison tables are no longer part of the examples; example 16 is a thin-RF longitudinal demo. ([#56])
 - Root `README.md` and `AGENTS.md` state that magnets and a thick RF cavity are integrated from `H`, and that a thin cavity stays `rf_kick` (no drift/kick/drift as the production path). ([#48])
 - Public docstrings in `src/` follow the settled model: magnets and a thick `RFCavity` integrate `dz/ds = S ∇H`, a thin cavity is `rf_kick`, and the field equations stay the comparison formulation. Coordinate notes state `p_x = P_x/p_0`, `δ = Δp/p_0`, and `l = -v Δt`. Version tags and retired paths are gone from those comments. ([#46], [#44])
 - `Bell.jl` includes files along math → core → io → physics → maps → analysis → tracking → longitudinal models → optimizers → research, except `Hamiltonians` after `LieAlgebra` and `FringeMaps` after `MapReadings`. `clear_caches!` is a registry in `core/caches.jl`; the facade registers the map caches when it loads. `dispersion_along` carries an RF cavity as a drift by method. The `MapReadings` header states which readings build a map. ([#45], [#43])
@@ -48,6 +49,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
+- `examples/Bell_examples.ipynb`, `examples/_make_notebook.py`, and `examples/common/reference_values.jl`. ([#56])
 - `NormalForm.evaluate_map` had no callers. The unused `_conj` helper is gone. `delta_on_torus` remains only as an error that points at `delta_eq_phase_condition`. ([#45], [#43])
 - Unused `StructureFile`. ([#33], [#29])
 - `hamiltonian_vector_field` had no callers and was removed. `da_symplectic_error` remains. ([#33], [#29])
@@ -333,3 +335,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [#46]: https://github.com/sergeybell/BELL/pull/46
 [#47]: https://github.com/sergeybell/BELL/issues/47
 [#48]: https://github.com/sergeybell/BELL/pull/48
+[#56]: https://github.com/sergeybell/BELL/pull/56

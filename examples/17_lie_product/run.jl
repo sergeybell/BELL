@@ -17,12 +17,13 @@ maperr(A, B) = maximum(err(a, b) for (a, b) in zip(A, B))
 
 banner("Lie product of Dragt-Finn factors to degree 4")
 
-ref = reference_from_kinetic(DEUTERON, 270.0)
-d  = Drift("D", 2.0)
-qf = Quadrupole("QF", 0.4,  0.3)
-qd = Quadrupole("QD", 0.4, -0.3)
-sx = Sextupole("SX", 0.2,  8.0)
-sb = SBend("B", 1.5, 0.05 * 1.5, 0.0)
+lat = load_structure(joinpath(@__DIR__, "..", "lattices", "fodo.bell"))
+ref = lat.ref
+d  = first(e for e in lat.elements if e isa Drift)
+qf = first(e for e in lat.elements if e isa Quadrupole && e.k1 > 0)
+qd = first(e for e in lat.elements if e isa Quadrupole && e.k1 < 0)
+sb = first(e for e in lat.elements if e isa SBend)
+sx = Sextupole("SX", 0.2, 8.0)   # not in fodo.bell; supplies the cubic generator
 
 function factor_of(e)
     M = lie_map(hamiltonian(e, ref), elem_length(e))

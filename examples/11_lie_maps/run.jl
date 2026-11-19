@@ -10,14 +10,12 @@
 using Bell, Printf, LinearAlgebra, TaylorSeries
 
 include(joinpath(@__DIR__, "..", "common", "print_util.jl"))
-include(joinpath(@__DIR__, "..", "common", "reference_values.jl"))
 
 banner("2nd-order Lie maps, symplectic tracking, Taylor-map check")
 
-of = convert_optim(OPTIM_FILE, STRUCTURE_FILE)
-lat = load_structure(STRUCTURE_FILE)
+lat = load_structure(joinpath(@__DIR__, "..", "lattices", "magnetic_2.bell"))
 ref = lat.ref
-C = circumference(lat)
+C = path_length(lat)
 hRF = lat.harmonic
 z_amp = [3e-3, 2e-4, 2e-3, 2e-4, 1e-3, 2e-3]
 
@@ -96,9 +94,9 @@ po = periodic_optics(R, ref, C)
 @printf("                        xi_x = %.6f   xi_y = %.6f   (Lie product map)\n", xil[1], xil[2])
 @printf("  alpha_0 = %.8f (linear optics: %.8f)   alpha_1 = %.6f\n", a0, po.alpha_c, a1)
 
-U = user_map(Mtm, ref, C, hRF)
+U = laboratory_map(Mtm, ref, C, hRF)
 println()
-println("  selected one-turn coefficients in USER coordinates (x, x', y, y', phi, delta), h = $hRF:")
+println("  selected one-turn coefficients in laboratory coordinates (x, x', y, y', phi, delta), h = $hRF:")
 for (i, ex, lab) in [(5, [0,0,0,0,0,1], "(phi|delta)"),
                      (5, [0,0,0,0,0,2], "(phi|delta^2)"),
                      (5, [2,0,0,0,0,0], "(phi|x^2)"),
@@ -117,8 +115,8 @@ section("4. Tracking",
         "Factor-by-factor symplectic tracking (implicit midpoint per factor).")
 
 u0 = [2e-3, 0.0, 1e-3, 0.0, 0.0, 1e-3]
-z0 = user_to_canonical(u0, ref, C, hRF)
-println("  start (user) x=2 mm, y=1 mm, delta=1e-3  -> canonical ", round.(z0, sigdigits = 6))
+z0 = laboratory_to_canonical(u0, ref, C, hRF)
+println("  start (laboratory) x=2 mm, y=1 mm, delta=1e-3  -> canonical ", round.(z0, sigdigits = 6))
 
 z1 = track(factors, z0)
 z1tm = [evaluate(m, z0) for m in Mtm]
@@ -153,16 +151,6 @@ println()
         sum(jy) / 1000, (maximum(jy) - minimum(jy)) / (sum(jy) / 1000))
 println("  (spread is due to the nonlinear (2nd-order) terms and d-dependence of Twiss, not to loss of symplecticity)")
 @printf("  final delta = %.15e (must equal start %.15e: magnetic lattice)\n", w[6], z0[6])
-
-
-section("5. Comparison with COSY output numbers")
-
-@printf("  %-12s %14s %14s %12s  %s\n", "quantity", "Bell", "COSY", "diff", "source")
-for (n, a, (b, src)) in [("xi_x", xi[1], COSY_REF.chrom_x),
-                         ("xi_y", xi[2], COSY_REF.chrom_y),
-                         ("alpha_0", a0, COSY_REF.alpha0)]
-    @printf("  %-12s %14.8f %14.8f %12.3e  %s\n", n, a, b, a - b, src)
-end
 
 println()
 println("Done.")

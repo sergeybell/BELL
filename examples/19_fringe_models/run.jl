@@ -132,7 +132,7 @@ for (ml, _) in methods
     local o = results["Soft Enge(gap=50 mm) / " * ml]
     @printf("  %-28s xi_y = %.8f   diff to Splitting(128,4) = %.2e\n", ml, o.xiy, o.xiy - refo.xiy)
 end
-note("TaylorIntegrate (RK4 on the DA vector field) is not symplectic by construction;")
+note("TaylorIntegrate (RK4 of element_flow on the fringe Hamiltonian) is not symplectic by construction;")
 note("its symp(z0) column above shows the size of that defect.")
 
 # ---------------------------------------------------------------------------
